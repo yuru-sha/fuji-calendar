@@ -152,6 +152,35 @@
   margin-bottom: 1rem;
 }
 
+.eventScheduleButton {
+  margin-left: auto;
+  padding: 4px 8px;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  background: white;
+  color: #6c757d;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.eventScheduleButton:hover {
+  background-color: #f8f9fa;
+  border-color: #dee2e6;
+}
+
+.eventScheduleButton.scheduled {
+  background-color: #d1ecf1;
+  border-color: #bee5eb;
+  color: #0c5460;
+}
+
+.eventScheduleButton.unscheduled {
+  background-color: white;
+  border-color: #e9ecef;
+  color: #6c757d;
+}
+
 .eventIcon {
   font-size: 1.5rem;
 }
@@ -180,6 +209,27 @@
   gap: 0.5rem;
   margin-bottom: 1rem;
   flex-wrap: wrap;
+}
+
+.locationFavoriteButton {
+  margin-left: 0.5rem;
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.locationFavoriteButton:hover {
+  transform: scale(1.1);
+}
+
+.locationFavoriteButton.favorited {
+  color: #ffc107;
+}
+
+.locationFavoriteButton.unfavorited {
+  color: #dee2e6;
 }
 
 .locationIcon {

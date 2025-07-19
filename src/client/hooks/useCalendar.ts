@@ -9,6 +9,7 @@ export interface UseCalendarState {
   bestShotDays: FujiEvent[];
   locations: Location[];
   loading: boolean;
+  upcomingEventsLoaded: boolean;
   error: string | null;
 }
 
@@ -30,6 +31,7 @@ export function useCalendar(): UseCalendarState & UseCalendarActions {
     bestShotDays: [],
     locations: [],
     loading: false,
+    upcomingEventsLoaded: false,
     error: null,
   });
 
@@ -84,7 +86,7 @@ export function useCalendar(): UseCalendarState & UseCalendarActions {
       setError(null);
       
       const result = await apiClient.getUpcomingEvents(limit);
-      setState(prev => ({ ...prev, upcomingEvents: result.events }));
+      setState(prev => ({ ...prev, upcomingEvents: result.events, upcomingEventsLoaded: true }));
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       setError(`今後のイベントの読み込みに失敗しました: ${errorMessage}`);
@@ -132,7 +134,8 @@ export function useCalendar(): UseCalendarState & UseCalendarActions {
   useEffect(() => {
     loadMonthlyCalendar(currentYear, currentMonth);
     loadLocations();
-  }, [currentYear, currentMonth, loadMonthlyCalendar, loadLocations]);
+    loadUpcomingEvents();
+  }, [currentYear, currentMonth, loadMonthlyCalendar, loadLocations, loadUpcomingEvents]);
 
   return {
     ...state,

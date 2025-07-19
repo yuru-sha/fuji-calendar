@@ -19,7 +19,8 @@
     "benchmark:cache": "node scripts/cache-benchmark.js",
     "debug:pearl": "node scripts/debug-pearl-fuji.js",
     "test:cache": "node scripts/test-cache-consistency.js",
-    "clear:pearl": "node scripts/clear-pearl-cache.js"
+    "clear:pearl": "node scripts/clear-pearl-cache.js",
+    "analyze:performance": "node scripts/performance-analysis.js"
   },
   "keywords": [
     "fuji",

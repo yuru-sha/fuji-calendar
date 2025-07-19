@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import Calendar from '../components/Calendar';
 import EventDetail from '../components/EventDetail';
 import MapView from '../components/MapView';
+import FavoritesDebug from '../components/FavoritesDebug';
 import { useCalendar } from '../hooks/useCalendar';
-import { FujiEvent } from '../../shared/types';
+import { useFavorites } from '../hooks/useFavorites';
+import { FujiEvent, FavoriteEvent } from '../../shared/types';
 import { timeUtils } from '../../shared/utils/timeUtils';
 import styles from './HomePage.module.css';
 import diamondFujiIcon from '../assets/icons/diamond_fuji.png';
@@ -16,11 +18,25 @@ const HomePage: React.FC = () => {
     upcomingEvents,
     locations,
     loading,
+    upcomingEventsLoaded,
     error,
     loadDayEvents,
     clearError,
     setCurrentDate
   } = useCalendar();
+
+  const {
+    upcomingFavoriteEvents,
+    stats: favoriteStats,
+    addLocationToFavorites
+  } = useFavorites();
+
+  // デバッグ情報をコンソールに出力
+  React.useEffect(() => {
+    console.log('[DEBUG] HomePage - Favorite stats:', favoriteStats);
+    console.log('[DEBUG] HomePage - Upcoming favorite events:', upcomingFavoriteEvents);
+    console.log('[DEBUG] HomePage - LocalStorage content:', localStorage.getItem('fuji-calendar-favorites'));
+  }, [favoriteStats, upcomingFavoriteEvents]);
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<FujiEvent | null>(null);
@@ -62,6 +78,84 @@ const HomePage: React.FC = () => {
     setSelectedEvent(null);
   };
 
+  const handleFavoriteEventClick = async (favoriteEvent: FavoriteEvent) => {
+    // お気に入りイベントの日付を取得
+    const eventDate = new Date(favoriteEvent.time);
+    
+    // その年月のカレンダーに移動
+    const year = eventDate.getFullYear();
+    const month = eventDate.getMonth() + 1;
+    
+    if (calendarData?.year !== year || calendarData?.month !== month) {
+      // 別の月なら月を変更
+      setCurrentDate(year, month);
+    }
+    
+    // 日付を選択して詳細を表示
+    setSelectedDate(eventDate);
+    const dateString = timeUtils.formatDateString(eventDate);
+    await loadDayEvents(dateString);
+    
+    // 詳細エリアにスクロール
+    setTimeout(() => {
+      const detailArea = document.querySelector(`.${styles.detailArea}`) as HTMLElement;
+      if (detailArea) {
+        detailArea.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
+      }
+    }, 100);
+  };
+
+  // デバッグ用関数
+  const handleDebugLocalStorage = () => {
+    console.log('[DEBUG] === Local Storage Debug ===');
+    
+    // ローカルストレージの基本チェック
+    console.log('[DEBUG] localStorage available:', typeof Storage !== 'undefined' && !!localStorage);
+    
+    try {
+      // テスト書き込み・読み込み
+      localStorage.setItem('test-key', 'test-value');
+      const testValue = localStorage.getItem('test-key');
+      console.log('[DEBUG] localStorage test read/write:', testValue === 'test-value' ? 'OK' : 'FAILED');
+      localStorage.removeItem('test-key');
+      
+      // 実際のお気に入りデータ
+      const data = localStorage.getItem('fuji-calendar-favorites');
+      console.log('[DEBUG] fuji-calendar-favorites key exists:', !!data);
+      console.log('[DEBUG] Current localStorage data:', data);
+      
+      if (data) {
+        try {
+          const parsed = JSON.parse(data);
+          console.log('[DEBUG] Parsed localStorage data:', parsed);
+        } catch (e) {
+          console.log('[DEBUG] Failed to parse localStorage data:', e);
+        }
+      }
+      
+      // ローカルストレージの全キー
+      console.log('[DEBUG] All localStorage keys:', Object.keys(localStorage));
+      
+    } catch (e) {
+      console.log('[DEBUG] localStorage access error:', e);
+    }
+    
+    console.log('[DEBUG] === End Debug ===');
+  };
+
+  const handleTestAddFavorite = () => {
+    if (locations.length > 0) {
+      const testLocation = locations[0];
+      console.log('[DEBUG] Adding test location to favorites:', testLocation);
+      
+      const result = addLocationToFavorites(testLocation);
+      console.log('[DEBUG] Add result:', result);
+    }
+  };
+
 
   const formatUpcomingEvent = (event: FujiEvent): string => {
     const eventType = event.type === 'diamond' ? 'ダイヤモンド富士' : 'パール富士';
@@ -75,6 +169,7 @@ const HomePage: React.FC = () => {
 
   return (
     <div className={styles.homePage}>
+      <FavoritesDebug />
       {/* ヘッダーセクション */}
       <div className="card">
         <h2 className="card-title">ダイヤモンド富士・パール富士カレンダー</h2>
@@ -141,7 +236,9 @@ const HomePage: React.FC = () => {
           {/* 今後のイベント */}
           <div className="card">
             <h3 className="card-title">今後のイベント</h3>
-            {upcomingEvents.length > 0 ? (
+            {!upcomingEventsLoaded ? (
+              <p>今後のイベントを読み込み中...</p>
+            ) : upcomingEvents.length > 0 ? (
               <div className={styles.upcomingEvents}>
                 {upcomingEvents.slice(0, 5).map((event, index) => (
                   <div key={event.id || index} className={styles.upcomingEvent}>
@@ -177,7 +274,7 @@ const HomePage: React.FC = () => {
                 )}
               </div>
             ) : (
-              <p>今後のイベントを読み込み中...</p>
+              <p>今後30日間のイベントはありません。秋から冬にかけてがダイヤモンド富士のシーズンです。</p>
             )}
           </div>
 
@@ -196,6 +293,75 @@ const HomePage: React.FC = () => {
                 <span className={styles.statLabel}>都道府県</span>
               </div>
             </div>
+          </div>
+
+          {/* お気に入り */}
+          <div className="card">
+            <h3 className="card-title">お気に入り</h3>
+            
+            {/* デバッグボタン（開発用）*/}
+            <div style={{ marginBottom: '10px', fontSize: '12px' }}>
+              <button onClick={handleDebugLocalStorage} style={{ marginRight: '5px', fontSize: '10px' }}>
+                LS確認
+              </button>
+              <button onClick={handleTestAddFavorite} style={{ fontSize: '10px' }}>
+                テスト追加
+              </button>
+            </div>
+            
+            <div className={styles.favoriteStats}>
+              <div className={styles.statItem}>
+                <span className={styles.statNumber}>{favoriteStats.totalLocations}</span>
+                <span className={styles.statLabel}>地点</span>
+              </div>
+              <div className={styles.statItem}>
+                <span className={styles.statNumber}>{favoriteStats.upcomingEvents}</span>
+                <span className={styles.statLabel}>今後のイベント</span>
+              </div>
+            </div>
+            
+            {upcomingFavoriteEvents.length > 0 && (
+              <div className={styles.favoriteEvents}>
+                <h4 className={styles.favoriteEventsTitle}>今後のお気に入りイベント</h4>
+                {upcomingFavoriteEvents.slice(0, 3).map((event, index) => (
+                  <div 
+                    key={event.id} 
+                    className={styles.favoriteEvent}
+                    onClick={() => handleFavoriteEventClick(event)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        handleFavoriteEventClick(event);
+                      }
+                    }}
+                  >
+                    <div className={styles.favoriteEventIcon}>
+                      {event.type === 'diamond' 
+                        ? <img src={diamondFujiIcon} alt="ダイヤモンド富士" className={styles.eventIconImg} />
+                        : <img src={pearlFujiIcon} alt="パール富士" className={styles.eventIconImg} />
+                      }
+                    </div>
+                    <div className={styles.favoriteEventInfo}>
+                      <div className={styles.favoriteEventDate}>
+                        {new Date(event.time).toLocaleDateString('ja-JP', {
+                          month: 'short',
+                          day: 'numeric'
+                        })}
+                      </div>
+                      <div className={styles.favoriteEventLocation}>
+                        {event.locationName}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {upcomingFavoriteEvents.length > 3 && (
+                  <p className={styles.moreFavorites}>
+                    他 {upcomingFavoriteEvents.length - 3} 件のお気に入り
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

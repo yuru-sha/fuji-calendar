@@ -85,8 +85,8 @@ app.get('/api/health', (req, res) => {
 
 // API ルート
 app.get('/api/calendar/:year/:month', calendarController.getMonthlyCalendar.bind(calendarController));
-app.get('/api/events/:date', calendarController.getDayEvents.bind(calendarController));
 app.get('/api/events/upcoming', calendarController.getUpcomingEvents.bind(calendarController));
+app.get('/api/events/:date', calendarController.getDayEvents.bind(calendarController));
 app.get('/api/calendar/:year/:month/best', calendarController.getBestShotDays.bind(calendarController));
 app.post('/api/calendar/suggest', calendarController.getSuggestedPlan.bind(calendarController));
 app.get('/api/calendar/location/:locationId/:year', calendarController.getLocationYearlyEvents.bind(calendarController));

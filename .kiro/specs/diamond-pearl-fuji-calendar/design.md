@@ -33,7 +33,7 @@ graph TB
 
 ## コンポーネントとインターフェース
 
-### フロントエンドコンポーネント
+### フロントエンドコンポーネント（実装済み）
 
 #### 1. カレンダーコンポーネント
 ```typescript
@@ -44,71 +44,109 @@ interface CalendarProps {
   onDateClick: (date: Date) => void;
   onMonthChange: (year: number, month: number) => void;
 }
-
-interface CalendarEvent {
-  date: Date;
-  type: 'diamond' | 'pearl' | 'both';
-  events: FujiEvent[];
-}
 ```
 
 #### 2. 日付詳細コンポーネント
 ```typescript
-interface DateDetailProps {
+interface EventDetailProps {
   date: Date;
   events: FujiEvent[];
-  onMapClick: (event: FujiEvent) => void;
-}
-
-interface FujiEvent {
-  id: string;
-  type: 'diamond' | 'pearl';
-  subType: 'rising' | 'setting';
-  time: Date;
-  location: Location;
-  azimuth: number;
-  elevation?: number;
+  weather?: WeatherInfo; // 実装済み（模擬データ）
+  onMapClick?: (event: FujiEvent) => void;
 }
 ```
 
-#### 3. 地図コンポーネント
+#### 3. 地図コンポーネント（Leaflet実装済み）
 ```typescript
-interface MapProps {
-  center: [number, number];
+interface MapViewProps {
+  center?: [number, number];
+  zoom?: number;
   locations: Location[];
-  fujiPosition: [number, number];
-  showDirection: boolean;
+  events?: FujiEvent[];
   onLocationClick?: (location: Location) => void;
 }
 ```
 
-### バックエンドAPI
-
-#### 1. カレンダーAPI
+#### 4. 管理画面コンポーネント（実装済み）
 ```typescript
-// GET /api/calendar/:year/:month
-interface CalendarResponse {
-  year: number;
-  month: number;
-  events: CalendarEvent[];
+interface AdminPageProps {
+  // 認証、地点管理、地図クリック機能を含む
 }
 
-// GET /api/events/:date
-interface EventsResponse {
-  date: string;
-  events: FujiEvent[];
-  weather?: WeatherInfo;
+interface LocationPickerProps {
+  onLocationSelect: (lat: number, lng: number, elevation: number) => void;
+  initialLat?: number;
+  initialLng?: number;
 }
 ```
 
-#### 2. 撮影地点API
+### 未実装機能
+
+#### 1. お気に入り機能（要件5）
 ```typescript
-// GET /api/locations
-interface LocationsResponse {
-  locations: Location[];
+// 未実装 - 今後の実装予定
+interface FavoriteService {
+  addFavorite(date: Date): Promise<void>;
+  getFavorites(): Promise<Date[]>;
+  removeFavorite(date: Date): Promise<void>;
 }
 
-// POST /api/admin/locations (認証必要)
+interface NotificationService {
+  notifyUpcomingFavorites(): Promise<void>; // 未実装
+}
+```
+
+#### 2. 撮影地点リクエスト機能（要件7）
+```typescript
+// バックエンドは実装済み、フロントエンドUIが未実装
+interface LocationRequestForm {
+  name: string;
+  prefecture: string;
+  description: string;
+  captchaToken: string; // キャプチャ機能未実装
+}
+```
+
+### バックエンドAPI（実装済み）
+
+#### 1. カレンダーAPI
+```typescript
+// GET /api/calendar/:year/:month（実装済み + キャッシュ対応）
+interface CalendarResponse {
+  success: boolean;
+  data: {
+    year: number;
+    month: number;
+    events: CalendarEvent[];
+  };
+  meta: {
+    cacheHit: boolean;
+    responseTimeMs: number;
+  };
+}
+
+// GET /api/events/:date（実装済み + キャッシュ対応）
+interface EventsResponse {
+  success: boolean;
+  data: {
+    date: string;
+    events: FujiEvent[];
+    weather?: WeatherInfo; // 模擬実装
+  };
+  meta: {
+    cacheHit: boolean;
+    responseTimeMs: number;
+  };
+}
+```
+
+#### 2. 撮影地点API（実装済み）
+```typescript
+// GET /api/locations（実装済み）
+// POST /api/admin/locations（実装済み + 自動キュー追加）
+// PUT /api/admin/locations/:id（実装済み）
+// DELETE /api/admin/locations/:id（実装済み）
+
 interface CreateLocationRequest {
   name: string;
   prefecture: string;
@@ -118,22 +156,41 @@ interface CreateLocationRequest {
   description?: string;
   accessInfo?: string;
   warnings?: string;
+  // 事前計算値は自動生成
 }
 ```
 
-#### 3. リクエストAPI
+#### 3. 認証API（実装済み）
 ```typescript
-// POST /api/location-requests
-interface LocationRequestBody {
-  name: string;
-  prefecture: string;
-  description: string;
-  suggestedCoordinates?: {
-    latitude: number;
-    longitude: number;
-  };
-  captchaToken: string;
-}
+// POST /api/admin/login（実装済み）
+// POST /api/admin/logout（実装済み）
+// JWT + bcrypt認証
+```
+
+#### 4. 管理者API（実装済み）
+```typescript
+// GET /api/admin/cache/stats（実装済み）
+// DELETE /api/admin/cache（実装済み）
+// POST /api/admin/cache/pregenerate（実装済み）
+// GET /api/admin/queue/stats（実装済み）
+// POST /api/admin/queue/calculate（実装済み）
+```
+
+### 未実装API
+
+#### 1. お気に入りAPI（未実装）
+```typescript
+// 未実装 - 今後の実装予定
+// GET /api/favorites
+// POST /api/favorites
+// DELETE /api/favorites/:date
+```
+
+#### 2. 撮影地点リクエストAPI（部分実装）
+```typescript
+// バックエンドロジックは実装済み、フロントエンドUIが未実装
+// POST /api/location-requests（実装済み）
+// キャプチャ機能は未実装
 ```
 
 ## データモデル

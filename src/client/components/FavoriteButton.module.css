@@ -1,0 +1,126 @@
+.favoriteButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  position: relative;
+  padding: 4px;
+}
+
+.favoriteButton:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.favoriteButton:active {
+  transform: scale(0.95);
+}
+
+.favoriteButton.disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.favoriteButton.disabled:hover {
+  background-color: transparent;
+}
+
+/* サイズ設定 */
+.small {
+  width: 24px;
+  height: 24px;
+}
+
+.small .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.medium {
+  width: 32px;
+  height: 32px;
+}
+
+.medium .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.large {
+  width: 40px;
+  height: 40px;
+}
+
+.large .icon {
+  width: 24px;
+  height: 24px;
+}
+
+/* お気に入り状態のスタイル */
+.unfavorited {
+  color: #6b7280;
+}
+
+.unfavorited:hover {
+  color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.05);
+}
+
+.favorited {
+  color: #ef4444;
+}
+
+.favorited:hover {
+  color: #dc2626;
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+.favorited .icon {
+  animation: favoriteAdded 0.3s ease;
+}
+
+@keyframes favoriteAdded {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* アイコン */
+.icon {
+  transition: all 0.2s ease;
+}
+
+/* フォーカス状態 */
+.favoriteButton:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+}
+
+/* ダークモード対応 */
+@media (prefers-color-scheme: dark) {
+  .favoriteButton:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  .unfavorited {
+    color: #9ca3af;
+  }
+  
+  .unfavorited:hover {
+    color: #ef4444;
+    background-color: rgba(239, 68, 68, 0.1);
+  }
+  
+  .favorited:hover {
+    background-color: rgba(239, 68, 68, 0.2);
+  }
+}

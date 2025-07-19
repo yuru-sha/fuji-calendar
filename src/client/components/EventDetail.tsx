@@ -1,6 +1,9 @@
 import React from 'react';
 import { FujiEvent, WeatherInfo } from '../../shared/types';
 import { timeUtils } from '../../shared/utils/timeUtils';
+import { useFavorites } from '../hooks/useFavorites';
+import FavoriteButton from './FavoriteButton';
+import LocationFavoriteButton from './LocationFavoriteButton';
 import styles from './EventDetail.module.css';
 import diamondFujiIcon from '../assets/icons/diamond_fuji.png';
 import pearlFujiIcon from '../assets/icons/pearl_fuji.png';
@@ -18,6 +21,7 @@ const EventDetail: React.FC<EventDetailProps> = ({
   weather,
   onMapClick
 }) => {
+  const { isEventFavorite, toggleEventFavorite, isLocationFavorite, toggleLocationFavorite } = useFavorites();
   const formatTime = (time: Date): string => {
     return timeUtils.formatJstTime(time);
   };
@@ -164,6 +168,13 @@ const EventDetail: React.FC<EventDetailProps> = ({
                   <span className={styles.eventTime}>
                     {formatTime(event.time)}頃
                   </span>
+                  <button
+                    className={`${styles.eventScheduleButton} ${isEventFavorite(event.id) ? styles.scheduled : styles.unscheduled}`}
+                    onClick={() => toggleEventFavorite(event)}
+                    title={isEventFavorite(event.id) ? '撮影予定から削除' : '撮影予定に追加'}
+                  >
+                    {isEventFavorite(event.id) ? '📅 予定済み' : '📅 予定に追加'}
+                  </button>
                 </div>
 
                 <div className={styles.eventLocation}>
@@ -171,6 +182,13 @@ const EventDetail: React.FC<EventDetailProps> = ({
                   <span className={styles.locationText}>
                     {event.location.prefecture}・{event.location.name}
                   </span>
+                  <button
+                    className={`${styles.locationFavoriteButton} ${isLocationFavorite(event.location.id) ? styles.favorited : styles.unfavorited}`}
+                    onClick={() => toggleLocationFavorite(event.location)}
+                    title={isLocationFavorite(event.location.id) ? 'お気に入り地点から削除' : 'お気に入り地点に追加'}
+                  >
+                    {isLocationFavorite(event.location.id) ? '⭐' : '☆'}
+                  </button>
                   <div className={styles.mapButtons}>
                     {onMapClick && (
                       <button 

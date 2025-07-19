@@ -264,3 +264,46 @@ export const FUJI_COORDINATES = {
 // JST関連定数
 export const JST_TIMEZONE = 'Asia/Tokyo';
 export const JST_OFFSET = 9; // UTC+9
+
+// 統計関連型
+export interface MonthlyStats {
+  month: number;
+  totalEvents: number;
+  diamondEvents: number;
+  pearlEvents: number;
+}
+
+export interface CalendarStats {
+  year: number;
+  totalEvents: number;
+  diamondEvents: number;
+  pearlEvents: number;
+  monthlyBreakdown: MonthlyStats[];
+}
+
+// お気に入り機能関連の型定義
+export interface FavoriteLocation {
+  id: number;
+  name: string;
+  prefecture: string;
+  latitude: number;
+  longitude: number;
+  addedAt: string; // ISO文字列
+}
+
+export interface FavoriteEvent {
+  id: string;
+  type: 'diamond' | 'pearl';
+  subType: string;
+  time: string; // ISO文字列
+  locationId: number;
+  locationName: string;
+  azimuth: number;
+  elevation: number;
+  addedAt: string; // ISO文字列
+}
+
+export interface Favorites {
+  locations: FavoriteLocation[];
+  events: FavoriteEvent[];
+}

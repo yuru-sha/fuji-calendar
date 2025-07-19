@@ -9,6 +9,7 @@ const Layout: React.FC = () => {
           <h1>富士山カレンダー</h1>
           <nav>
             <Link to="/">ホーム</Link>
+            <Link to="/favorites">お気に入り</Link>
             <Link to="/admin">管理画面</Link>
           </nav>
         </div>

@@ -80,19 +80,132 @@ interface LocationPickerProps {
 }
 ```
 
-### 未実装機能
-
-#### 1. お気に入り機能（要件5）
+#### 5. お気に入り関連コンポーネント（実装済み）
 ```typescript
-// 未実装 - 今後の実装予定
-interface FavoriteService {
-  addFavorite(date: Date): Promise<void>;
-  getFavorites(): Promise<Date[]>;
-  removeFavorite(date: Date): Promise<void>;
+// お気に入りボタン（汎用）
+interface FavoriteButtonProps {
+  isFavorite: boolean;
+  onClick: () => void;
+  size?: 'small' | 'medium' | 'large';
+  disabled?: boolean;
+  tooltip?: string;
 }
 
+// 地点専用お気に入りボタン
+interface LocationFavoriteButtonProps {
+  location: Location;
+  className?: string;
+}
+
+// お気に入り管理ページ
+interface FavoritesPageFeatures {
+  // 3つのタブ（今後のイベント、過去のイベント、お気に入り地点）
+  // 統計情報表示
+  // 一括選択・削除機能
+  // エクスポート・インポート機能
+  // 検索・フィルタリング機能
+}
+```
+
+### お気に入り機能（実装済み）
+
+#### ローカルストレージベースのお気に入り管理
+```typescript
+export class FavoritesService {
+  // 撮影地点のお気に入り管理
+  addLocationToFavorites(location: Location): boolean;
+  removeLocationFromFavorites(locationId: number): boolean;
+  isLocationFavorite(locationId: number): boolean;
+  getFavoriteLocations(): FavoriteLocation[];
+  
+  // イベントのお気に入り管理
+  addEventToFavorites(event: FujiEvent): boolean;
+  removeEventFromFavorites(eventId: string): boolean;
+  isEventFavorite(eventId: string): boolean;
+  getFavoriteEvents(): FavoriteEvent[];
+  getUpcomingFavoriteEvents(): FavoriteEvent[];
+  getPastFavoriteEvents(): FavoriteEvent[];
+  
+  // データ管理
+  clearFavorites(): boolean;
+  exportFavorites(): string;
+  importFavorites(jsonData: string): boolean;
+  getFavoritesStats(): FavoritesStats;
+}
+
+// お気に入り専用フック
+export function useFavorites(): UseFavoritesState & UseFavoritesActions {
+  // 状態管理
+  favoriteLocations: FavoriteLocation[];
+  favoriteEvents: FavoriteEvent[];
+  upcomingFavoriteEvents: FavoriteEvent[];
+  stats: FavoritesStats;
+  
+  // アクション
+  toggleLocationFavorite: (location: Location) => boolean;
+  toggleEventFavorite: (event: FujiEvent) => boolean;
+  refreshFavorites: () => void;
+}
+```
+
+#### お気に入り型定義
+```typescript
+interface FavoriteLocation {
+  id: number;
+  name: string;
+  prefecture: string;
+  latitude: number;
+  longitude: number;
+  addedAt: string; // ISO文字列
+}
+
+interface FavoriteEvent {
+  id: string;
+  type: 'diamond' | 'pearl';
+  subType: string;
+  time: string; // ISO文字列
+  locationId: number;
+  locationName: string;
+  azimuth: number;
+  elevation: number;
+  addedAt: string; // ISO文字列
+}
+
+interface Favorites {
+  locations: FavoriteLocation[];
+  events: FavoriteEvent[];
+}
+```
+
+#### お気に入りUI コンポーネント（実装済み）
+```typescript
+// お気に入りボタン
+interface FavoriteButtonProps {
+  isFavorite: boolean;
+  onClick: () => void;
+  size?: 'small' | 'medium' | 'large';
+  disabled?: boolean;
+  tooltip?: string;
+}
+
+// お気に入り管理ページ
+interface FavoritesPageFeatures {
+  // タブ切り替え（今後のイベント、過去のイベント、お気に入り地点）
+  // 一括選択・削除機能
+  // エクスポート・インポート機能
+  // 統計情報表示
+}
+```
+
+### 未実装機能
+
+#### 1. 通知機能（要件5.3）
+```typescript
+// 未実装 - 今後の実装予定
 interface NotificationService {
-  notifyUpcomingFavorites(): Promise<void>; // 未実装
+  notifyUpcomingFavorites(): Promise<void>;
+  scheduleNotifications(): Promise<void>;
+  checkUpcomingEvents(): Promise<void>;
 }
 ```
 
@@ -176,14 +289,20 @@ interface CreateLocationRequest {
 // POST /api/admin/queue/calculate（実装済み）
 ```
 
-### 未実装API
+### クライアントサイド機能（実装済み）
 
-#### 1. お気に入りAPI（未実装）
+#### 1. お気に入り機能（ローカルストレージベース）
 ```typescript
-// 未実装 - 今後の実装予定
-// GET /api/favorites
-// POST /api/favorites
-// DELETE /api/favorites/:date
+// フロントエンドのみで完結（サーバーAPIは不要）
+// localStorage を使用したデータ永続化
+// エクスポート・インポート機能でデータ移行対応
+
+interface FavoritesFeatures {
+  // データ永続化: localStorage
+  // 統計情報: リアルタイム計算
+  // データ管理: JSON形式でのエクスポート・インポート
+  // UI: 専用管理ページとお気に入りボタン
+}
 ```
 
 #### 2. 撮影地点リクエストAPI（部分実装）

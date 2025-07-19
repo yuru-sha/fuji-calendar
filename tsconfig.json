@@ -25,7 +25,8 @@
   },
   "include": [
     "src/client/**/*",
-    "src/shared/**/*"
+    "src/shared/**/*",
+    "src/client/types/assets.d.ts"
   ],
   "exclude": [
     "node_modules",

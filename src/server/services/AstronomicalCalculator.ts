@@ -6,6 +6,7 @@ import { getComponentLogger, StructuredLogger } from '../../shared/utils/logger'
 export interface AstronomicalCalculator {
   calculateDiamondFuji(date: Date, locations: Location[]): FujiEvent[];
   calculatePearlFuji(date: Date, locations: Location[]): FujiEvent[];
+  calculateMonthlyEvents(year: number, month: number, locations: Location[]): FujiEvent[];
   getSunPosition(date: Date, latitude: number, longitude: number): SunPosition;
   getMoonPosition(date: Date, latitude: number, longitude: number): MoonPosition;
   calculateAzimuthToFuji(fromLocation: Location): number;
@@ -223,9 +224,10 @@ export class AstronomicalCalculatorImpl implements AstronomicalCalculator {
     // 月相を0-1の範囲に正規化（0=新月、0.5=満月）
     const phaseNormalized = (moonPhase % 360) / 360;
     
-    // 新月前後3日間（月相±0.08）は視認困難として除外
-    const minVisiblePhase = 0.08; // 約3日分
-    const maxVisiblePhase = 0.92; // 約3日分
+    // 新月前後2日間（月相±0.055）は視認困難として除外
+    // 0.055 ≈ 2日/29.5日（朔望月周期）
+    const minVisiblePhase = 0.055; // 約2日分
+    const maxVisiblePhase = 0.945; // 約2日分
     
     const isVisible = phaseNormalized >= minVisiblePhase && phaseNormalized <= maxVisiblePhase;
     
@@ -272,6 +274,9 @@ export class AstronomicalCalculatorImpl implements AstronomicalCalculator {
     isRising: boolean,
     celestialBody: 'sun' | 'moon'
   ): Date | null {
+    // 計算基準時刻をJST正午に設定（日付の解釈ずれを防ぐ）
+    const searchBaseTime = timeUtils.getJstNoon(date);
+    
     // 実際の日の出・日の入り時刻を取得して検索範囲を最適化
     const observer = new Astronomy.Observer(location.latitude, location.longitude, location.elevation);
     let centerTime: Date;
@@ -279,36 +284,36 @@ export class AstronomicalCalculatorImpl implements AstronomicalCalculator {
     
     if (celestialBody === 'sun') {
       if (isRising) {
-        const sunriseResult = Astronomy.SearchRiseSet(Astronomy.Body.Sun, observer, +1, date, 1);
-        centerTime = sunriseResult ? sunriseResult.date : new Date(date.getTime() + 6 * 60 * 60 * 1000); // フォールバック: 6時
+        const sunriseResult = Astronomy.SearchRiseSet(Astronomy.Body.Sun, observer, +1, searchBaseTime, 1);
+        centerTime = sunriseResult ? sunriseResult.date : new Date(searchBaseTime.getTime() + 6 * 60 * 60 * 1000); // フォールバック: 6時
         searchWindow = 2.5; // 日の出前後2.5時間
       } else {
-        const sunsetResult = Astronomy.SearchRiseSet(Astronomy.Body.Sun, observer, -1, date, 1);
-        centerTime = sunsetResult ? sunsetResult.date : new Date(date.getTime() + 18 * 60 * 60 * 1000); // フォールバック: 18時
+        const sunsetResult = Astronomy.SearchRiseSet(Astronomy.Body.Sun, observer, -1, searchBaseTime, 1);
+        centerTime = sunsetResult ? sunsetResult.date : new Date(searchBaseTime.getTime() + 18 * 60 * 60 * 1000); // フォールバック: 18時
         searchWindow = 2.5; // 日の入り前後2.5時間
       }
     } else {
       // 月の場合も実際の月の出・月の入り時刻を基準に最適化
       try {
         if (isRising) {
-          const moonriseResult = Astronomy.SearchRiseSet(Astronomy.Body.Moon, observer, +1, date, 1);
+          const moonriseResult = Astronomy.SearchRiseSet(Astronomy.Body.Moon, observer, +1, searchBaseTime, 1);
           if (moonriseResult) {
             centerTime = moonriseResult.date;
             searchWindow = 3; // 月の出前後3時間
           } else {
             // 月の出が見つからない場合（沈まない月など）は夜間全体を検索
-            centerTime = new Date(date);
+            centerTime = new Date(searchBaseTime);
             centerTime.setHours(0, 0, 0, 0);
             searchWindow = 12; // 12時間範囲
           }
         } else {
-          const moonsetResult = Astronomy.SearchRiseSet(Astronomy.Body.Moon, observer, -1, date, 1);
+          const moonsetResult = Astronomy.SearchRiseSet(Astronomy.Body.Moon, observer, -1, searchBaseTime, 1);
           if (moonsetResult) {
             centerTime = moonsetResult.date;
             searchWindow = 3; // 月の入り前後3時間
           } else {
             // 月の入りが見つからない場合は昼間全体を検索
-            centerTime = new Date(date);
+            centerTime = new Date(searchBaseTime);
             centerTime.setHours(12, 0, 0, 0);
             searchWindow = 12; // 12時間範囲
           }
@@ -321,7 +326,7 @@ export class AstronomicalCalculatorImpl implements AstronomicalCalculator {
           isRising,
           error: error instanceof Error ? error.message : String(error)
         });
-        centerTime = new Date(date);
+        centerTime = new Date(searchBaseTime);
         centerTime.setHours(isRising ? 18 : 6, 0, 0, 0);
         searchWindow = 8;
       }
@@ -421,15 +426,16 @@ export class AstronomicalCalculatorImpl implements AstronomicalCalculator {
       }
     }
     
-    // 許容範囲内（1.0度以内）であれば有効とする（Astronomy Engineの高精度を活用）
-    const result = minDifference <= 1.0 ? bestTime : null;
+    // 天体別に許容範囲を設定
+    const tolerance = celestialBody === 'sun' ? 1.0 : 20.0; // 太陽:1.0度、月:20.0度
+    const result = minDifference <= tolerance ? bestTime : null;
     
     this.logger.astronomical(result ? 'info' : 'debug', `天体位置検索完了`, {
       calculationType: celestialBody === 'sun' ? 'diamond' : 'pearl',
       locationName: location.name,
       date: timeUtils.formatDateString(date),
       minDifference: parseFloat(minDifference.toFixed(2)),
-      tolerance: 1.0,
+      tolerance: tolerance,
       result: result ? 'SUCCESS' : 'FAIL',
       bestTime: bestTime ? bestTime.toLocaleTimeString('ja-JP') : null,
       searchRangeHours: parseFloat(searchWindow.toFixed(1)),
@@ -616,12 +622,15 @@ export class AstronomicalCalculatorImpl implements AstronomicalCalculator {
         const moonrisePosition = this.getMoonPosition(moonriseTime, location.latitude, location.longitude, location.elevation);
         const fujiViewingAngle = this.calculateViewingAngleToFujiSummit(location);
         
-        // 月高度が富士山頂への視線角度に近いかチェック
+        // 月高度が富士山頂への視線角度に近いかチェック（厳格な条件）
         const elevationDiff = Math.abs(moonrisePosition.elevation - fujiViewingAngle);
-        const isValidElevation = elevationDiff <= 1.0;
+        const isValidElevation = elevationDiff <= 1.0; // 非常に厳格な1度以内
         
-        // 月の満ち欠けを考慮（10%以上で表示）
-        if (moonrisePosition.phase > 0.1 && isValidElevation) {
+        // 方位角も厳密にチェック
+        const isValidAzimuth = this.isVisible(location, moonrisePosition.azimuth);
+        
+        // 月の満ち欠けを考慮（50%以上で十分な明るさ）
+        if (moonrisePosition.phase > 0.5 && isValidElevation && isValidAzimuth) {
           this.logger.astronomical('info', `昇るパール富士発見`, {
             calculationType: 'pearl',
             subType: 'rising',
@@ -653,12 +662,15 @@ export class AstronomicalCalculatorImpl implements AstronomicalCalculator {
         const moonsetPosition = this.getMoonPosition(moonsetTime, location.latitude, location.longitude, location.elevation);
         const fujiViewingAngle = this.calculateViewingAngleToFujiSummit(location);
         
-        // 月高度が富士山頂への視線角度に近いかチェック
+        // 月高度が富士山頂への視線角度に近いかチェック（厳格な条件）
         const elevationDiff = Math.abs(moonsetPosition.elevation - fujiViewingAngle);
-        const isValidElevation = elevationDiff <= 1.0;
+        const isValidElevation = elevationDiff <= 1.0; // 非常に厳格な1度以内
         
-        // 月の満ち欠けを考慮（5%以上で表示）
-        if (moonsetPosition.phase > 0.05 && isValidElevation) {
+        // 方位角も厳密にチェック
+        const isValidAzimuth = this.isVisible(location, moonsetPosition.azimuth);
+        
+        // 月の満ち欠けを考慮（50%以上で十分な明るさ）
+        if (moonsetPosition.phase > 0.5 && isValidElevation && isValidAzimuth) {
           this.logger.astronomical('info', `沈むパール富士発見`, {
             calculationType: 'pearl',
             subType: 'setting',

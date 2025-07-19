@@ -125,6 +125,19 @@ export class TimeUtilsImpl implements TimeUtils {
       }
     }
   }
+
+  // 指定された日付のJST正午を取得（天体計算の基準時刻用）
+  getJstNoon(date: Date): Date {
+    const year = date.getFullYear();
+    const month = date.getMonth(); // 0-based
+    const day = date.getDate();
+    
+    // JST正午のDateオブジェクトを作成
+    const jstNoon = new Date(year, month, day, 12, 0, 0, 0);
+    
+    // JSTからUTCに変換して返す（Astronomy EngineはUTC入力を期待）
+    return this.jstToUtc(jstNoon);
+  }
 }
 
 // シングルトンインスタンス

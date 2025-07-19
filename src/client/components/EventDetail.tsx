@@ -22,6 +22,19 @@ const EventDetail: React.FC<EventDetailProps> = ({
     return timeUtils.formatJstTime(time);
   };
 
+  const getCompassDirection = (azimuth: number): string => {
+    const directions = [
+      '北', '北北東', '北東', '東北東',
+      '東', '東南東', '南東', '南南東',
+      '南', '南南西', '南西', '西南西',
+      '西', '西北西', '北西', '北北西'
+    ];
+    
+    // 方位角を16方位に変換
+    const index = Math.round(azimuth / 22.5) % 16;
+    return directions[index];
+  };
+
   const formatEventTitle = (event: FujiEvent): string => {
     const typeLabel = event.type === 'diamond' ? 'ダイヤモンド富士' : 'パール富士';
     const subTypeLabel = event.subType === 'rising' ? '昇る' : '沈む';
@@ -183,10 +196,18 @@ const EventDetail: React.FC<EventDetailProps> = ({
                 )}
 
                 <div className={styles.eventDetails}>
-                  <div className={styles.detailItem}>
-                    <span className={styles.detailLabel}>方位角:</span>
-                    <span>{Math.round(event.azimuth)}°</span>
-                  </div>
+                  {event.location.fujiAzimuth !== undefined && (
+                    <div className={styles.detailItem}>
+                      <span className={styles.detailLabel}>富士山の方角:</span>
+                      <span>{getCompassDirection(event.location.fujiAzimuth)}（{Math.round(event.location.fujiAzimuth)}°）</span>
+                    </div>
+                  )}
+                  {event.location.fujiDistance && (
+                    <div className={styles.detailItem}>
+                      <span className={styles.detailLabel}>富士山まで:</span>
+                      <span>約{event.location.fujiDistance.toFixed(1)}km</span>
+                    </div>
+                  )}
                   {event.elevation !== undefined && (
                     <div className={styles.detailItem}>
                       <span className={styles.detailLabel}>高度:</span>
@@ -194,8 +215,8 @@ const EventDetail: React.FC<EventDetailProps> = ({
                     </div>
                   )}
                   <div className={styles.detailItem}>
-                    <span className={styles.detailLabel}>標高:</span>
-                    <span>{event.location.elevation.toFixed(1)}m</span>
+                    <span className={styles.detailLabel}>海抜標高:</span>
+                    <span>約{event.location.elevation.toFixed(1)}m</span>
                   </div>
                 </div>
 

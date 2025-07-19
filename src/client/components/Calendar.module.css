@@ -225,8 +225,8 @@
 
 /* 新しいアイコンスタイル */
 .eventIcon {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   object-fit: contain;
 }
 
@@ -286,7 +286,8 @@
   }
   
   .eventIcon {
-    font-size: 1rem;
+    width: 20px;
+    height: 20px;
   }
   
   .eventCount {
@@ -305,7 +306,8 @@
   }
   
   .eventIcon {
-    font-size: 0.875rem;
+    width: 18px;
+    height: 18px;
   }
   
   .eventIndicator {

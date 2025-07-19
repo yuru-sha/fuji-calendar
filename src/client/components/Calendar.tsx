@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { CalendarEvent, FujiEvent } from '../../shared/types';
+import { timeUtils } from '../../shared/utils/timeUtils';
 import styles from './Calendar.module.css';
 import diamondFujiIcon from '../assets/icons/diamond_fuji.png';
 import pearlFujiIcon from '../assets/icons/pearl_fuji.png';
@@ -43,16 +44,17 @@ const Calendar: React.FC<CalendarProps> = ({
     
     const current = new Date(startDate);
     while (current <= endDate) {
-      const dateString = current.toISOString().split('T')[0];
+      const dateString = timeUtils.formatDateString(current);
       const dayEvents = events.find(e => 
-        e.date.toISOString().split('T')[0] === dateString
+        timeUtils.formatDateString(e.date) === dateString
       );
       
+      const dayEventsList = dayEvents?.events || [];
       days.push({
         date: new Date(current),
         isCurrentMonth: current.getMonth() === month - 1,
-        events: dayEvents?.events || [],
-        eventType: dayEvents?.type
+        events: dayEventsList,
+        eventType: dayEventsList.length > 0 ? dayEvents?.type : undefined
       });
       
       current.setDate(current.getDate() + 1);
@@ -198,7 +200,7 @@ const Calendar: React.FC<CalendarProps> = ({
                   {day.date.getDate()}
                 </div>
                 
-                {day.eventType && (
+                {day.eventType && day.events.length > 0 && (
                   <div className={styles.eventIndicator}>
                     <span className={styles.eventIcon}>
                       {getEventIcon(day.eventType)}

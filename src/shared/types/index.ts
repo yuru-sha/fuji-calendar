@@ -254,10 +254,11 @@ export interface MoonPosition {
 }
 
 // 富士山の座標定数（剣ヶ峰）
+// 国土地理院公式データ: 35°21'39" N, 138°43'39" E
 export const FUJI_COORDINATES = {
-  latitude: 35.3606,
-  longitude: 138.7274,
-  elevation: 3776  // 剣ヶ峰の標高
+  latitude: 35.3608333,   // 35°21'39" = 35.3608333°
+  longitude: 138.7275,    // 138°43'39" = 138.7275°
+  elevation: 3776         // 剣ヶ峰の標高（最高地点）
 } as const;
 
 // JST関連定数

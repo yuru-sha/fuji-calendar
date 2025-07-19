@@ -66,7 +66,8 @@ export class AdminController {
       const newLocation = await this.locationModel.create(locationData);
       
       // キューシステムで事前計算を開始（非同期）
-      try {
+      // 一時的に無効化
+      /* try {
         const currentYear = new Date().getFullYear();
         const jobId = await queueService.scheduleLocationCalculation(
           newLocation.id!,
@@ -103,7 +104,14 @@ export class AdminController {
           data: newLocation,
           message: '撮影地点が正常に作成されました。天体計算は手動で開始してください。'
         });
-      }
+      } */
+      
+      // 一時的な簡単なレスポンス
+      res.status(201).json({
+        success: true,
+        data: newLocation,
+        message: '撮影地点が正常に作成されました。'
+      });
     } catch (error) {
       this.logger.error('地点作成エラー', error, {
         requestId: req.requestId

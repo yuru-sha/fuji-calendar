@@ -29,7 +29,7 @@ graph TB
 - **天体計算**: Astronomy Engine（NASA JPL準拠）
 - **地図**: Leaflet
 - **キャプチャ**: reCAPTCHA または独自実装
-- **パフォーマンス**: 1分刻み検索 + 2段階最適化 + キューシステム
+- **パフォーマンス**: 1分刻み検索 + 2段階最適化 + キューシステム + Redis キャッシュ
 
 ## コンポーネントとインターフェース
 
@@ -497,33 +497,100 @@ CREATE INDEX idx_events_cache_expires ON events_cache(expires_at);
 3. **緊急計算**: ユーザー要求時の高優先度計算
 4. **フォールバック**: キュー失敗時はリアルタイム計算
 
-#### 多層キャッシュ戦略
-```typescript
-interface MultiLayerCacheService {
-  // L1: メモリキャッシュ（最頻繁アクセス）
-  getMonthEventsWithMemoryCache(year: number, month: number): Promise<CalendarEvent[]>;
-  
-  // L2: SQLiteキャッシュ（事前計算結果）
-  getEventsFromPreCalculated(cacheKey: string): Promise<any>;
-  
-  // L3: リアルタイム計算（キャッシュミス時のみ）
-  calculateEventsRealtime(date: Date, locations: Location[]): Promise<FujiEvent[]>;
-  
-  // キャッシュ管理
-  invalidateCache(pattern: string): Promise<void>;
-  warmupCache(year: number, month: number): Promise<void>;
-}
+#### 高性能キャッシュシステム（実装済み）
 
-// パフォーマンス監視
-interface PerformanceMonitor {
-  trackCalculationTime(operation: string, duration: number): void;
-  trackCacheHitRate(layer: 'memory' | 'sqlite' | 'realtime'): void;
-  alertSlowOperation(threshold: number): void;
+**Redis + メモリフォールバック方式**
+```typescript
+export class CacheService {
+  // Redis接続（プライマリ）+ メモリキャッシュ（フォールバック）
+  private redis: Redis | null = null;
+  private fallbackCache = new Map<string, CacheEntry<any>>();
+  
+  // TTL設定（用途別最適化）
+  private config: CacheConfig = {
+    ttl: {
+      monthlyCalendar: 24 * 60 * 60,      // 24時間
+      dailyEvents: 12 * 60 * 60,          // 12時間
+      locationEvents: 7 * 24 * 60 * 60,   // 7日間
+      stats: 6 * 60 * 60,                 // 6時間
+      upcomingEvents: 60 * 60,            // 1時間
+      suggestions: 30 * 60                // 30分
+    }
+  };
 }
 ```
 
-#### 管理者向けキューAPI（実装済み）
+**専用キャッシュメソッド**
+```typescript
+interface CacheService {
+  // 月間カレンダー（最重要）
+  getMonthlyCalendar(year: number, month: number): Promise<CalendarResponse | null>;
+  setMonthlyCalendar(year: number, month: number, data: CalendarResponse): Promise<void>;
+  
+  // 日別イベント
+  getDayEvents(dateString: string): Promise<EventsResponse | null>;
+  setDayEvents(dateString: string, data: EventsResponse): Promise<void>;
+  
+  // 今後のイベント
+  getUpcomingEvents(limit: number): Promise<FujiEvent[] | null>;
+  setUpcomingEvents(limit: number, data: FujiEvent[]): Promise<void>;
+  
+  // 統計情報
+  getStats(year: number): Promise<any | null>;
+  setStats(year: number, data: any): Promise<void>;
+  
+  // 地点別年間イベント
+  getLocationEvents(locationId: number, year: number): Promise<FujiEvent[] | null>;
+  setLocationEvents(locationId: number, year: number, data: FujiEvent[]): Promise<void>;
+  
+  // 撮影計画サジェスト
+  getSuggestions(startDate: string, endDate: string, preferredType?: string): Promise<any | null>;
+  setSuggestions(startDate: string, endDate: string, preferredType: string | undefined, data: any): Promise<void>;
+}
+```
 
+**キャッシュ無効化戦略**
+```typescript
+// 地点更新時の自動キャッシュ無効化
+async invalidateLocationCache(locationId?: number): Promise<void> {
+  if (locationId) {
+    // 特定地点のキャッシュのみ削除
+    await this.deletePattern(`locationEvents:${locationId}-*`);
+  } else {
+    // 全地点関連キャッシュを削除
+    await this.deletePattern('locationEvents:*');
+  }
+  
+  // 関連するキャッシュも連鎖削除
+  await this.deletePattern('monthlyCalendar:*');
+  await this.deletePattern('dailyEvents:*');
+  await this.deletePattern('upcomingEvents:*');
+  await this.deletePattern('stats:*');
+  await this.deletePattern('suggestions:*');
+}
+```
+
+**フォールバック機能**
+```typescript
+// Redis接続失敗時の自動フォールバック
+private async initializeRedis(): Promise<void> {
+  try {
+    this.redis = new Redis(redisUrl, {
+      retryDelayOnFailover: 100,
+      enableReadyCheck: false,
+      maxRetriesPerRequest: 3,
+      lazyConnect: true
+    });
+  } catch (error) {
+    this.logger.warn('Redis initialization failed, using memory cache fallback');
+    this.redis = null; // メモリキャッシュのみ使用
+  }
+}
+```
+
+#### 管理者向けAPI（実装済み）
+
+**キューシステム管理**
 ```typescript
 // キュー統計取得
 GET /api/admin/queue/stats
@@ -546,21 +613,35 @@ POST /api/admin/queue/calculate
   "day": 23,           // オプション（指定時は日別計算）
   "priority": "high"   // high, medium, low
 }
+```
 
-// ジョブ進捗確認
-GET /api/admin/queue/job/{jobId}/{queueType}
+**キャッシュ管理API**
+```typescript
+// キャッシュ統計取得
+GET /api/admin/cache/stats
 // レスポンス例
 {
   "success": true,
   "data": {
-    "id": "job_12345",
-    "state": "active",
-    "progress": {
-      "currentYear": 2025,
-      "totalYears": 3,
-      "completedYears": 1
-    }
+    "redisConnected": true,
+    "memoryEntries": 0,
+    "hitRate": 85.2
   }
+}
+
+// キャッシュ手動削除
+DELETE /api/admin/cache
+{
+  "pattern": "monthlyCalendar:2025-*" // 特定パターン削除
+}
+// または
+{} // 全キャッシュ削除
+
+// キャッシュ事前生成
+POST /api/admin/cache/pregenerate
+{
+  "year": 2025,
+  "month": 12
 }
 ```
 

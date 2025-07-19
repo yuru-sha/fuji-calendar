@@ -251,29 +251,87 @@ export class AstronomicalCalculatorAstronomyEngine {
     const observer = new Astronomy.Observer(location.latitude, location.longitude, location.elevation);
     
     try {
-      // Astronomy EngineはDateオブジェクトを適切に処理する
-      const moonrise = Astronomy.SearchRiseSet(Astronomy.Body.Moon, observer, 1, date, 1);
-      const moonset = Astronomy.SearchRiseSet(Astronomy.Body.Moon, observer, -1, date, 1);
+      // 指定された日付の範囲を明確に定義（JST基準）
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
       
-      this.logger.astronomical('debug', 'パール富士: 月の出入り時刻', {
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+      
+      // 前日から翌日までの範囲で月の出・入りを検索
+      const searchStart = new Date(startOfDay);
+      searchStart.setDate(searchStart.getDate() - 1);
+      
+      const searchEnd = new Date(endOfDay);
+      searchEnd.setDate(searchEnd.getDate() + 1);
+      
+      // 月の出を検索（指定日内に限定）
+      let moonrise = null;
+      try {
+        const riseResult = Astronomy.SearchRiseSet(Astronomy.Body.Moon, observer, 1, searchStart, 3);
+        if (riseResult && riseResult.date >= startOfDay && riseResult.date <= endOfDay) {
+          moonrise = riseResult;
+        }
+      } catch (error) {
+        this.logger.astronomical('debug', 'パール富士: 月の出検索でエラー', {
+          date: timeUtils.formatDateString(date),
+          locationName: location.name,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+      
+      // 月の入りを検索（指定日内に限定）
+      let moonset = null;
+      try {
+        const setResult = Astronomy.SearchRiseSet(Astronomy.Body.Moon, observer, -1, searchStart, 3);
+        if (setResult && setResult.date >= startOfDay && setResult.date <= endOfDay) {
+          moonset = setResult;
+        }
+      } catch (error) {
+        this.logger.astronomical('debug', 'パール富士: 月の入り検索でエラー', {
+          date: timeUtils.formatDateString(date),
+          locationName: location.name,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+      
+      this.logger.astronomical('debug', 'パール富士: 月の出入り時刻（日付限定後）', {
         date: timeUtils.formatDateString(date),
+        startOfDay: startOfDay.toISOString(),
+        endOfDay: endOfDay.toISOString(),
         moonriseFound: !!moonrise,
         moonsetFound: !!moonset,
         moonriseTime: moonrise ? moonrise.date.toISOString() : 'なし',
         moonsetTime: moonset ? moonset.date.toISOString() : 'なし',
+        moonriseInRange: moonrise ? (moonrise.date >= startOfDay && moonrise.date <= endOfDay) : false,
+        moonsetInRange: moonset ? (moonset.date >= startOfDay && moonset.date <= endOfDay) : false,
         locationName: location.name
       });
       
-      // 月の出時のパール富士をチェック
+      // 月の出時のパール富士をチェック（指定日内の場合のみ）
       if (moonrise) {
         const risingEvent = await this.checkMoonAlignment(moonrise.date, location, fujiAzimuth, fujiElevation, 'rising');
-        if (risingEvent) events.push(risingEvent);
+        if (risingEvent) {
+          events.push(risingEvent);
+          this.logger.astronomical('info', 'パール富士: 月の出イベント追加', {
+            date: timeUtils.formatDateString(date),
+            eventTime: risingEvent.time.toISOString(),
+            locationName: location.name
+          });
+        }
       }
       
-      // 月の入り時のパール富士をチェック
+      // 月の入り時のパール富士をチェック（指定日内の場合のみ）
       if (moonset) {
         const settingEvent = await this.checkMoonAlignment(moonset.date, location, fujiAzimuth, fujiElevation, 'setting');
-        if (settingEvent) events.push(settingEvent);
+        if (settingEvent) {
+          events.push(settingEvent);
+          this.logger.astronomical('info', 'パール富士: 月の入りイベント追加', {
+            date: timeUtils.formatDateString(date),
+            eventTime: settingEvent.time.toISOString(),
+            locationName: location.name
+          });
+        }
       }
       
     } catch (error) {

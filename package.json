@@ -16,7 +16,10 @@
     "typecheck": "tsc --noEmit && tsc -p tsconfig.server.json --noEmit",
     "lint": "eslint src --ext .ts,.tsx",
     "lint:fix": "eslint src --ext .ts,.tsx --fix",
-    "benchmark:cache": "node scripts/cache-benchmark.js"
+    "benchmark:cache": "node scripts/cache-benchmark.js",
+    "debug:pearl": "node scripts/debug-pearl-fuji.js",
+    "test:cache": "node scripts/test-cache-consistency.js",
+    "clear:pearl": "node scripts/clear-pearl-cache.js"
   },
   "keywords": [
     "fuji",

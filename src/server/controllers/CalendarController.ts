@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import CalendarService from '../services/CalendarService';
+import { CalendarService } from '../services/CalendarService';
 import { timeUtils } from '../../shared/utils/timeUtils';
 
 export class CalendarController {
@@ -50,7 +50,7 @@ export class CalendarController {
             type: event.type,
             events: event.events.map(fujiEvent => ({
               ...fujiEvent,
-              time: fujiEvent.time.toISOString()
+              time: timeUtils.formatDateTimeString(fujiEvent.time) // JST時刻として文字列化
             }))
           }))
         },
@@ -97,7 +97,7 @@ export class CalendarController {
           date: eventsData.date,
           events: eventsData.events.map(event => ({
             ...event,
-            time: event.time.toISOString()
+            time: timeUtils.formatDateTimeString(event.time) // JST時刻として文字列化
           })),
           weather: eventsData.weather
         },

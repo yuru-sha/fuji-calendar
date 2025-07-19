@@ -25,7 +25,8 @@ export class AstronomicalCalculatorAstronomyEngine {
   // 最適化パラメータ
   private readonly SEARCH_INTERVAL_MINUTES = 1; // 1分刻み
   private readonly TOLERANCE = {
-    elevation: 0.25  // ±0.25度（太陽の半径、山頂から外れた日を除外）
+    elevation: 0.25,      // ダイヤモンド富士用
+    pearlElevation: 0.5   // パール富士用（より緩い）
   };
   
   // 実際の観測データに基づく方位角許容誤差（固定値）
@@ -37,6 +38,13 @@ export class AstronomicalCalculatorAstronomyEngine {
     close: 0.25,   // 50km以内 - 2/17-19の3日間のみ検出する精密判定
     medium: 0.4,   // 50-100km - 中距離での精密判定
     far: 0.6       // 100km以上 - 遠距離でも精密な判定
+  };
+  
+  // パール富士専用方位角許容範囲（ダイヤモンド富士の2倍）
+  private readonly PEARL_AZIMUTH_TOLERANCE = {
+    close: 0.5,    // 50km以内（ダイヤモンド富士の2倍）
+    medium: 0.8,   // 50-100km
+    far: 1.2       // 100km以上
   };
   
   // 富士山頂稜線の実測値を使用
@@ -115,6 +123,15 @@ export class AstronomicalCalculatorAstronomyEngine {
     if (distanceKm <= 50) return this.AZIMUTH_TOLERANCE.close;
     if (distanceKm <= 100) return this.AZIMUTH_TOLERANCE.medium;
     return this.AZIMUTH_TOLERANCE.far;
+  }
+  
+  /**
+   * パール富士用の距離に応じた方位角許容範囲を取得
+   */
+  private getPearlAzimuthTolerance(distanceKm: number): number {
+    if (distanceKm <= 50) return this.PEARL_AZIMUTH_TOLERANCE.close;
+    if (distanceKm <= 100) return this.PEARL_AZIMUTH_TOLERANCE.medium;
+    return this.PEARL_AZIMUTH_TOLERANCE.far;
   }
   
   /**
@@ -238,6 +255,15 @@ export class AstronomicalCalculatorAstronomyEngine {
       const moonrise = Astronomy.SearchRiseSet(Astronomy.Body.Moon, observer, 1, date, 1);
       const moonset = Astronomy.SearchRiseSet(Astronomy.Body.Moon, observer, -1, date, 1);
       
+      this.logger.astronomical('debug', 'パール富士: 月の出入り時刻', {
+        date: timeUtils.formatDateString(date),
+        moonriseFound: !!moonrise,
+        moonsetFound: !!moonset,
+        moonriseTime: moonrise ? moonrise.date.toISOString() : 'なし',
+        moonsetTime: moonset ? moonset.date.toISOString() : 'なし',
+        locationName: location.name
+      });
+      
       // 月の出時のパール富士をチェック
       if (moonrise) {
         const risingEvent = await this.checkMoonAlignment(moonrise.date, location, fujiAzimuth, fujiElevation, 'rising');
@@ -251,8 +277,7 @@ export class AstronomicalCalculatorAstronomyEngine {
       }
       
     } catch (error) {
-      this.logger.astronomical('warn', 'パール富士計算エラー', {
-        calculationType: 'pearl',
+      this.logger.astronomical('error', 'パール富士: SearchRiseSetエラー', {
         date: timeUtils.formatDateString(date),
         locationName: location.name,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -470,20 +495,36 @@ export class AstronomicalCalculatorAstronomyEngine {
     subType: 'rising' | 'setting'
   ): Promise<FujiEvent | null> {
     
-    const moonPosition = await this.calculateMoonPositionPrecise(time, location);
-    const azimuthDifference = Math.abs(moonPosition.azimuth - targetAzimuth);
-    const elevationDifference = Math.abs(moonPosition.correctedElevation - targetElevation);
+    // 月の出入り時刻の前後30分間を詳細検索
+    const searchStart = new Date(time.getTime() - 30 * 60 * 1000); // 30分前
+    const searchEnd = new Date(time.getTime() + 30 * 60 * 1000);   // 30分後
     
-    // 観測データに基づく方位角許容範囲（パール富士も同様に適用）
-    const distanceKm = location.fujiDistance ?? this.calculateDistanceToFuji(location);
-    const azimuthTolerance = this.getAzimuthTolerance(distanceKm);
+    let bestMatch: { time: Date; score: number } | null = null;
     
-    if (azimuthDifference <= azimuthTolerance && elevationDifference <= this.TOLERANCE.elevation) {
+    // 2分刻みで検索
+    for (let searchTime = new Date(searchStart); searchTime <= searchEnd; searchTime.setMinutes(searchTime.getMinutes() + 2)) {
+      const moonPosition = await this.calculateMoonPositionPrecise(new Date(searchTime), location);
+      const azimuthDifference = Math.abs(moonPosition.azimuth - targetAzimuth);
+      const elevationDifference = Math.abs(moonPosition.correctedElevation - targetElevation);
+      
+      // パール富士専用の許容範囲を使用
+      const distanceKm = location.fujiDistance ?? this.calculateDistanceToFuji(location);
+      const azimuthTolerance = this.getPearlAzimuthTolerance(distanceKm);
+      
+      if (azimuthDifference <= azimuthTolerance && elevationDifference <= this.TOLERANCE.pearlElevation) {
+        const score = azimuthDifference + elevationDifference; // 低いほど良い
+        if (!bestMatch || score < bestMatch.score) {
+          bestMatch = { time: new Date(searchTime), score };
+        }
+      }
+    }
+    
+    if (bestMatch) {
       return {
-        id: `pearl_${location.id}_${time.toISOString().split('T')[0]}_${subType}`,
+        id: `pearl_${location.id}_${bestMatch.time.toISOString().split('T')[0]}_${subType}`,
         type: 'pearl',
         subType,
-        time,
+        time: bestMatch.time,
         location,
         azimuth: targetAzimuth,
         elevation: targetElevation
@@ -498,6 +539,11 @@ export class AstronomicalCalculatorAstronomyEngine {
    * @param time JST時刻のDateオブジェクト
    */
   private async calculateSunPositionPrecise(time: Date, location: Location): Promise<CelestialPosition> {
+    // 値の妥当性チェック
+    if (!Number.isFinite(location.latitude) || !Number.isFinite(location.longitude) || !Number.isFinite(location.elevation)) {
+      throw new Error(`Invalid location coordinates: lat=${location.latitude}, lng=${location.longitude}, elev=${location.elevation} for location ${location.name}`);
+    }
+    
     const observer = new Astronomy.Observer(location.latitude, location.longitude, location.elevation);
     
     // Astronomy Engineはローカル時刻で作成したDateオブジェクトを適切に処理する
@@ -517,6 +563,11 @@ export class AstronomicalCalculatorAstronomyEngine {
    * @param time JST時刻のDateオブジェクト
    */
   private async calculateMoonPositionPrecise(time: Date, location: Location): Promise<CelestialPosition> {
+    // 値の妥当性チェック
+    if (!Number.isFinite(location.latitude) || !Number.isFinite(location.longitude) || !Number.isFinite(location.elevation)) {
+      throw new Error(`Invalid location coordinates: lat=${location.latitude}, lng=${location.longitude}, elev=${location.elevation} for location ${location.name}`);
+    }
+    
     const observer = new Astronomy.Observer(location.latitude, location.longitude, location.elevation);
     
     // Astronomy Engineはローカル時刻で作成したDateオブジェクトを適切に処理する

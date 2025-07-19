@@ -1,6 +1,6 @@
 {
   "name": "fuji-calendar",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "ダイヤモンド富士とパール富士のカレンダーアプリケーション",
   "main": "dist/server/index.js",
   "scripts": {

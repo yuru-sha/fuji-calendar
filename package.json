@@ -15,7 +15,8 @@
     "test:watch": "jest --watch",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.server.json --noEmit",
     "lint": "eslint src --ext .ts,.tsx",
-    "lint:fix": "eslint src --ext .ts,.tsx --fix"
+    "lint:fix": "eslint src --ext .ts,.tsx --fix",
+    "benchmark:cache": "node scripts/cache-benchmark.js"
   },
   "keywords": [
     "fuji",

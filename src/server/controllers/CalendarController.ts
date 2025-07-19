@@ -1,17 +1,22 @@
 import { Request, Response } from 'express';
 import { CalendarService } from '../services/CalendarService';
+import { cacheService } from '../services/CacheService';
 import { timeUtils } from '../../shared/utils/timeUtils';
+import { getComponentLogger } from '../../shared/utils/logger';
 
 export class CalendarController {
   private calendarService: CalendarService;
+  private logger = getComponentLogger('calendar-controller');
 
   constructor() {
     this.calendarService = new CalendarService();
   }
 
-  // 月間カレンダーデータを取得
+  // 月間カレンダーデータを取得（キャッシュ対応）
   // GET /api/calendar/:year/:month
   async getMonthlyCalendar(req: Request, res: Response) {
+    const startTime = Date.now();
+    
     try {
       const year = parseInt(req.params.year);
       const month = parseInt(req.params.month);
@@ -38,27 +43,63 @@ export class CalendarController {
         });
       }
 
-      const calendarData = await this.calendarService.getMonthlyCalendar(year, month);
+      // キャッシュから取得を試行
+      let calendarData = await cacheService.getMonthlyCalendar(year, month);
+      let cacheHit = true;
+
+      if (!calendarData) {
+        // キャッシュミス：計算して結果をキャッシュ
+        this.logger.info('Cache miss - computing monthly calendar', { year, month });
+        cacheHit = false;
+        
+        calendarData = await this.calendarService.getMonthlyCalendar(year, month);
+        
+        // 結果をキャッシュに保存
+        await cacheService.setMonthlyCalendar(year, month, calendarData);
+        this.logger.info('Monthly calendar cached', { year, month });
+      }
+
+      const responseTime = Date.now() - startTime;
+      
+      // パフォーマンスログ
+      this.logger.info('Monthly calendar response', {
+        year,
+        month,
+        cacheHit,
+        responseTimeMs: responseTime,
+        eventCount: calendarData.events.reduce((total: number, event: any) => total + event.events.length, 0)
+      });
       
       res.json({
         success: true,
         data: {
           year: calendarData.year,
           month: calendarData.month,
-          events: calendarData.events.map(event => ({
+          events: calendarData.events.map((event: any) => ({
             date: timeUtils.formatDateString(event.date),
             type: event.type,
-            events: event.events.map(fujiEvent => ({
+            events: event.events.map((fujiEvent: any) => ({
               ...fujiEvent,
               time: timeUtils.formatDateTimeString(fujiEvent.time) // JST時刻として文字列化
             }))
           }))
         },
+        meta: {
+          cacheHit,
+          responseTimeMs: responseTime
+        },
         timestamp: timeUtils.getCurrentJst()
       });
 
     } catch (error: any) {
-      console.error('Calendar controller error:', error);
+      const responseTime = Date.now() - startTime;
+      this.logger.error('Calendar controller error', {
+        year: req.params.year,
+        month: req.params.month,
+        responseTimeMs: responseTime,
+        error: error.message
+      });
+      
       res.status(500).json({
         error: 'Internal server error',
         message: 'カレンダーデータの取得中にエラーが発生しました。'
@@ -66,9 +107,11 @@ export class CalendarController {
     }
   }
 
-  // 特定日のイベント詳細を取得
+  // 特定日のイベント詳細を取得（キャッシュ対応）
   // GET /api/events/:date
   async getDayEvents(req: Request, res: Response) {
+    const startTime = Date.now();
+    
     try {
       const dateString = req.params.date;
 
@@ -89,23 +132,57 @@ export class CalendarController {
         });
       }
 
-      const eventsData = await this.calendarService.getDayEvents(dateString);
+      // キャッシュから取得を試行
+      let eventsData = await cacheService.getDayEvents(dateString);
+      let cacheHit = true;
+
+      if (!eventsData) {
+        // キャッシュミス：計算して結果をキャッシュ
+        this.logger.info('Cache miss - computing day events', { date: dateString });
+        cacheHit = false;
+        
+        eventsData = await this.calendarService.getDayEvents(dateString);
+        
+        // 結果をキャッシュに保存
+        await cacheService.setDayEvents(dateString, eventsData);
+        this.logger.info('Day events cached', { date: dateString });
+      }
+
+      const responseTime = Date.now() - startTime;
+      
+      // パフォーマンスログ
+      this.logger.info('Day events response', {
+        date: dateString,
+        cacheHit,
+        responseTimeMs: responseTime,
+        eventCount: eventsData.events.length
+      });
       
       res.json({
         success: true,
         data: {
           date: eventsData.date,
-          events: eventsData.events.map(event => ({
+          events: eventsData.events.map((event: any) => ({
             ...event,
             time: timeUtils.formatDateTimeString(event.time) // JST時刻として文字列化
           })),
           weather: eventsData.weather
         },
+        meta: {
+          cacheHit,
+          responseTimeMs: responseTime
+        },
         timestamp: timeUtils.getCurrentJst()
       });
 
     } catch (error: any) {
-      console.error('Day events controller error:', error);
+      const responseTime = Date.now() - startTime;
+      this.logger.error('Day events controller error', {
+        date: req.params.date,
+        responseTimeMs: responseTime,
+        error: error.message
+      });
+      
       res.status(500).json({
         error: 'Internal server error',
         message: 'イベントデータの取得中にエラーが発生しました。'
@@ -113,9 +190,11 @@ export class CalendarController {
     }
   }
 
-  // 今後のイベントを取得
+  // 今後のイベントを取得（キャッシュ対応）
   // GET /api/events/upcoming?limit=50
   async getUpcomingEvents(req: Request, res: Response) {
+    const startTime = Date.now();
+    
     try {
       const limit = parseInt(req.query.limit as string) || 50;
 
@@ -126,7 +205,31 @@ export class CalendarController {
         });
       }
 
-      const events = await this.calendarService.getUpcomingEvents(limit);
+      // キャッシュから取得を試行
+      let events = await cacheService.getUpcomingEvents(limit);
+      let cacheHit = true;
+
+      if (!events) {
+        // キャッシュミス：計算して結果をキャッシュ
+        this.logger.info('Cache miss - computing upcoming events', { limit });
+        cacheHit = false;
+        
+        events = await this.calendarService.getUpcomingEvents(limit);
+        
+        // 結果をキャッシュに保存
+        await cacheService.setUpcomingEvents(limit, events);
+        this.logger.info('Upcoming events cached', { limit, count: events.length });
+      }
+
+      const responseTime = Date.now() - startTime;
+      
+      // パフォーマンスログ
+      this.logger.info('Upcoming events response', {
+        limit,
+        cacheHit,
+        responseTimeMs: responseTime,
+        eventCount: events.length
+      });
       
       res.json({
         success: true,
@@ -135,11 +238,21 @@ export class CalendarController {
           count: events.length,
           limit
         },
+        meta: {
+          cacheHit,
+          responseTimeMs: responseTime
+        },
         timestamp: timeUtils.getCurrentJst()
       });
 
     } catch (error: any) {
-      console.error('Upcoming events controller error:', error);
+      const responseTime = Date.now() - startTime;
+      this.logger.error('Upcoming events controller error', {
+        limit: req.query.limit,
+        responseTimeMs: responseTime,
+        error: error.message
+      });
+      
       res.status(500).json({
         error: 'Internal server error',
         message: '今後のイベント取得中にエラーが発生しました。'
@@ -325,9 +438,11 @@ export class CalendarController {
     }
   }
 
-  // カレンダー統計情報を取得
+  // カレンダー統計情報を取得（キャッシュ対応）
   // GET /api/calendar/stats/:year
   async getCalendarStats(req: Request, res: Response) {
+    const startTime = Date.now();
+    
     try {
       const year = parseInt(req.params.year);
 
@@ -338,43 +453,83 @@ export class CalendarController {
         });
       }
 
-      // 年間統計を計算
-      const stats = {
-        year,
-        totalEvents: 0,
-        diamondEvents: 0,
-        pearlEvents: 0,
-        monthlyBreakdown: [] as any[]
-      };
+      // キャッシュから取得を試行
+      let stats = await cacheService.getStats(year);
+      let cacheHit = true;
 
-      for (let month = 1; month <= 12; month++) {
-        const monthlyData = await this.calendarService.getMonthlyCalendar(year, month);
-        const monthEvents = monthlyData.events.reduce((total, event) => total + event.events.length, 0);
-        const monthDiamond = monthlyData.events.reduce((total, event) => 
-          total + event.events.filter(e => e.type === 'diamond').length, 0);
-        const monthPearl = monthlyData.events.reduce((total, event) => 
-          total + event.events.filter(e => e.type === 'pearl').length, 0);
+      if (!stats) {
+        // キャッシュミス：計算して結果をキャッシュ
+        this.logger.info('Cache miss - computing calendar stats', { year });
+        cacheHit = false;
+        
+        // 年間統計を計算
+        stats = {
+          year,
+          totalEvents: 0,
+          diamondEvents: 0,
+          pearlEvents: 0,
+          monthlyBreakdown: [] as any[]
+        };
 
-        stats.totalEvents += monthEvents;
-        stats.diamondEvents += monthDiamond;
-        stats.pearlEvents += monthPearl;
+        for (let month = 1; month <= 12; month++) {
+          // 月次データも可能ならキャッシュから取得
+          let monthlyData = await cacheService.getMonthlyCalendar(year, month);
+          if (!monthlyData) {
+            monthlyData = await this.calendarService.getMonthlyCalendar(year, month);
+            await cacheService.setMonthlyCalendar(year, month, monthlyData);
+          }
 
-        stats.monthlyBreakdown.push({
-          month,
-          totalEvents: monthEvents,
-          diamondEvents: monthDiamond,
-          pearlEvents: monthPearl
-        });
+          const monthEvents = monthlyData.events.reduce((total: number, event: any) => total + event.events.length, 0);
+          const monthDiamond = monthlyData.events.reduce((total: number, event: any) => 
+            total + event.events.filter((e: any) => e.type === 'diamond').length, 0);
+          const monthPearl = monthlyData.events.reduce((total: number, event: any) => 
+            total + event.events.filter((e: any) => e.type === 'pearl').length, 0);
+
+          stats.totalEvents += monthEvents;
+          stats.diamondEvents += monthDiamond;
+          stats.pearlEvents += monthPearl;
+
+          stats.monthlyBreakdown.push({
+            month,
+            totalEvents: monthEvents,
+            diamondEvents: monthDiamond,
+            pearlEvents: monthPearl
+          });
+        }
+
+        // 結果をキャッシュに保存
+        await cacheService.setStats(year, stats);
+        this.logger.info('Calendar stats cached', { year, totalEvents: stats.totalEvents });
       }
+
+      const responseTime = Date.now() - startTime;
+      
+      // パフォーマンスログ
+      this.logger.info('Calendar stats response', {
+        year,
+        cacheHit,
+        responseTimeMs: responseTime,
+        totalEvents: stats.totalEvents
+      });
 
       res.json({
         success: true,
         data: stats,
+        meta: {
+          cacheHit,
+          responseTimeMs: responseTime
+        },
         timestamp: timeUtils.getCurrentJst()
       });
 
     } catch (error: any) {
-      console.error('Calendar stats controller error:', error);
+      const responseTime = Date.now() - startTime;
+      this.logger.error('Calendar stats controller error', {
+        year: req.params.year,
+        responseTimeMs: responseTime,
+        error: error.message
+      });
+      
       res.status(500).json({
         error: 'Internal server error',
         message: '統計情報の取得中にエラーが発生しました。'

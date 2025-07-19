@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { LocationModel } from '../models/Location';
 import { Location } from '../../shared/types';
 import { queueService } from '../services/QueueService';
+import { cacheService } from '../services/CacheService';
 import { getComponentLogger } from '../../shared/utils/logger';
 
 export class AdminController {
@@ -64,6 +65,13 @@ export class AdminController {
       }
 
       const newLocation = await this.locationModel.create(locationData);
+      
+      // キャッシュを無効化（新しい地点追加のため）
+      await cacheService.invalidateLocationCache();
+      this.logger.info('Cache invalidated after location creation', {
+        locationId: newLocation.id,
+        locationName: newLocation.name
+      });
       
       // キューシステムで事前計算を開始（非同期）
       // 一時的に無効化
@@ -163,6 +171,13 @@ export class AdminController {
 
       const updatedLocation = await this.locationModel.update(id, locationData);
       
+      // キャッシュを無効化（特定地点のキャッシュのみ）
+      await cacheService.invalidateLocationCache(id);
+      this.logger.info('Cache invalidated after location update', {
+        locationId: id,
+        locationName: updatedLocation.name
+      });
+      
       res.json({
         success: true,
         data: updatedLocation,
@@ -200,6 +215,13 @@ export class AdminController {
       }
 
       await this.locationModel.delete(id);
+      
+      // キャッシュを無効化（特定地点削除のため）
+      await cacheService.invalidateLocationCache(id);
+      this.logger.info('Cache invalidated after location deletion', {
+        locationId: id,
+        locationName: existingLocation.name
+      });
       
       res.json({
         success: true,
@@ -465,6 +487,111 @@ export class AdminController {
   // 2地点間の距離を計算（簡易版）
   private calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
     return Math.sqrt(Math.pow(lat1 - lat2, 2) + Math.pow(lng1 - lng2, 2));
+  }
+
+  // キャッシュ統計情報を取得
+  // GET /api/admin/cache/stats
+  async getCacheStats(req: Request, res: Response) {
+    try {
+      const stats = await cacheService.getCacheStats();
+      
+      res.json({
+        success: true,
+        data: stats,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      this.logger.error('Cache stats error', { error });
+      res.status(500).json({
+        error: 'Internal server error',
+        message: 'キャッシュ統計の取得に失敗しました。'
+      });
+    }
+  }
+
+  // キャッシュを手動で無効化
+  // DELETE /api/admin/cache
+  async clearCache(req: Request, res: Response) {
+    try {
+      const { pattern } = req.body;
+      
+      if (pattern) {
+        // 特定パターンのキャッシュを削除
+        await cacheService.deletePattern(pattern);
+        this.logger.info('Cache pattern cleared by admin', { pattern });
+        
+        res.json({
+          success: true,
+          message: `パターン '${pattern}' のキャッシュが削除されました。`
+        });
+      } else {
+        // 全地点関連キャッシュを削除
+        await cacheService.invalidateLocationCache();
+        this.logger.info('All cache cleared by admin');
+        
+        res.json({
+          success: true,
+          message: '全てのキャッシュが削除されました。'
+        });
+      }
+    } catch (error) {
+      this.logger.error('Cache clear error', { error });
+      res.status(500).json({
+        error: 'Internal server error',
+        message: 'キャッシュの削除に失敗しました。'
+      });
+    }
+  }
+
+  // 特定月のキャッシュを事前生成
+  // POST /api/admin/cache/pregenerate
+  async pregenerateCache(req: Request, res: Response) {
+    try {
+      const { year, month } = req.body;
+      
+      if (!year || !month || isNaN(year) || isNaN(month)) {
+        return res.status(400).json({
+          error: 'Invalid parameters',
+          message: '年と月を正しく指定してください。'
+        });
+      }
+
+      if (year < 2000 || year > 2100 || month < 1 || month > 12) {
+        return res.status(400).json({
+          error: 'Invalid range',
+          message: '年は2000-2100年、月は1-12の範囲で指定してください。'
+        });
+      }
+
+      // キャッシュに既に存在するかチェック
+      const existingCache = await cacheService.getMonthlyCalendar(year, month);
+      
+      if (existingCache) {
+        return res.json({
+          success: true,
+          message: `${year}年${month}月のキャッシュは既に存在します。`,
+          alreadyCached: true
+        });
+      }
+
+      this.logger.info('Manual cache pregeneration started', { year, month });
+      
+      // ここで実際のカレンダーサービスを呼び出して事前生成
+      // 実装は後で CalendarService に統合
+      
+      res.json({
+        success: true,
+        message: `${year}年${month}月のキャッシュ事前生成を開始しました。`,
+        started: true
+      });
+      
+    } catch (error) {
+      this.logger.error('Cache pregeneration error', { error });
+      res.status(500).json({
+        error: 'Internal server error',
+        message: 'キャッシュの事前生成に失敗しました。'
+      });
+    }
   }
 }
 

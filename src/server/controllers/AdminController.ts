@@ -172,11 +172,13 @@ export class AdminController {
       const updatedLocation = await this.locationModel.update(id, locationData);
       
       // キャッシュを無効化（特定地点のキャッシュのみ）
-      await cacheService.invalidateLocationCache(id);
-      this.logger.info('Cache invalidated after location update', {
-        locationId: id,
-        locationName: updatedLocation.name
-      });
+      if (updatedLocation) {
+        await cacheService.invalidateLocationCache(id);
+        this.logger.info('Cache invalidated after location update', {
+          locationId: id,
+          locationName: updatedLocation.name
+        });
+      }
       
       res.json({
         success: true,

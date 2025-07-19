@@ -17,7 +17,7 @@ export function requestIdMiddleware(req: Request, res: Response, next: NextFunct
  */
 export const httpLoggerMiddleware = pinoHttp({
   logger,
-  genReqId: (req: Request) => req.requestId,
+  genReqId: (req: Request) => req.requestId || generateRequestId(),
   serializers: {
     req: (req: Request) => ({
       id: req.requestId,
@@ -98,16 +98,19 @@ export function errorLoggingMiddleware(
 
   // エラーの種類に応じてログレベルを調整
   if (res.statusCode >= 500) {
-    errorLogger.error('Internal server error occurred', err, {
+    errorLogger.error('Internal server error occurred', {
+      error: err.message,
       statusCode: res.statusCode,
       stack: err.stack
     });
   } else if (res.statusCode >= 400) {
-    errorLogger.warn('Client error occurred', err, {
+    errorLogger.warn('Client error occurred', {
+      error: err.message,
       statusCode: res.statusCode
     });
   } else {
-    errorLogger.info('Request handled with error', err, {
+    errorLogger.info('Request handled with error', {
+      error: err.message,
       statusCode: res.statusCode
     });
   }

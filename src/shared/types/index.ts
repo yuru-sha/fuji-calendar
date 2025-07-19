@@ -138,10 +138,11 @@ export interface HistoricalSearchOptions {
 export interface Admin {
   id: number;
   username: string;
+  email: string;
   passwordHash: string;
   createdAt: Date;
   lastLogin?: Date;
-  failedLoginCount: number;
+  failedLoginCount?: number;
   lockedUntil?: Date;
 }
 

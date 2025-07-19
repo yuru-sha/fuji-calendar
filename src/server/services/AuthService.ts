@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import { AdminModel } from '../models/Admin';
 import { Admin, AuthResult, LoginRequest } from '../../shared/types';
 
@@ -57,14 +57,18 @@ export class AuthServiceImpl implements AuthService {
       }
 
       // JWTトークン生成
-      const token = this.generateToken(admin);
-      const refreshToken = this.generateRefreshToken(admin);
+      const adminWithDefaults = {
+        ...admin,
+        failedLoginCount: admin.failedLoginCount || 0
+      };
+      const token = this.generateToken(adminWithDefaults);
+      const refreshToken = this.generateRefreshToken(adminWithDefaults);
 
       return {
         success: true,
         token,
         admin: {
-          ...admin,
+          ...adminWithDefaults,
           passwordHash: '' // パスワードハッシュは返却しない
         }
       };
@@ -113,7 +117,10 @@ export class AuthServiceImpl implements AuthService {
         throw new Error('Account is locked');
       }
 
-      return admin;
+      return {
+        ...admin,
+        failedLoginCount: admin.failedLoginCount || 0
+      };
 
     } catch (error: any) {
       console.error('Token verification error:', error.message);
@@ -142,7 +149,11 @@ export class AuthServiceImpl implements AuthService {
       }
 
       // 新しいアクセストークンを生成
-      return this.generateToken(admin);
+      const adminWithDefaults = {
+        ...admin,
+        failedLoginCount: admin.failedLoginCount || 0
+      };
+      return this.generateToken(adminWithDefaults);
 
     } catch (error: any) {
       console.error('Refresh token error:', error.message);
@@ -175,10 +186,10 @@ export class AuthServiceImpl implements AuthService {
     };
 
     return jwt.sign(payload, this.jwtSecret, {
-      expiresIn: this.tokenExpiry as string,
+      expiresIn: this.tokenExpiry,
       issuer: 'fuji-calendar',
       audience: 'fuji-calendar-admin'
-    });
+    } as SignOptions);
   }
 
   // JWTリフレッシュトークン生成
@@ -191,10 +202,10 @@ export class AuthServiceImpl implements AuthService {
     };
 
     return jwt.sign(payload, this.refreshSecret, {
-      expiresIn: this.refreshExpiry as string,
+      expiresIn: this.refreshExpiry,
       issuer: 'fuji-calendar',
       audience: 'fuji-calendar-admin'
-    });
+    } as SignOptions);
   }
 
   // トークンからペイロードを取得（検証なし）
@@ -292,7 +303,11 @@ export class AuthServiceImpl implements AuthService {
         throw new Error('Username already exists');
       }
 
-      return await AdminModel.create(username, password);
+      const newAdmin = await AdminModel.create(username, password);
+      return {
+        ...newAdmin,
+        failedLoginCount: newAdmin.failedLoginCount || 0
+      };
 
     } catch (error: any) {
       console.error('Create admin error:', error.message);

@@ -1,0 +1,27 @@
+# 軽量版 Dockerfile（バックグラウンド計算なし）
+FROM node:18-alpine
+
+# 必要なシステムパッケージ
+RUN apk add --no-cache sqlite sqlite-dev
+
+# 作業ディレクトリ
+WORKDIR /app
+
+# package.json のコピー
+COPY package*.json ./
+
+# 依存関係インストール
+RUN npm install
+
+# ソースコードをコピー
+COPY . .
+
+# フロントエンドのみビルド
+RUN npm run build:client
+
+# ポート公開
+EXPOSE 3000
+EXPOSE 8000
+
+# 軽量版起動（サーバーのみ、バックグラウンド処理なし）
+CMD ["npm", "run", "dev"]

@@ -1,0 +1,296 @@
+/* ホームページのスタイル */
+
+.homePage {
+  /* 固定高さを削除して自然な高さに */
+}
+
+.mainContent {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 2rem;
+  margin-top: 1rem; /* 上部マージンを削減 */
+}
+
+/* 詳細表示エリアのスタイル */
+.detailArea {
+  width: 100%; /* カレンダーセクションの幅いっぱい */
+}
+
+.calendarSection {
+  min-width: 0; /* グリッドのオーバーフローを防ぐ */
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* プレースホルダー */
+.placeholderCalendar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  color: #6c757d;
+}
+
+/* 今後のイベント */
+.upcomingEvents {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.upcomingEvent {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: #f8f9fa;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+}
+
+.upcomingEvent:hover {
+  background: #e9ecef;
+}
+
+.eventIcon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.eventIconImg {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.eventInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.eventDate {
+  font-weight: 600;
+  color: #2c5aa0;
+  font-size: 0.875rem;
+}
+
+.eventTime {
+  font-size: 0.8125rem;
+  color: #6c757d;
+  margin-top: 0.125rem;
+}
+
+.eventLocation {
+  font-size: 0.8125rem;
+  color: #495057;
+  margin-top: 0.25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.moreEvents {
+  text-align: center;
+  color: #6c757d;
+  font-size: 0.875rem;
+  margin: 0.5rem 0 0 0;
+  font-style: italic;
+}
+
+/* 撮影地点統計 */
+.locationStats {
+  display: flex;
+  justify-content: space-around;
+  gap: 1rem;
+}
+
+.statItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.statNumber {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #2c5aa0;
+  line-height: 1;
+}
+
+.statLabel {
+  font-size: 0.875rem;
+  color: #6c757d;
+  margin-top: 0.25rem;
+}
+
+/* モーダル */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.modalOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+}
+
+.modalContent {
+  position: relative;
+  z-index: 1001;
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow: auto;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* Internet Explorer */
+}
+
+.modalContent::-webkit-scrollbar {
+  display: none; /* WebKit browsers */
+}
+
+/* レスポンシブデザイン */
+@media (max-width: 1024px) {
+  .mainContent {
+    grid-template-columns: 1fr 250px;
+    gap: 1.5rem;
+  }
+
+  .sidebar {
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .mainContent {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .calendarSection {
+    order: 2; /* カレンダーセクションを下に移動 */
+  }
+
+  .sidebar {
+    order: 1; /* サイドバーを上に表示 */
+  }
+
+  .locationStats {
+    justify-content: center;
+    gap: 2rem;
+  }
+
+  .upcomingEvents {
+    gap: 0.5rem;
+  }
+
+  .upcomingEvent {
+    padding: 0.5rem;
+  }
+
+  .modal {
+    padding: 0.5rem;
+  }
+
+  .modalContent {
+    max-width: 95vw;
+    max-height: 95vh;
+  }
+}
+
+@media (max-width: 480px) {
+  .upcomingEvent {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .eventInfo {
+    width: 100%;
+  }
+
+  .locationStats {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .statItem {
+    flex-direction: row;
+    justify-content: space-between;
+  }
+
+  .statNumber {
+    font-size: 1.5rem;
+  }
+
+  .modal {
+    padding: 0;
+  }
+
+  .modalContent {
+    max-width: 100vw;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+}
+
+/* ダークモード対応 */
+@media (prefers-color-scheme: dark) {
+  .placeholderCalendar {
+    background: #343a40;
+    color: #adb5bd;
+  }
+
+  .upcomingEvent {
+    background: #343a40;
+  }
+
+  .upcomingEvent:hover {
+    background: #495057;
+  }
+
+  .modalOverlay {
+    background: rgba(0, 0, 0, 0.7);
+  }
+}
+
+/* 高コントラストモード */
+@media (prefers-contrast: high) {
+  .upcomingEvent {
+    border: 1px solid #000;
+  }
+
+  .modalOverlay {
+    background: rgba(0, 0, 0, 0.8);
+  }
+}
+
+/* アニメーション無効化 */
+@media (prefers-reduced-motion: reduce) {
+  .upcomingEvent {
+    transition: none;
+  }
+
+  .modalOverlay {
+    backdrop-filter: none;
+  }
+}

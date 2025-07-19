@@ -1,0 +1,68 @@
+# Node.js
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 開発ファイル
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# ログファイル
+logs
+*.log
+
+# データベースファイル
+*.db
+*.sqlite
+*.sqlite3
+
+# テストカバレッジ
+coverage
+.nyc_output
+
+# IDEファイル
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS固有ファイル
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# ドキュメント
+README.md
+docs/
+*.md
+
+# 開発用スクリプト
+scripts/
+
+# バックアップ
+backups/
+*.backup
+
+# 一時ファイル
+tmp/
+temp/
+.tmp
+
+# ビルド成果物（開発時）
+dist/
+
+# 古いファイル
+*.old.ts
+*.backup.ts

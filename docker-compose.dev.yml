@@ -7,7 +7,7 @@ services:
     ports:
       - "6379:6379"
     volumes:
-      - redis_dev_data:/data
+      - ./data/redis-dev:/data
     command: redis-server --appendonly yes
 
   # 開発サーバー (ホットリロード対応)
@@ -33,17 +33,14 @@ services:
     volumes:
       - .:/app
       - /app/node_modules
-      - app_dev_data:/app/data
+      - ./data:/app/data
     depends_on:
       - redis
     working_dir: /app
     command: npm run dev
 
-volumes:
-  redis_dev_data:
-    driver: local
-  app_dev_data:
-    driver: local
+# volumes:
+  # Named volumes removed - using local directory mapping instead
 
 networks:
   default:

@@ -248,7 +248,7 @@ fuji-calendar/
 |----------|-------------|---------------|
 | `PORT` | Server port | 8000 |
 | `NODE_ENV` | Runtime environment | development |
-| `DB_PATH` | Database file path | ./data/fuji_calendar.db |
+| `DB_PATH` | Database file path | ./data/fuji-calendar.db |
 | `JWT_SECRET` | JWT signing secret ⚠️ **Change for production** | Default value |
 | `REFRESH_SECRET` | Refresh token secret ⚠️ **Change for production** | Default value |
 | `REDIS_HOST` | Redis host | localhost |

@@ -16,10 +16,10 @@
 **原因1: データベース接続エラー**
 ```bash
 # データベースファイルの確認
-ls -la data/fuji_calendar.db
+ls -la data/fuji-calendar.db
 
 # 権限の修正
-chmod 644 data/fuji_calendar.db
+chmod 644 data/fuji-calendar.db
 chmod 755 data/
 ```
 
@@ -32,10 +32,10 @@ node scripts/fix-location-data.js
 **原因3: SQLiteの破損**
 ```bash
 # データベースの整合性チェック
-sqlite3 data/fuji_calendar.db "PRAGMA integrity_check;"
+sqlite3 data/fuji-calendar.db "PRAGMA integrity_check;"
 
 # バックアップからの復元
-cp data/backup/fuji_calendar.db.backup data/fuji_calendar.db
+cp data/backup/fuji-calendar.db.backup data/fuji-calendar.db
 ```
 
 ### 2. カレンダー表示の問題
@@ -314,13 +314,13 @@ curl http://localhost:8000/api/health
 
 ```bash
 # SQLite の整合性チェック
-sqlite3 data/fuji_calendar.db "PRAGMA integrity_check;"
+sqlite3 data/fuji-calendar.db "PRAGMA integrity_check;"
 
 # テーブル構造の確認
-sqlite3 data/fuji_calendar.db ".schema locations"
+sqlite3 data/fuji-calendar.db ".schema locations"
 
 # データ件数の確認
-sqlite3 data/fuji_calendar.db "SELECT COUNT(*) FROM locations;"
+sqlite3 data/fuji-calendar.db "SELECT COUNT(*) FROM locations;"
 ```
 
 ### 3. 計算エンジン診断
@@ -352,7 +352,7 @@ grep "GET /api" logs/app.log | cut -d' ' -f4 | sort | uniq -c
 
 ```bash
 # データベースバックアップ（日次）
-cp data/fuji_calendar.db data/backup/fuji_calendar.db.$(date +%Y%m%d)
+cp data/fuji-calendar.db data/backup/fuji-calendar.db.$(date +%Y%m%d)
 
 # ログローテーション（週次）
 find logs/ -name "*.log" -mtime +7 -delete
@@ -387,5 +387,5 @@ node scripts/fix-location-data.js
 npm audit && npm update
 
 # データベースの最適化（月次）
-sqlite3 data/fuji_calendar.db "VACUUM; ANALYZE;"
+sqlite3 data/fuji-calendar.db "VACUUM; ANALYZE;"
 ```

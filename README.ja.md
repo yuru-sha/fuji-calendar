@@ -248,7 +248,7 @@ fuji-calendar/
 |--------|------|-------------|
 | `PORT` | サーバーポート | 8000 |
 | `NODE_ENV` | 実行環境 | development |
-| `DB_PATH` | データベースファイルパス | ./data/fuji_calendar.db |
+| `DB_PATH` | データベースファイルパス | ./data/fuji-calendar.db |
 | `JWT_SECRET` | JWT署名シークレット ⚠️ **本番要変更** | デフォルト値 |
 | `REFRESH_SECRET` | リフレッシュトークンシークレット ⚠️ **本番要変更** | デフォルト値 |
 | `REDIS_HOST` | Redisホスト | localhost |

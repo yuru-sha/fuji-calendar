@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs';
 
 // データベースファイルのパス
-const DB_PATH = process.env.DB_PATH || path.join(process.cwd(), 'data', 'fuji_calendar.db');
+const DB_PATH = process.env.DB_PATH || path.join(process.cwd(), 'data', 'fuji-calendar.db');
 
 // データディレクトリを作成
 const dataDir = path.dirname(DB_PATH);

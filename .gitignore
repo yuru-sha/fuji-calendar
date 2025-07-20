@@ -17,7 +17,7 @@ build/
 
 # Database
 *.db
-!fuji_calendar.db
+!fuji-calendar.db
 *.sqlite
 *.sqlite3
 

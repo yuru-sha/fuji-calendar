@@ -143,7 +143,7 @@ npm run dev:client  # フロントエンドのみ
 node scripts/create-admin.js
 
 # または、SQLiteコマンドライン
-sqlite3 data/fuji_calendar.db < scripts/create-admin.sql
+sqlite3 data/fuji-calendar.db < scripts/create-admin.sql
 ```
 
 ## 設定ファイル
@@ -154,7 +154,7 @@ sqlite3 data/fuji_calendar.db < scripts/create-admin.sql
 |--------|------|-------------|------|
 | `NODE_ENV` | 実行環境 | development | ○ |
 | `PORT` | サーバーポート | 8000 | × |
-| `DB_PATH` | データベースファイルパス | ./data/fuji_calendar.db | × |
+| `DB_PATH` | データベースファイルパス | ./data/fuji-calendar.db | × |
 | `JWT_SECRET` | JWT署名シークレット | ランダム生成 | 本番○ |
 | `REFRESH_SECRET` | リフレッシュトークンシークレット | ランダム生成 | 本番○ |
 | `FRONTEND_URL` | フロントエンドURL | localhost:3000 | 本番○ |
@@ -193,7 +193,7 @@ kill -9 <PID>
 ```bash
 # データディレクトリの権限を修正
 chmod 755 data/
-chmod 644 data/fuji_calendar.db
+chmod 644 data/fuji-calendar.db
 ```
 
 #### 3. Redisの接続エラー

@@ -69,14 +69,14 @@ typecheck:
 reset-db:
 	@echo "🗄️  データベースを初期化中..."
 	mkdir -p data
-	sqlite3 data/fuji_calendar.db < src/server/database/schema.sql
+	sqlite3 data/fuji-calendar.db < src/server/database/schema.sql
 	@echo "✅ データベースが初期化されました"
 
 # 管理者アカウント作成
 admin:
 	@echo "👤 管理者アカウントを作成中..."
-	sqlite3 data/fuji_calendar.db "ALTER TABLE admins ADD COLUMN email TEXT" 2>/dev/null || true
-	sqlite3 data/fuji_calendar.db < scripts/create-admin.sql
+	sqlite3 data/fuji-calendar.db "ALTER TABLE admins ADD COLUMN email TEXT" 2>/dev/null || true
+	sqlite3 data/fuji-calendar.db < scripts/create-admin.sql
 	@echo "✅ 管理者アカウントが作成されました"
 	@echo ""
 	@echo "ログイン情報:"
@@ -88,7 +88,7 @@ admin:
 backup-db:
 	@echo "💾 データベースをバックアップ中..."
 	mkdir -p backups
-	cp data/fuji_calendar.db backups/fuji_calendar_$(shell date +%Y%m%d_%H%M%S).db
+	cp data/fuji-calendar.db backups/fuji_calendar_$(shell date +%Y%m%d_%H%M%S).db
 	@echo "✅ バックアップが完了しました: backups/"
 
 # クリーンアップ
@@ -112,7 +112,7 @@ status:
 	@echo "  Node.js: $(shell node --version 2>/dev/null || echo '❌ 未インストール')"
 	@echo "  npm: $(shell npm --version 2>/dev/null || echo '❌ 未インストール')"
 	@echo "  SQLite: $(shell sqlite3 --version 2>/dev/null | cut -d' ' -f1 || echo '❌ 未インストール')"
-	@echo "  データベース: $(shell [ -f data/fuji_calendar.db ] && echo '✅ 存在' || echo '❌ 未作成')"
+	@echo "  データベース: $(shell [ -f data/fuji-calendar.db ] && echo '✅ 存在' || echo '❌ 未作成')"
 	@echo "  依存関係: $(shell [ -d node_modules ] && echo '✅ インストール済み' || echo '❌ 未インストール')"
 
 # サーバープロセス管理
@@ -138,8 +138,8 @@ logs:
 # データベース情報表示
 db-info:
 	@echo "🗄️  データベース情報:"
-	@echo "  撮影地点数: $(shell sqlite3 data/fuji_calendar.db 'SELECT COUNT(*) FROM locations' 2>/dev/null || echo '❌ DB未作成')"
-	@echo "  管理者数: $(shell sqlite3 data/fuji_calendar.db 'SELECT COUNT(*) FROM admins' 2>/dev/null || echo '❌ DB未作成')"
+	@echo "  撮影地点数: $(shell sqlite3 data/fuji-calendar.db 'SELECT COUNT(*) FROM locations' 2>/dev/null || echo '❌ DB未作成')"
+	@echo "  管理者数: $(shell sqlite3 data/fuji-calendar.db 'SELECT COUNT(*) FROM admins' 2>/dev/null || echo '❌ DB未作成')"
 
 # セキュリティチェック
 security:

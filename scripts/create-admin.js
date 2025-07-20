@@ -2,7 +2,7 @@ const { AdminModel } = require('../dist/server/models/Admin');
 const bcrypt = require('bcrypt');
 
 async function createDefaultAdmin() {
-  const dbPath = path.join(__dirname, '../data/fuji_calendar.db');
+  const dbPath = path.join(__dirname, '../data/fuji-calendar.db');
   const db = new Database(dbPath);
   
   try {

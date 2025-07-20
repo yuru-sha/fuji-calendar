@@ -88,8 +88,44 @@ const Calendar: React.FC<CalendarProps> = ({
     }
   };
 
+  const handlePrevYear = () => {
+    onMonthChange(year - 1, month);
+  };
+
+  const handleNextYear = () => {
+    onMonthChange(year + 1, month);
+  };
+
+  const handleYearChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const newYear = parseInt(event.target.value);
+    onMonthChange(newYear, month);
+  };
+
+  const handleMonthChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const newMonth = parseInt(event.target.value);
+    onMonthChange(year, newMonth);
+  };
+
   const handleDateClick = (date: Date) => {
     onDateClick(date);
+  };
+
+  const handleTodayClick = () => {
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth() + 1;
+    
+    // 現在表示されている年月と異なる場合のみ月を変更
+    if (year !== currentYear || month !== currentMonth) {
+      onMonthChange(currentYear, currentMonth);
+      // カレンダーデータの更新を待ってから日付を選択
+      setTimeout(() => {
+        onDateClick(today);
+      }, 200);
+    } else {
+      // 同じ月の場合は即座に日付を選択
+      onDateClick(today);
+    }
   };
 
   const isSelectedDate = (date: Date): boolean => {
@@ -126,29 +162,96 @@ const Calendar: React.FC<CalendarProps> = ({
     return `${events.length}件`;
   };
 
+  // 年の選択肢を生成（現在年から前後10年）
+  const generateYearOptions = () => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let i = currentYear - 10; i <= currentYear + 10; i++) {
+      years.push(i);
+    }
+    return years;
+  };
+
+  // 月の選択肢を生成
+  const monthNames = [
+    '1月', '2月', '3月', '4月', '5月', '6月',
+    '7月', '8月', '9月', '10月', '11月', '12月'
+  ];
+
   return (
     <div className={styles.calendar}>
       {/* カレンダーヘッダー */}
       <div className={styles.header}>
-        <button 
-          className={styles.navButton} 
-          onClick={handlePrevMonth}
-          aria-label="前の月"
-        >
-          ‹
-        </button>
+        <div className={styles.yearNavigation}>
+          <button 
+            className={styles.navButton} 
+            onClick={handlePrevYear}
+            aria-label="前の年"
+            title="前の年"
+          >
+            ‹‹
+          </button>
+          <button 
+            className={styles.navButton} 
+            onClick={handlePrevMonth}
+            aria-label="前の月"
+            title="前の月"
+          >
+            ‹
+          </button>
+        </div>
         
-        <h2 className={styles.title}>
-          {year}年 {month}月
-        </h2>
+        <div className={styles.titleSection}>
+          <select 
+            className={styles.yearSelect}
+            value={year}
+            onChange={handleYearChange}
+            aria-label="年を選択"
+          >
+            {generateYearOptions().map(y => (
+              <option key={y} value={y}>{y}年</option>
+            ))}
+          </select>
+          
+          <select 
+            className={styles.monthSelect}
+            value={month}
+            onChange={handleMonthChange}
+            aria-label="月を選択"
+          >
+            {monthNames.map((name, index) => (
+              <option key={index + 1} value={index + 1}>{name}</option>
+            ))}
+          </select>
+          
+          <button 
+            className={styles.todayButton}
+            onClick={handleTodayClick}
+            aria-label="今日に移動"
+            title="今日に移動"
+          >
+            今日
+          </button>
+        </div>
         
-        <button 
-          className={styles.navButton} 
-          onClick={handleNextMonth}
-          aria-label="次の月"
-        >
-          ›
-        </button>
+        <div className={styles.yearNavigation}>
+          <button 
+            className={styles.navButton} 
+            onClick={handleNextMonth}
+            aria-label="次の月"
+            title="次の月"
+          >
+            ›
+          </button>
+          <button 
+            className={styles.navButton} 
+            onClick={handleNextYear}
+            aria-label="次の年"
+            title="次の年"
+          >
+            ››
+          </button>
+        </div>
       </div>
 
       {/* 曜日ヘッダー */}

@@ -2,14 +2,14 @@ import { CalendarEvent, CalendarResponse, EventsResponse, FujiEvent, WeatherInfo
 import { AstronomicalCalculatorAstronomyEngine } from './AstronomicalCalculatorAstronomyEngine';
 import { LocationModel } from '../models/Location';
 import { EventsCacheModel } from '../models/EventsCache';
-// import { BatchCalculationService } from './BatchCalculationService'; // SunCalc直接使用のため無効化
+// import { BatchCalculationService } from './BatchCalculationService'; // 無効化
 import { timeUtils } from '../../shared/utils/timeUtils';
 import { getComponentLogger, StructuredLogger } from '../../shared/utils/logger';
 
 export class CalendarService {
   private locationModel: LocationModel;
   private cacheModel: EventsCacheModel;
-  // private batchService: BatchCalculationService; // SunCalc直接使用のため無効化
+  // private batchService: BatchCalculationService; // 無効化
   private astronomicalCalculator: AstronomicalCalculatorAstronomyEngine;
   private logger: StructuredLogger;
 
@@ -17,7 +17,7 @@ export class CalendarService {
     this.locationModel = new LocationModel();
     this.cacheModel = new EventsCacheModel();
     this.astronomicalCalculator = new AstronomicalCalculatorAstronomyEngine();
-    // this.batchService = new BatchCalculationService(); // SunCalc直接使用のため無効化
+    // this.batchService = new BatchCalculationService(); // 無効化
     this.logger = getComponentLogger('calendar-service');
   }
 
@@ -533,7 +533,7 @@ export class CalendarService {
         nextMonth
       });
       
-      // プリロード機能無効化（SunCalc直接計算では不要）
+      // プリロード機能無効化
       // await this.batchService.calculateMonthlyEvents(nextYear, nextMonth, undefined, 'low');
       
     } catch (error) {

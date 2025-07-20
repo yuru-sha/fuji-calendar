@@ -67,7 +67,7 @@ npm run test:watch    # Watch mode for tests
 ### Time Handling
 
 **重要**: 全ての時刻はJST (UTC+9) で処理される
-- SunCalcはUTC入力を期待するため、`timeUtils.jstToUtc()`で変換
+- Astronomy Engineは内部で適切なタイムゾーン処理を行う
 - API レスポンスは `timeUtils.formatDateString()` でJST文字列
 - フロントエンドでの日付クリック時は `timeUtils.formatDateString(date)` を使用 (`date.toISOString().split('T')[0]` は使用禁止)
 

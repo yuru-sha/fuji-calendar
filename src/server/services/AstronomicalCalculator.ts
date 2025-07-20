@@ -10,7 +10,7 @@ export interface AstronomicalCalculator {
   getSunPosition(date: Date, latitude: number, longitude: number): SunPosition;
   getMoonPosition(date: Date, latitude: number, longitude: number): MoonPosition;
   calculateAzimuthToFuji(fromLocation: Location): number;
-  isVisible(fromLocation: Location, targetAzimuth: number): boolean;
+  isVisible(fromLocation: Location, targetAzimuth: number, celestialBody?: 'sun' | 'moon'): boolean;
   isDiamondFujiSeason(date: Date, location: Location): boolean;
   getSunMaxElevation(date: Date, location: Location): number;
   getDiamondFujiSeasonMessage(date: Date, location: Location): string | null;
@@ -159,7 +159,6 @@ export class AstronomicalCalculatorImpl implements AstronomicalCalculator {
 
   // ダイヤモンド富士が観測可能な期間かどうかを判定（秋分〜春分）
   isDiamondFujiSeason(date: Date, location: Location): boolean {
-    const year = date.getFullYear();
     const month = date.getMonth() + 1; // 0ベースを1ベースに
     const day = date.getDate();
     
@@ -252,7 +251,7 @@ export class AstronomicalCalculatorImpl implements AstronomicalCalculator {
   }
 
   // 富士山が見える方向かどうかを判定
-  isVisible(fromLocation: Location, targetAzimuth: number): boolean {
+  isVisible(fromLocation: Location, targetAzimuth: number, celestialBody: 'sun' | 'moon' = 'sun'): boolean {
     const fujiAzimuth = this.calculateAzimuthToFuji(fromLocation);
     const angleDifference = Math.abs(targetAzimuth - fujiAzimuth);
     
@@ -261,7 +260,16 @@ export class AstronomicalCalculatorImpl implements AstronomicalCalculator {
     
     // 富士山の角度サイズを考慮した許容範囲
     const fujiAngularSize = this.calculateFujiAngularSize(fromLocation);
-    const tolerance = Math.max(fujiAngularSize / 2, 0.5); // 最小0.5度の許容範囲
+    
+    let tolerance: number;
+    if (celestialBody === 'moon') {
+      // パール富士の場合：月の見かけの大きさ（約0.5度）と観測の実用性を考慮
+      // 実際の観測では5-6度の差でも美しいパール富士として撮影可能
+      tolerance = Math.max(fujiAngularSize * 2, 6.0); // 最小6度の許容範囲
+    } else {
+      // ダイヤモンド富士の場合：従来通りの精密な判定
+      tolerance = Math.max(fujiAngularSize / 2, 0.5); // 最小0.5度の許容範囲
+    }
     
     return normalizedDifference <= tolerance;
   }
@@ -355,7 +363,7 @@ export class AstronomicalCalculatorImpl implements AstronomicalCalculator {
     
     // 最適化された時間範囲でループ
     while (currentTime <= endTime) {
-      let position;
+      let position: { azimuth: number; elevation: number; phase?: number };
       if (celestialBody === 'sun') {
         position = this.getSunPosition(currentTime, location.latitude, location.longitude, location.elevation);
       } else {
@@ -403,7 +411,7 @@ export class AstronomicalCalculatorImpl implements AstronomicalCalculator {
       const detailCurrentTime = new Date(detailStartTime.getTime());
       
       while (detailCurrentTime <= detailEndTime) {
-        let position;
+        let position: { azimuth: number; elevation: number; phase?: number };
         if (celestialBody === 'sun') {
           position = this.getSunPosition(detailCurrentTime, location.latitude, location.longitude, location.elevation);
         } else {
@@ -626,11 +634,27 @@ export class AstronomicalCalculatorImpl implements AstronomicalCalculator {
         const elevationDiff = Math.abs(moonrisePosition.elevation - fujiViewingAngle);
         const isValidElevation = elevationDiff <= 1.0; // 非常に厳格な1度以内
         
-        // 方位角も厳密にチェック
-        const isValidAzimuth = this.isVisible(location, moonrisePosition.azimuth);
+        // 方位角も厳密にチェック（パール富士用の寛容な判定）
+        const isValidAzimuth = this.isVisible(location, moonrisePosition.azimuth, 'moon');
         
-        // 月の満ち欠けを考慮（50%以上で十分な明るさ）
-        if (moonrisePosition.phase > 0.5 && isValidElevation && isValidAzimuth) {
+        // デバッグ情報を出力
+        this.logger.astronomical('debug', `昇るパール富士判定`, {
+          calculationType: 'pearl',
+          subType: 'rising',
+          locationName: location.name,
+          date: date.toDateString(),
+          moonPhase: parseFloat((moonrisePosition.phase * 100).toFixed(1)),
+          elevationDiff: parseFloat(elevationDiff.toFixed(2)),
+          isValidElevation,
+          isValidAzimuth,
+          fujiViewingAngle: parseFloat(fujiViewingAngle.toFixed(2)),
+          moonElevation: parseFloat(moonrisePosition.elevation.toFixed(2)),
+          moonAzimuth: parseFloat(moonrisePosition.azimuth.toFixed(1)),
+          fujiAzimuth: parseFloat(this.calculateAzimuthToFuji(location).toFixed(1))
+        });
+
+        // 月の満ち欠けを考慮（10%以上で視認可能な明るさ）
+        if (moonrisePosition.phase > 0.1 && isValidElevation && isValidAzimuth) {
           this.logger.astronomical('info', `昇るパール富士発見`, {
             calculationType: 'pearl',
             subType: 'rising',
@@ -666,11 +690,27 @@ export class AstronomicalCalculatorImpl implements AstronomicalCalculator {
         const elevationDiff = Math.abs(moonsetPosition.elevation - fujiViewingAngle);
         const isValidElevation = elevationDiff <= 1.0; // 非常に厳格な1度以内
         
-        // 方位角も厳密にチェック
-        const isValidAzimuth = this.isVisible(location, moonsetPosition.azimuth);
+        // 方位角も厳密にチェック（パール富士用の寛容な判定）
+        const isValidAzimuth = this.isVisible(location, moonsetPosition.azimuth, 'moon');
         
-        // 月の満ち欠けを考慮（50%以上で十分な明るさ）
-        if (moonsetPosition.phase > 0.5 && isValidElevation && isValidAzimuth) {
+        // デバッグ情報を出力
+        this.logger.astronomical('debug', `沈むパール富士判定`, {
+          calculationType: 'pearl',
+          subType: 'setting',
+          locationName: location.name,
+          date: date.toDateString(),
+          moonPhase: parseFloat((moonsetPosition.phase * 100).toFixed(1)),
+          elevationDiff: parseFloat(elevationDiff.toFixed(2)),
+          isValidElevation,
+          isValidAzimuth,
+          fujiViewingAngle: parseFloat(fujiViewingAngle.toFixed(2)),
+          moonElevation: parseFloat(moonsetPosition.elevation.toFixed(2)),
+          moonAzimuth: parseFloat(moonsetPosition.azimuth.toFixed(1)),
+          fujiAzimuth: parseFloat(this.calculateAzimuthToFuji(location).toFixed(1))
+        });
+
+        // 月の満ち欠けを考慮（10%以上で視認可能な明るさ）
+        if (moonsetPosition.phase > 0.1 && isValidElevation && isValidAzimuth) {
           this.logger.astronomical('info', `沈むパール富士発見`, {
             calculationType: 'pearl',
             subType: 'setting',

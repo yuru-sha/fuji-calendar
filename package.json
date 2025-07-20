@@ -49,8 +49,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.20.1",
-    "sqlite3": "^5.1.6",
-    "suncalc": "^1.9.0"
+    "sqlite3": "^5.1.6"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.1.4",
@@ -65,7 +64,6 @@
     "@types/react": "^18.2.37",
     "@types/react-dom": "^18.2.15",
     "@types/sqlite3": "^3.1.11",
-    "@types/suncalc": "^1.9.2",
     "@typescript-eslint/eslint-plugin": "^6.10.0",
     "@typescript-eslint/parser": "^6.10.0",
     "@vitejs/plugin-react": "^4.1.1",

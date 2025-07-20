@@ -49,13 +49,18 @@
   align-items: center;
   gap: 0.75rem;
   padding: 0.75rem;
-  background: #f8f9fa;
+  background: #ffffff;
+  border: 1px solid #e9ecef;
   border-radius: 6px;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .upcomingEvent:hover {
-  background: #e9ecef;
+  background: #f8f9fa;
+  border-color: #dee2e6;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
 }
 
 .eventIcon {
@@ -261,11 +266,14 @@
   }
 
   .upcomingEvent {
-    background: #343a40;
+    background: #ffffff;
+    border-color: #e9ecef;
+    color: #212529;
   }
 
   .upcomingEvent:hover {
-    background: #495057;
+    background: #f8f9fa;
+    border-color: #dee2e6;
   }
 
   .modalOverlay {

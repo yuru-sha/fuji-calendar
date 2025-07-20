@@ -6,7 +6,7 @@ import FavoriteButton from './FavoriteButton';
 import LocationFavoriteButton from './LocationFavoriteButton';
 import styles from './EventDetail.module.css';
 import diamondFujiIcon from '../assets/icons/diamond_fuji.png';
-import pearlFujiIcon from '../assets/icons/pearl_fuji.png';
+import pearlFujiIcon from '../assets/icons/pearl_fuji_small.png';
 
 interface EventDetailProps {
   date: Date;

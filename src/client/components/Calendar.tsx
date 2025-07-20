@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { CalendarEvent, FujiEvent } from '../../shared/types';
 import { timeUtils } from '../../shared/utils/timeUtils';
 import styles from './Calendar.module.css';
-import diamondFujiIcon from '../assets/icons/diamond_fuji.png';
+import diamondFujiIcon from '../assets/icons/diamond_fuji_small.png';
 import pearlFujiIcon from '../assets/icons/pearl_fuji_small.png';
 
 interface CalendarProps {

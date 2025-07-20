@@ -3,7 +3,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Location, FujiEvent, FUJI_COORDINATES } from '../../shared/types';
 import styles from './MapView.module.css';
-import diamondFujiIcon from '../assets/icons/diamond_fuji.png';
+import diamondFujiIcon from '../assets/icons/diamond_fuji_small.png';
 import pearlFujiIcon from '../assets/icons/pearl_fuji_small.png';
 
 // Leafletのアイコン設定を修正

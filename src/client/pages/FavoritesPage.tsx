@@ -3,7 +3,7 @@ import { useFavorites } from '../hooks/useFavorites';
 import { FavoriteEvent, FavoriteLocation } from '../../shared/types';
 import { timeUtils } from '../../shared/utils/timeUtils';
 import styles from './FavoritesPage.module.css';
-import diamondFujiIcon from '../assets/icons/diamond_fuji.png';
+import diamondFujiIcon from '../assets/icons/diamond_fuji_small.png';
 import pearlFujiIcon from '../assets/icons/pearl_fuji_small.png';
 
 const FavoritesPage: React.FC = () => {

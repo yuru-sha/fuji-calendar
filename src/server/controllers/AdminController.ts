@@ -4,6 +4,8 @@ import { Location } from '../../shared/types';
 import { queueService } from '../services/QueueService';
 import { cacheService } from '../services/CacheService';
 import { getComponentLogger } from '../../shared/utils/logger';
+import { AdminModel } from '../models/Admin';
+import bcrypt from 'bcrypt';
 
 export class AdminController {
   private locationModel: LocationModel;
@@ -592,6 +594,74 @@ export class AdminController {
       res.status(500).json({
         error: 'Internal server error',
         message: 'キャッシュの事前生成に失敗しました。'
+      });
+    }
+  }
+  
+  // パスワード変更
+  // PUT /api/admin/password
+  async changePassword(req: Request, res: Response) {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      const adminId = (req as any).admin?.id;
+      
+      if (!adminId) {
+        return res.status(401).json({
+          error: 'Unauthorized',
+          message: '認証が必要です。'
+        });
+      }
+      
+      // バリデーション
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({
+          error: 'Invalid input',
+          message: '現在のパスワードと新しいパスワードを入力してください。'
+        });
+      }
+      
+      if (newPassword.length < 8) {
+        return res.status(400).json({
+          error: 'Weak password',
+          message: 'パスワードは8文字以上で設定してください。'
+        });
+      }
+      
+      // 現在のパスワードを確認
+      const admin = await AdminModel.findById(adminId);
+      if (!admin) {
+        return res.status(404).json({
+          error: 'Admin not found',
+          message: '管理者が見つかりません。'
+        });
+      }
+      
+      const isValidPassword = await bcrypt.compare(currentPassword, admin.passwordHash);
+      if (!isValidPassword) {
+        this.logger.warn('Invalid current password', { adminId });
+        return res.status(401).json({
+          error: 'Invalid password',
+          message: '現在のパスワードが正しくありません。'
+        });
+      }
+      
+      // パスワードを更新
+      const updated = await AdminModel.updatePassword(adminId, newPassword);
+      if (!updated) {
+        throw new Error('Failed to update password');
+      }
+      
+      this.logger.info('Password changed successfully', { adminId, username: admin.username });
+      
+      res.json({
+        success: true,
+        message: 'パスワードが正常に変更されました。'
+      });
+    } catch (error) {
+      this.logger.error('Password change error', { error });
+      res.status(500).json({
+        error: 'Internal server error',
+        message: 'パスワードの変更に失敗しました。'
       });
     }
   }

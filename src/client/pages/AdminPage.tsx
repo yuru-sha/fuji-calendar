@@ -34,6 +34,20 @@ const AdminPage: React.FC = () => {
     warnings: ''
   });
   const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  
+  // ページネーション・検索・フィルタ用の状態
+  const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterPrefecture, setFilterPrefecture] = useState('');
+  const [sortBy, setSortBy] = useState<'name' | 'prefecture' | 'createdAt'>('createdAt');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const itemsPerPage = 10;
 
   // 認証チェック
   const checkAuthentication = async () => {
@@ -70,6 +84,57 @@ const AdminPage: React.FC = () => {
   const handleLogout = () => {
     localStorage.removeItem('adminToken');
     navigate('/admin/login');
+  };
+  
+  // パスワード変更
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setError('新しいパスワードが一致しません。');
+      return;
+    }
+    
+    if (passwordForm.newPassword.length < 8) {
+      setError('パスワードは8文字以上で設定してください。');
+      return;
+    }
+    
+    const token = localStorage.getItem('adminToken');
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetch('/api/admin/password', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setShowPasswordModal(false);
+        setPasswordForm({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        });
+        setError('パスワードが正常に変更されました。');
+      } else {
+        setError(result.message || 'パスワードの変更に失敗しました。');
+      }
+    } catch (err) {
+      setError('ネットワークエラーが発生しました。');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // 撮影地点一覧を取得
@@ -218,6 +283,133 @@ const AdminPage: React.FC = () => {
     });
   };
 
+  // データのエクスポート
+  const handleExport = () => {
+    const dataStr = JSON.stringify(locations, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    
+    const exportFileDefaultName = `locations_${new Date().toISOString().split('T')[0]}.json`;
+    
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+    linkElement.remove();
+  };
+  
+  // データのインポート
+  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    try {
+      const text = await file.text();
+      const importedLocations = JSON.parse(text) as Location[];
+      
+      if (!Array.isArray(importedLocations)) {
+        throw new Error('ファイル形式が正しくありません');
+      }
+      
+      const token = localStorage.getItem('adminToken');
+      setLoading(true);
+      setError(null);
+      
+      let successCount = 0;
+      let failCount = 0;
+      
+      for (const location of importedLocations) {
+        try {
+          const response = await fetch('/api/admin/locations', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              name: location.name,
+              prefecture: location.prefecture,
+              latitude: location.latitude,
+              longitude: location.longitude,
+              elevation: location.elevation,
+              description: location.description,
+              accessInfo: location.accessInfo,
+              warnings: location.warnings
+            })
+          });
+          
+          if (response.ok) {
+            successCount++;
+          } else {
+            failCount++;
+          }
+        } catch (err) {
+          failCount++;
+        }
+      }
+      
+      await fetchLocations();
+      
+      if (failCount === 0) {
+        setError(`${successCount}件の地点をインポートしました`);
+      } else {
+        setError(`${successCount}件成功、${failCount}件失敗しました`);
+      }
+    } catch (err) {
+      setError('ファイルの読み込みに失敗しました');
+    } finally {
+      setLoading(false);
+      // ファイル入力をリセット
+      event.target.value = '';
+    }
+  };
+  
+  // フィルタリングとソート
+  const filteredAndSortedLocations = React.useMemo(() => {
+    let filtered = locations;
+    
+    // 検索フィルタ
+    if (searchTerm) {
+      filtered = filtered.filter(location => 
+        location.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        location.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    // 都道府県フィルタ
+    if (filterPrefecture) {
+      filtered = filtered.filter(location => location.prefecture === filterPrefecture);
+    }
+    
+    // ソート
+    const sorted = [...filtered].sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortBy) {
+        case 'name':
+          comparison = a.name.localeCompare(b.name);
+          break;
+        case 'prefecture':
+          comparison = a.prefecture.localeCompare(b.prefecture);
+          break;
+        case 'createdAt':
+          comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+          break;
+      }
+      
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+    
+    return sorted;
+  }, [locations, searchTerm, filterPrefecture, sortBy, sortOrder]);
+  
+  // ページネーション
+  const paginatedLocations = React.useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredAndSortedLocations.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredAndSortedLocations, currentPage]);
+  
+  const totalPages = Math.ceil(filteredAndSortedLocations.length / itemsPerPage);
+  
   // 地図から座標を選択
   const handleLocationSelect = async (lat: number, lng: number) => {
     console.log('=== handleLocationSelect called ===');
@@ -334,9 +526,14 @@ const AdminPage: React.FC = () => {
       <div className="card">
         <div className={styles.adminHeader}>
           <h2 className="card-title">撮影地点管理</h2>
-          <button onClick={handleLogout} className={styles.logoutButton}>
-            ログアウト
-          </button>
+          <div className={styles.headerActions}>
+            <button onClick={() => setShowPasswordModal(true)} className={styles.passwordButton}>
+              🔐 パスワード変更
+            </button>
+            <button onClick={handleLogout} className={styles.logoutButton}>
+              ログアウト
+            </button>
+          </div>
         </div>
         
         {error && (
@@ -534,12 +731,76 @@ const AdminPage: React.FC = () => {
 
         {/* 撮影地点一覧 */}
         <div className={styles.listSection}>
-          <h3>登録済み撮影地点</h3>
+          <div className={styles.listHeader}>
+            <h3>登録済み撮影地点 ({filteredAndSortedLocations.length}件)</h3>
+            <div className={styles.listActions}>
+              <button onClick={handleExport} className={styles.exportButton} disabled={locations.length === 0}>
+                📥 エクスポート
+              </button>
+              <label className={styles.importButton}>
+                📤 インポート
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={handleImport}
+                  style={{ display: 'none' }}
+                />
+              </label>
+            </div>
+          </div>
+          
+          {/* 検索・フィルタ */}
+          <div className={styles.filterSection}>
+            <div className={styles.searchBox}>
+              <input
+                type="text"
+                placeholder="地点名や説明で検索..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+              />
+            </div>
+            
+            <div className={styles.filterBox}>
+              <select
+                value={filterPrefecture}
+                onChange={(e) => {
+                  setFilterPrefecture(e.target.value);
+                  setCurrentPage(1);
+                }}
+              >
+                <option value="">都道府県で絞り込み</option>
+                {Array.from(new Set(locations.map(l => l.prefecture))).sort().map(pref => (
+                  <option key={pref} value={pref}>{pref}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div className={styles.sortBox}>
+              <select
+                value={`${sortBy}-${sortOrder}`}
+                onChange={(e) => {
+                  const [newSortBy, newSortOrder] = e.target.value.split('-') as [typeof sortBy, typeof sortOrder];
+                  setSortBy(newSortBy);
+                  setSortOrder(newSortOrder);
+                }}
+              >
+                <option value="createdAt-desc">登録日時（新しい順）</option>
+                <option value="createdAt-asc">登録日時（古い順）</option>
+                <option value="name-asc">地点名（昇順）</option>
+                <option value="name-desc">地点名（降順）</option>
+                <option value="prefecture-asc">都道府県（昇順）</option>
+                <option value="prefecture-desc">都道府県（降順）</option>
+              </select>
+            </div>
+          </div>
           
           {loading && <div className="loading">データを読み込み中...</div>}
           
           <div className={styles.locationsList}>
-            {locations.map(location => (
+            {paginatedLocations.map(location => (
               <div key={location.id} className={styles.locationItem}>
                 <div className={styles.locationInfo}>
                   <h4>{location.name}</h4>
@@ -566,6 +827,131 @@ const AdminPage: React.FC = () => {
               </div>
             ))}
           </div>
+          
+          {/* ページネーション */}
+          {totalPages > 1 && (
+            <div className={styles.pagination}>
+              <div className={styles.pageInfo}>
+                全{filteredAndSortedLocations.length}件中 {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, filteredAndSortedLocations.length)}件を表示
+              </div>
+              
+              <div className={styles.pageControls}>
+                <button
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  className={styles.pageButton}
+                  title="最初のページ"
+                >
+                  «
+                </button>
+                
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className={styles.pageButton}
+                >
+                  ‹ 前へ
+                </button>
+                
+                <div className={styles.pageNumbers}>
+                  {(() => {
+                    const pages = [];
+                    const showEllipsisStart = currentPage > 3;
+                    const showEllipsisEnd = currentPage < totalPages - 2;
+                    
+                    // 最初のページ
+                    if (currentPage > 2) {
+                      pages.push(
+                        <button
+                          key={1}
+                          onClick={() => setCurrentPage(1)}
+                          className={styles.pageButton}
+                        >
+                          1
+                        </button>
+                      );
+                    }
+                    
+                    if (showEllipsisStart) {
+                      pages.push(<span key="dots-start" className={styles.pageDots}>...</span>);
+                    }
+                    
+                    // 現在のページの周辺
+                    for (let i = Math.max(1, currentPage - 1); i <= Math.min(totalPages, currentPage + 1); i++) {
+                      pages.push(
+                        <button
+                          key={i}
+                          onClick={() => setCurrentPage(i)}
+                          className={`${styles.pageButton} ${currentPage === i ? styles.active : ''}`}
+                        >
+                          {i}
+                        </button>
+                      );
+                    }
+                    
+                    if (showEllipsisEnd) {
+                      pages.push(<span key="dots-end" className={styles.pageDots}>...</span>);
+                    }
+                    
+                    // 最後のページ
+                    if (currentPage < totalPages - 1) {
+                      pages.push(
+                        <button
+                          key={totalPages}
+                          onClick={() => setCurrentPage(totalPages)}
+                          className={styles.pageButton}
+                        >
+                          {totalPages}
+                        </button>
+                      );
+                    }
+                    
+                    return pages;
+                  })()}
+                </div>
+                
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  className={styles.pageButton}
+                >
+                  次へ ›
+                </button>
+                
+                <button
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  className={styles.pageButton}
+                  title="最後のページ"
+                >
+                  »
+                </button>
+                
+                <form
+                  className={styles.pageJumpForm}
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const input = e.currentTarget.querySelector('input') as HTMLInputElement;
+                    const page = parseInt(input.value);
+                    if (page >= 1 && page <= totalPages) {
+                      setCurrentPage(page);
+                    }
+                    input.value = '';
+                  }}
+                >
+                  <span>ページ:</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max={totalPages}
+                    placeholder={currentPage.toString()}
+                    className={styles.pageJumpInput}
+                  />
+                  <span>/ {totalPages}</span>
+                </form>
+              </div>
+            </div>
+          )}
         </div>
       </div>
       
@@ -577,6 +963,59 @@ const AdminPage: React.FC = () => {
           initialLng={formData.longitude || 138.7274}
           onClose={() => setShowLocationPicker(false)}
         />
+      )}
+      
+      {/* パスワード変更モーダル */}
+      {showPasswordModal && (
+        <div className={styles.modalOverlay} onClick={() => setShowPasswordModal(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3>パスワード変更</h3>
+            <form onSubmit={handlePasswordChange} className={styles.passwordForm}>
+              <div className={styles.formGroup}>
+                <label htmlFor="currentPassword">現在のパスワード</label>
+                <input
+                  id="currentPassword"
+                  type="password"
+                  value={passwordForm.currentPassword}
+                  onChange={(e) => setPasswordForm(prev => ({ ...prev, currentPassword: e.target.value }))}
+                  required
+                />
+              </div>
+              
+              <div className={styles.formGroup}>
+                <label htmlFor="newPassword">新しいパスワード</label>
+                <input
+                  id="newPassword"
+                  type="password"
+                  value={passwordForm.newPassword}
+                  onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                  placeholder="8文字以上"
+                  required
+                />
+              </div>
+              
+              <div className={styles.formGroup}>
+                <label htmlFor="confirmPassword">新しいパスワード（確認）</label>
+                <input
+                  id="confirmPassword"
+                  type="password"
+                  value={passwordForm.confirmPassword}
+                  onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                  required
+                />
+              </div>
+              
+              <div className={styles.modalActions}>
+                <button type="submit" disabled={loading}>
+                  {loading ? '変更中...' : '変更'}
+                </button>
+                <button type="button" onClick={() => setShowPasswordModal(false)}>
+                  キャンセル
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

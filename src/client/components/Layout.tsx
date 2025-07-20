@@ -10,7 +10,7 @@ const Layout: React.FC = () => {
           <nav>
             <Link to="/">ホーム</Link>
             <Link to="/favorites">お気に入り</Link>
-            <Link to="/admin">管理画面</Link>
+            <Link to="/admin">地点登録</Link>
           </nav>
         </div>
       </header>

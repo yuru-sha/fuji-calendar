@@ -7,11 +7,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 富士山カレンダーは、ダイヤモンド富士とパール富士の撮影に最適な日時と場所を表示するカレンダーアプリケーションです。Astronomy Engineによる高精度天体計算とお気に入り機能を備え、写真愛好家が効率的に撮影計画を立てられる情報を提供します。
 
 ### 主要機能
-- **カレンダービュー**: 月間カレンダーでイベントを一覧表示
+- **カレンダービュー**: 月間カレンダーでイベントを一覧表示（視認性向上済み）
 - **イベント詳細**: 日付クリックで詳細情報と地図表示
 - **お気に入り管理**: 撮影地点・イベントの保存・エクスポート機能
 - **管理者機能**: JWT認証による地点管理システム
-- **高性能**: RedisキャッシュとPino構造化ログで最適化
+- **高性能**: RedisキャッシュとPino構造化ログで最適化（5-10倍性能向上）
+- **開発支援**: 包括的デバッグスクリプト群とパフォーマンス分析ツール
 
 ## Development Commands
 
@@ -41,7 +42,7 @@ npm run test:watch    # Watch mode for tests
 
 ### Core Components
 
-- **AstronomicalCalculator** (`src/server/services/AstronomicalCalculator.ts`): 天体計算の中核。Astronomy Engineライブラリを使用してダイヤモンド富士・パール富士の時刻を高精度計算
+- **AstronomicalCalculator** (`src/server/services/AstronomicalCalculator.ts`): 天体計算の中核。Astronomy Engineライブラリを使用してダイヤモンド富士・パール富士の時刻を高精度計算。大気屈折補正、地球楕円体モデル、シーズン自動判定機能を実装
 - **FavoritesService** (`src/client/services/favoritesService.ts`): LocalStorageベースのお気に入り管理システム。JSONエクスポート/インポート機能付き
 - **AuthService** (`src/server/services/AuthService.ts`): JWTベースの認証システム。アカウントロック、リフレッシュトークン対応
 - **CacheService** (`src/server/services/CacheService.ts`): Redisベースの高性能キャッシュシステム。メモリフォールバック付き
@@ -51,9 +52,9 @@ npm run test:watch    # Watch mode for tests
 
 ### Key Technical Concepts
 
-**ダイヤモンド富士**: 太陽が富士山頂に重なる現象。太陽の方位角が撮影地点から富士山への方位角と一致する時刻を計算
+**ダイヤモンド富士**: 太陽が富士山頂に重なる現象。太陽の方位角が撮影地点から富士山への方位角と一致する時刻を計算。精度許容範囲±1.5度、大気屈折補正適用、シーズン自動判定機能
 
-**パール富士**: 月が富士山頂に重なる現象。月の方位角と月相を考慮した計算
+**パール富士**: 月が富士山頂に重なる現象。月の方位角、月相、太陽角距離を統合考慮した高精度計算
 
 **方位角計算**: 地球上の2点間の方位角を球面三角法で計算。富士山座標 (35.3606, 138.7274, 3776m) が基準
 
@@ -99,6 +100,8 @@ React 18 + TypeScript構成
 
 **時差問題**: カレンダーで日付をクリックした際に前日のデータが表示される場合、`HomePage.tsx` の `handleDateClick` で `date.toISOString().split('T')[0]` ではなく `timeUtils.formatDateString(date)` を使用すること
 
+**UI視認性問題**: イベントアイコンが小さく件数表示が見えない場合、`Calendar.module.css`でアイコンサイズを28pxに、件数表示に白背景と境界線を追加。`HomePage.module.css`で今後のイベントリストを白背景に変更
+
 **精度問題**: AstronomicalCalculatorで「なし」と判定される場合、以下を確認:
 - 検索時間範囲 (日の出: 4-12時、日の入り: 14-20時)
 - 高度条件 (position.elevation > -2)
@@ -106,6 +109,8 @@ React 18 + TypeScript構成
 - デバッグログで `minDifference` と `bestTime` の値を確認
 
 **型定義**: `src/shared/types/index.ts` の `FUJI_COORDINATES` で富士山の座標・標高を定義。Location型には必須の `createdAt`/`updatedAt` フィールドあり
+
+**デバッグスクリプト**: `scripts/`ディレクトリに天体計算のデバッグ用スクリプトが完備。`debug_diamond_fuji_detailed.js`、`debug_pearl_fuji_detailed.js`等で詳細な計算過程を確認可能
 
 ### Environment Variables
 

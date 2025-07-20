@@ -112,6 +112,7 @@ app.post('/api/admin/locations', adminApiRateLimit, authenticateAdmin, adminCont
 app.put('/api/admin/locations/:id', adminApiRateLimit, authenticateAdmin, adminController.updateLocation.bind(adminController));
 app.delete('/api/admin/locations/:id', adminApiRateLimit, authenticateAdmin, adminController.deleteLocation.bind(adminController));
 app.post('/api/admin/reverse-geocode', adminApiRateLimit, authenticateAdmin, adminController.reverseGeocode.bind(adminController));
+app.put('/api/admin/password', adminApiRateLimit, authenticateAdmin, adminController.changePassword.bind(adminController));
 
 // 管理者用過去データAPI
 app.post('/api/admin/historical/add-observed', adminApiRateLimit, authenticateAdmin, historicalController.addObservedEvent.bind(historicalController));

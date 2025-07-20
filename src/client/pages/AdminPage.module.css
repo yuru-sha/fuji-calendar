@@ -14,6 +14,29 @@
   margin-bottom: 2rem;
 }
 
+.headerActions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.passwordButton {
+  background: #6b7280;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.passwordButton:hover {
+  background: #4b5563;
+  transform: translateY(-1px);
+}
+
 .logoutButton {
   background: #ef4444;
   color: white;
@@ -251,6 +274,14 @@
 }
 
 /* レスポンシブデザイン */
+/* レスポンシブ - フィルタセクション */
+@media (max-width: 900px) {
+  .filterSection {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+}
+
 @media (max-width: 768px) {
   .formRow {
     grid-template-columns: 1fr;
@@ -276,6 +307,27 @@
   
   .formActions button {
     width: 100%;
+  }
+  
+  .listHeader {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+  
+  .listActions {
+    flex-direction: column;
+  }
+  
+  .exportButton,
+  .importButton {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .pagination {
+    flex-wrap: wrap;
+    gap: 0.75rem;
   }
 }
 
@@ -338,10 +390,259 @@
   margin: 0 auto;
 }
 
+/* モーダルスタイル */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  max-width: 450px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.modal h3 {
+  margin: 0 0 1.5rem 0;
+  color: #111827;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.passwordForm {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.modalActions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  justify-content: flex-end;
+}
+
+.modalActions button {
+  padding: 0.625rem 1.25rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.modalActions button[type="submit"] {
+  background: #3b82f6;
+  color: white;
+}
+
+.modalActions button[type="submit"]:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.modalActions button[type="submit"]:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+.modalActions button[type="button"] {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+.modalActions button[type="button"]:hover {
+  background: #e5e7eb;
+}
+
 /* リストセクションの見出し */
 .listSection h3 {
   color: #111827;
   font-size: 1.25rem;
   font-weight: 700;
   margin-bottom: 1.5rem;
+}
+
+/* リストヘッダー */
+.listHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.listActions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.exportButton,
+.importButton {
+  padding: 0.625rem 1.25rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #f9fafb;
+  color: #374151;
+}
+
+.exportButton:hover:not(:disabled),
+.importButton:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.exportButton:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+.importButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* フィルタセクション */
+.filterSection {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 1.25rem;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+
+.searchBox input,
+.filterBox select,
+.sortBox select {
+  width: 100%;
+  padding: 0.625rem 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  background: white;
+  transition: all 0.2s;
+}
+
+.searchBox input:focus,
+.filterBox select:focus,
+.sortBox select:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* ページネーション */
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.pageInfo {
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.pageControls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.pageButton {
+  padding: 0.625rem 1rem;
+  min-width: 2.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: white;
+  color: #374151;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.pageButton:hover:not(:disabled) {
+  background: #f3f4f6;
+  color: #111827;
+  border-color: #d1d5db;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.pageButton:disabled {
+  background: #f9fafb;
+  color: #d1d5db;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.pageButton.active {
+  background: #2563eb;
+  color: white;
+  border-color: #2563eb;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+}
+
+.pageNumbers {
+  display: flex;
+  gap: 0.375rem;
+  align-items: center;
+}
+
+.pageDots {
+  padding: 0 0.375rem;
+  color: #9ca3af;
+  font-size: 0.75rem;
+}
+
+.pageJumpForm {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.pageJumpInput {
+  width: 3.5rem;
+  padding: 0.375rem 0.5rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.pageJumpInput:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }

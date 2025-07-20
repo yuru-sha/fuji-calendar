@@ -4,7 +4,7 @@
 
 ダイヤモンド富士とパール富士の撮影に最適な日時と場所を表示するカレンダーアプリケーション。写真愛好家が効率的に撮影計画を立てられるよう、Astronomy Engineによる高精度な天体計算に基づいた正確な情報を提供します。
 
-![ダイヤモンド富士](diamond_fuji_small.png) ![パール富士](pearl_fuji_small.png)
+![ダイヤモンド富士](docs/images/diamond_fuji_small.png) ![パール富士](docs/images/pearl_fuji_small.png)
 
 ## 特徴
 

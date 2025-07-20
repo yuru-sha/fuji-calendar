@@ -1,4 +1,5 @@
 # Fuji Calendar - Diamond Fuji & Pearl Fuji Photography Guide
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/yuru-sha/fuji-calendar)
 
 **Version 0.1.0**
 

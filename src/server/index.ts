@@ -3,7 +3,7 @@ import cors from 'cors';
 import path from 'path';
 
 import { initializeDatabase } from './database/connection';
-import { securityHeaders, apiRateLimit, sanitizeInput, detectSQLInjection } from './middleware/security';
+import { securityHeaders, apiRateLimit, adminApiRateLimit, authRateLimit, sanitizeInput, detectSQLInjection } from './middleware/security';
 import { authenticateAdmin } from './middleware/auth';
 import { 
   requestIdMiddleware, 
@@ -92,10 +92,10 @@ app.post('/api/calendar/suggest', calendarController.getSuggestedPlan.bind(calen
 app.get('/api/calendar/location/:locationId/:year', calendarController.getLocationYearlyEvents.bind(calendarController));
 app.get('/api/calendar/stats/:year', calendarController.getCalendarStats.bind(calendarController));
 
-// 認証API（認証不要）
-app.post('/api/admin/login', authController.login.bind(authController));
-app.post('/api/admin/logout', authController.logout.bind(authController));
-app.get('/api/admin/verify', authController.verifyToken.bind(authController));
+// 認証API（専用レート制限適用）
+app.post('/api/admin/login', authRateLimit, authController.login.bind(authController));
+app.post('/api/admin/logout', authRateLimit, authController.logout.bind(authController));
+app.get('/api/admin/verify', authRateLimit, authController.verifyToken.bind(authController));
 
 // 過去データAPI（パブリック）
 app.get('/api/historical/search', historicalController.searchEvents.bind(historicalController));
@@ -106,18 +106,18 @@ app.get('/api/historical/overview', historicalController.getDataOverview.bind(hi
 // 過去データ投稿API（認証不要、ただし将来的には認証を検討）
 app.post('/api/historical/report-success', historicalController.reportPhotoSuccess.bind(historicalController));
 
-// 管理者用API（認証が必要）
-app.get('/api/admin/locations', authenticateAdmin, adminController.getLocations.bind(adminController));
-app.post('/api/admin/locations', authenticateAdmin, adminController.createLocation.bind(adminController));
-app.put('/api/admin/locations/:id', authenticateAdmin, adminController.updateLocation.bind(adminController));
-app.delete('/api/admin/locations/:id', authenticateAdmin, adminController.deleteLocation.bind(adminController));
-app.post('/api/admin/reverse-geocode', authenticateAdmin, adminController.reverseGeocode.bind(adminController));
+// 管理者用API（管理者レート制限 + 認証）
+app.get('/api/admin/locations', adminApiRateLimit, authenticateAdmin, adminController.getLocations.bind(adminController));
+app.post('/api/admin/locations', adminApiRateLimit, authenticateAdmin, adminController.createLocation.bind(adminController));
+app.put('/api/admin/locations/:id', adminApiRateLimit, authenticateAdmin, adminController.updateLocation.bind(adminController));
+app.delete('/api/admin/locations/:id', adminApiRateLimit, authenticateAdmin, adminController.deleteLocation.bind(adminController));
+app.post('/api/admin/reverse-geocode', adminApiRateLimit, authenticateAdmin, adminController.reverseGeocode.bind(adminController));
 
 // 管理者用過去データAPI
-app.post('/api/admin/historical/add-observed', authenticateAdmin, historicalController.addObservedEvent.bind(historicalController));
+app.post('/api/admin/historical/add-observed', adminApiRateLimit, authenticateAdmin, historicalController.addObservedEvent.bind(historicalController));
 
 // キャッシュ管理API（管理者用）
-app.get('/api/admin/cache/stats', authenticateAdmin, async (req, res) => {
+app.get('/api/admin/cache/stats', adminApiRateLimit, authenticateAdmin, async (req, res) => {
   try {
     // const stats = await backgroundScheduler.batchService.getCacheStatistics();
     const stats = { totalEntries: 0, hitRate: 0, cacheSize: 0 }; // 仮データ

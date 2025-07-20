@@ -162,10 +162,10 @@ function cleanupExpiredCSRFTokens() {
   }
 }
 
-// API用レート制限
+// API用レート制限（一般的な利用に適した設定）
 export const apiRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15分
-  max: 100, // 最大100リクエスト
+  windowMs: 1 * 60 * 1000, // 1分
+  max: 100, // 100リクエスト/分
   message: {
     error: 'Too many requests',
     message: 'リクエストが多すぎます。しばらく待ってから再試行してください。'
@@ -175,10 +175,10 @@ export const apiRateLimit = rateLimit({
   keyGenerator: (req: Request) => getClientIP(req)
 });
 
-// 管理API用の厳しいレート制限
+// 管理API用レート制限（適度な制限）
 export const adminApiRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15分
-  max: 30, // 最大30リクエスト
+  windowMs: 1 * 60 * 1000, // 1分
+  max: 60, // 60リクエスト/分
   message: {
     error: 'Too many admin requests',
     message: '管理APIへのリクエストが多すぎます。'
@@ -186,6 +186,20 @@ export const adminApiRateLimit = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req: Request) => getClientIP(req)
+});
+
+// 認証API用の厳格なレート制限（ブルートフォース攻撃対策）
+export const authRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15分
+  max: 5, // 5回まで（厳格）
+  message: {
+    error: 'Too many authentication attempts',
+    message: '認証試行回数が多すぎます。15分後に再試行してください。'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => getClientIP(req),
+  skipSuccessfulRequests: true // 成功したリクエストはカウントしない
 });
 
 // ファイルアップロード制限
@@ -281,10 +295,10 @@ export const securityLogger = (req: Request, res: Response, next: NextFunction) 
   next();
 };
 
-// ブルートフォース攻撃検出
+// ブルートフォース攻撃検出（より適切なデフォルト値）
 const attemptTracking = new Map<string, { count: number; firstAttempt: Date; lastAttempt: Date }>();
 
-export const bruteForceProtection = (maxAttempts: number = 10, windowMs: number = 60 * 60 * 1000) => {
+export const bruteForceProtection = (maxAttempts: number = 5, windowMs: number = 15 * 60 * 1000) => {
   return (req: Request, res: Response, next: NextFunction) => {
     const clientIP = getClientIP(req);
     const now = new Date();

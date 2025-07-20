@@ -4,7 +4,7 @@
 
 ダイヤモンド富士とパール富士の撮影に最適な日時と場所を表示するカレンダーアプリケーション。写真愛好家が効率的に撮影計画を立てられるよう、Astronomy Engineによる高精度な天体計算に基づいた正確な情報を提供します。
 
-![ダイヤモンド富士](diamond_fuji.png) ![パール富士](pearl_fuji.png)
+![ダイヤモンド富士](diamond_fuji_small.png) ![パール富士](pearl_fuji.png)
 
 ## 特徴
 
@@ -41,10 +41,11 @@
 
 ### セキュリティ・インフラ
 - Helmet (セキュリティヘッダー)
-- Rate limiting
+- Rate limiting (100req/min 公開, 60req/min 管理, 5req/15min 認証)
 - CSRF保護
 - XSS対策
 - SQLインジェクション対策
+- ブルートフォース攻撃対策
 - Docker & Docker Compose
 - nginx (リバースプロキシ)
 

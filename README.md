@@ -4,7 +4,7 @@
 
 ダイヤモンド富士とパール富士の撮影に最適な日時と場所を表示するカレンダーアプリケーション。写真愛好家が効率的に撮影計画を立てられるよう、Astronomy Engineによる高精度な天体計算に基づいた正確な情報を提供します。
 
-![ダイヤモンド富士](diamond_fuji_small.png) ![パール富士](pearl_fuji.png)
+![ダイヤモンド富士](diamond_fuji.png) ![パール富士](pearl_fuji.png)
 
 ## 特徴
 
@@ -12,10 +12,12 @@
 - 🏔️ **撮影地点情報**: 全国の撮影スポットの詳細情報とアクセス方法
 - ⏰ **高精度天体計算**: Astronomy Engineを使用した精密な天体位置計算
 - 🗺️ **地図表示**: Leafletを使用した撮影地点と富士山の位置関係表示
+- ⭐ **お気に入り機能**: 撮影地点・イベントの保存・管理・エクスポート機能
 - 📊 **撮影推奨度**: 天体計算に基づく撮影条件の評価
 - 🔐 **管理機能**: 管理者による撮影地点の登録・管理
 - 🕐 **JST時刻対応**: 日本標準時での正確な時刻表示
 - 🎯 **パール富士精密検索**: 月の出入り時刻前後の詳細検索
+- 🚀 **高性能**: Pino構造化ログ・Redis キャッシュによる最適化
 
 ## 技術スタック
 
@@ -24,23 +26,27 @@
 - TypeScript
 - Leaflet (地図表示)
 - CSS Modules
+- LocalStorage API (お気に入り機能)
 
 ### バックエンド
 - Node.js
 - Express
 - TypeScript
 - SQLite3 (データベース)
+- Redis (キャッシュ・キューシステム)
 - Astronomy Engine (高精度天体計算)
 - Pino (構造化ログ)
 - bcrypt (パスワードハッシュ化)
 - JWT (認証)
 
-### セキュリティ
+### セキュリティ・インフラ
 - Helmet (セキュリティヘッダー)
 - Rate limiting
 - CSRF保護
 - XSS対策
 - SQLインジェクション対策
+- Docker & Docker Compose
+- nginx (リバースプロキシ)
 
 ## インストール・セットアップ
 
@@ -195,6 +201,15 @@ npm run test:watch
 - `GET /api/locations` - 撮影地点一覧
 - `GET /api/locations/:id` - 撮影地点詳細
 
+### 管理者API
+
+- `POST /api/auth/login` - 管理者ログイン
+- `POST /api/auth/logout` - ログアウト
+- `POST /api/auth/refresh` - トークンリフレッシュ
+- `POST /api/admin/locations` - 撮影地点作成
+- `PUT /api/admin/locations/:id` - 撮影地点更新
+- `DELETE /api/admin/locations/:id` - 撮影地点削除
+
 ### システムAPI
 
 - `GET /api/health` - ヘルスチェック
@@ -208,6 +223,8 @@ fuji-calendar/
 │   │   ├── components/  # Reactコンポーネント
 │   │   ├── pages/       # ページコンポーネント
 │   │   ├── hooks/       # カスタムフック
+│   │   ├── services/    # API・お気に入りサービス
+│   │   ├── types/       # 型定義
 │   │   └── assets/      # 静的リソース
 │   ├── server/          # バックエンドコード
 │   │   ├── controllers/ # APIコントローラー
@@ -230,9 +247,13 @@ fuji-calendar/
 | `PORT` | サーバーポート | 8000 |
 | `NODE_ENV` | 実行環境 | development |
 | `DB_PATH` | データベースファイルパス | ./data/fuji_calendar.db |
-| `JWT_SECRET` | JWT署名シークレット | ランダム生成 |
-| `REFRESH_SECRET` | リフレッシュトークンシークレット | ランダム生成 |
+| `JWT_SECRET` | JWT署名シークレット ⚠️ **本番要変更** | デフォルト値 |
+| `REFRESH_SECRET` | リフレッシュトークンシークレット ⚠️ **本番要変更** | デフォルト値 |
+| `REDIS_HOST` | Redisホスト | localhost |
+| `REDIS_PORT` | Redisポート | 6379 |
 | `FRONTEND_URL` | フロントエンドURL（本番用） | - |
+| `LOG_LEVEL` | ログレベル | info (本番), debug (開発) |
+| `ENABLE_FILE_LOGGING` | ファイルログ出力 | false |
 
 ## ライセンス
 

@@ -4,7 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-富士山カレンダーは、ダイヤモンド富士とパール富士の撮影に最適な日時と場所を表示するカレンダーアプリケーションです。天体の位置計算に基づいて、写真愛好家が効率的に撮影計画を立てられる情報を提供します。
+富士山カレンダーは、ダイヤモンド富士とパール富士の撮影に最適な日時と場所を表示するカレンダーアプリケーションです。Astronomy Engineによる高精度天体計算とお気に入り機能を備え、写真愛好家が効率的に撮影計画を立てられる情報を提供します。
+
+### 主要機能
+- **カレンダービュー**: 月間カレンダーでイベントを一覧表示
+- **イベント詳細**: 日付クリックで詳細情報と地図表示
+- **お気に入り管理**: 撮影地点・イベントの保存・エクスポート機能
+- **管理者機能**: JWT認証による地点管理システム
+- **高性能**: RedisキャッシュとPino構造化ログで最適化
 
 ## Development Commands
 
@@ -35,6 +42,9 @@ npm run test:watch    # Watch mode for tests
 ### Core Components
 
 - **AstronomicalCalculator** (`src/server/services/AstronomicalCalculator.ts`): 天体計算の中核。Astronomy Engineライブラリを使用してダイヤモンド富士・パール富士の時刻を高精度計算
+- **FavoritesService** (`src/client/services/favoritesService.ts`): LocalStorageベースのお気に入り管理システム。JSONエクスポート/インポート機能付き
+- **AuthService** (`src/server/services/AuthService.ts`): JWTベースの認証システム。アカウントロック、リフレッシュトークン対応
+- **CacheService** (`src/server/services/CacheService.ts`): Redisベースの高性能キャッシュシステム。メモリフォールバック付き
 - **TimeUtils** (`src/shared/utils/timeUtils.ts`): JST/UTC変換と時刻処理。日本の撮影者向けに全ての時刻をJST基準で統一
 - **CalendarService** (`src/server/services/CalendarService.ts`): 月間イベントの集計とレコメンデーション生成
 - **Logger** (`src/shared/utils/logger.ts`): Pinoベースの高性能構造化ログシステム。天体計算の詳細追跡とパフォーマンス監視

@@ -8,6 +8,7 @@ module.exports = {
     '**/tests/**/*.test.ts',
     '**/tests/**/*.test.tsx'
   ],
+  passWithNoTests: true,
   collectCoverageFrom: [
     'src/**/*.ts',
     'src/**/*.tsx',
@@ -15,7 +16,7 @@ module.exports = {
     '!src/test/**/*',
     '!src/client/main.tsx'
   ],
-  moduleNameMapping: {
+  moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@/shared/(.*)$': '<rootDir>/src/shared/$1',
     '^@/client/(.*)$': '<rootDir>/src/client/$1',

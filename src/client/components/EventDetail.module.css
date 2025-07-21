@@ -270,7 +270,7 @@
 }
 
 .googleMapsButton {
-  background: #34a853; /* Google緑色 */
+  background: #1976d2; /* ルート検索ブルー */
   color: white;
   border: none;
   padding: 0.375rem 0.75rem;
@@ -278,10 +278,18 @@
   font-size: 0.875rem;
   cursor: pointer;
   transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 .googleMapsButton:hover {
-  background: #2d8f47;
+  background: #1565c0;
+}
+
+.googleMapsButton::before {
+  content: '🗺️';
+  font-size: 0.875rem;
 }
 
 /* イベント詳細 */

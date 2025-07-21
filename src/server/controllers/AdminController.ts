@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import { LocationModel } from '../models/Location';
 import { Location } from '../../shared/types';
-import { queueService } from '../services/QueueService';
 import { cacheService } from '../services/CacheService';
 import { getComponentLogger } from '../../shared/utils/logger';
 import { AdminModel } from '../models/Admin';

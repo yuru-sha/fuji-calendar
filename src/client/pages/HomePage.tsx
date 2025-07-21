@@ -26,8 +26,7 @@ const HomePage: React.FC = () => {
 
   const {
     upcomingFavoriteEvents,
-    stats: favoriteStats,
-    addLocationToFavorites
+    stats: favoriteStats
   } = useFavorites();
 
 
@@ -71,6 +70,36 @@ const HomePage: React.FC = () => {
     setSelectedEvent(null);
   };
 
+  const handleUpcomingEventClick = async (event: FujiEvent) => {
+    // イベントの日付を取得
+    const eventDate = new Date(event.time);
+    
+    // その年月のカレンダーに移動
+    const year = eventDate.getFullYear();
+    const month = eventDate.getMonth() + 1;
+    
+    if (calendarData?.year !== year || calendarData?.month !== month) {
+      // 別の月なら月を変更
+      setCurrentDate(year, month);
+    }
+    
+    // 日付を選択して詳細を表示
+    setSelectedDate(eventDate);
+    const dateString = timeUtils.formatDateString(eventDate);
+    await loadDayEvents(dateString);
+    
+    // 詳細エリアにスクロール
+    setTimeout(() => {
+      const detailArea = document.querySelector(`.${styles.detailArea}`) as HTMLElement;
+      if (detailArea) {
+        detailArea.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
+      }
+    }, 100);
+  };
+
   const handleFavoriteEventClick = async (favoriteEvent: FavoriteEvent) => {
     // お気に入りイベントの日付を取得
     const eventDate = new Date(favoriteEvent.time);
@@ -103,27 +132,20 @@ const HomePage: React.FC = () => {
 
 
 
-  const formatUpcomingEvent = (event: FujiEvent): string => {
-    const eventType = event.type === 'diamond' ? 'ダイヤモンド富士' : 'パール富士';
-    const date = event.time.toLocaleDateString('ja-JP');
-    const time = event.time.toLocaleTimeString('ja-JP', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
-    return `${date} ${time} - ${eventType} at ${event.location.name}`;
-  };
 
   return (
     <div className={styles.homePage}>
       {/* ヘッダーセクション */}
-      <div className="card">
+      <div className="card content-wide">
         <h2 className="card-title">ダイヤモンド富士・パール富士カレンダー</h2>
-        <p>
-          富士山と太陽・月が重なる美しい瞬間「ダイヤモンド富士」「パール富士」の撮影に最適な日時と場所をご案内します。
-        </p>
-        <p className="mt-2">
-          カレンダーから日付を選択して、詳細な撮影情報をご確認ください。
-        </p>
+        <div className="readable-text">
+          <p>
+            富士山と太陽・月が重なる美しい瞬間「ダイヤモンド富士」「パール富士」の撮影に最適な日時と場所をご案内します。
+          </p>
+          <p>
+            カレンダーから日付を選択して、詳細な撮影情報をご確認ください。
+          </p>
+        </div>
       </div>
 
       {/* エラー表示 */}
@@ -142,9 +164,10 @@ const HomePage: React.FC = () => {
         </div>
       )}
 
-      <div className={styles.mainContent}>
-        {/* カレンダーセクション */}
-        <div className={styles.calendarSection}>
+      <div className="content-wide">
+        <div className={styles.mainContent}>
+          {/* カレンダーセクション */}
+          <div className={styles.calendarSection}>
           <div className="card">
             <h3 className="card-title">カレンダー</h3>
             {calendarData ? (
@@ -186,7 +209,18 @@ const HomePage: React.FC = () => {
             ) : upcomingEvents.length > 0 ? (
               <div className={styles.upcomingEvents}>
                 {upcomingEvents.slice(0, 5).map((event, index) => (
-                  <div key={event.id || index} className={styles.upcomingEvent}>
+                  <div 
+                    key={event.id || index} 
+                    className={styles.upcomingEvent}
+                    onClick={() => handleUpcomingEventClick(event)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        handleUpcomingEventClick(event);
+                      }
+                    }}
+                  >
                     <div className={styles.eventIcon}>
                       {event.type === 'diamond' 
                         ? <img src={diamondFujiIcon} alt="ダイヤモンド富士" className={styles.eventIconImg} />
@@ -259,7 +293,7 @@ const HomePage: React.FC = () => {
             {upcomingFavoriteEvents.length > 0 && (
               <div className={styles.favoriteEvents}>
                 <h4 className={styles.favoriteEventsTitle}>今後のお気に入りイベント</h4>
-                {upcomingFavoriteEvents.slice(0, 3).map((event, index) => (
+                {upcomingFavoriteEvents.slice(0, 3).map((event, _index) => (
                   <div 
                     key={event.id} 
                     className={styles.favoriteEvent}
@@ -299,6 +333,7 @@ const HomePage: React.FC = () => {
               </div>
             )}
           </div>
+        </div>
         </div>
       </div>
 

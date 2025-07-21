@@ -3,7 +3,7 @@ import { Outlet, Link } from 'react-router-dom';
 
 const Layout: React.FC = () => {
   return (
-    <div className="App">
+    <div className="App hide-scrollbar">
       <header className="header">
         <div className="container">
           <h1>富士山カレンダー</h1>

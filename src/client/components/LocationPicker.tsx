@@ -65,7 +65,7 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
         mapRef.current = null;
       }
     };
-  }, []);
+  }, [initialLat, initialLng, onLocationSelect]);
 
   // 座標が外部から変更された場合にマーカーを更新
   useEffect(() => {

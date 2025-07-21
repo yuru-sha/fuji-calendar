@@ -13,7 +13,9 @@ A calendar application that displays optimal dates and locations for Diamond Fuj
 - 🏔️ **Photography Location Information**: Detailed information and access methods for shooting spots nationwide
 - ⏰ **High-Precision Astronomical Calculations**: Precise celestial position calculations using Astronomy Engine
 - 🗺️ **Map Display**: Leaflet-based visualization of photography locations and Mt. Fuji positioning
+- 🚗 **Route Navigation**: Google Maps integration for optimal route planning from current location
 - ⭐ **Favorites Feature**: Save, manage, and export photography locations & events
+- 🌤️ **Weather Integration**: 7-day weather forecast with shooting condition recommendations
 - 📊 **Photography Recommendation Score**: Evaluation of shooting conditions based on astronomical calculations
 - 🔐 **Admin Management**: Administrator registration and management of photography locations
 - 🕐 **JST Time Support**: Accurate time display in Japan Standard Time
@@ -24,21 +26,22 @@ A calendar application that displays optimal dates and locations for Diamond Fuj
 
 ### Frontend
 - React 18
-- TypeScript
+- TypeScript (strict mode)
+- Tailwind CSS v3.4.17 (utility-first styling)
+- CSS Modules (component-specific styles)
 - Leaflet (Map display)
-- CSS Modules
 - LocalStorage API (Favorites feature)
 
 ### Backend
 - Node.js
 - Express
-- TypeScript
+- TypeScript (strict mode)
 - SQLite3 (Database)
 - Redis (Cache & Queue system)
 - Astronomy Engine (High-precision astronomical calculations)
-- Pino (Structured logging)
+- Pino (Structured logging with performance optimization)
 - bcrypt (Password hashing)
-- JWT (Authentication)
+- JWT (Authentication with refresh tokens)
 
 ### Security & Infrastructure
 - Helmet (Security headers)
@@ -202,6 +205,7 @@ npm run test:watch
 
 - `GET /api/locations` - Photography location list
 - `GET /api/locations/:id` - Photography location details
+- `GET /api/locations/:id/yearly/:year` - Yearly events for specific location
 
 ### Admin API
 
@@ -215,6 +219,7 @@ npm run test:watch
 ### System API
 
 - `GET /api/health` - Health check
+- Weather forecast data integration (mock implementation)
 
 ## Directory Structure
 
@@ -256,6 +261,7 @@ fuji-calendar/
 | `FRONTEND_URL` | Frontend URL (for production) | - |
 | `LOG_LEVEL` | Log level | info (prod), debug (dev) |
 | `ENABLE_FILE_LOGGING` | File log output | false |
+| `LOG_DIR` | Log directory path | ./logs |
 
 ## Features in Detail
 
@@ -270,12 +276,31 @@ Pearl Fuji occurs when the moon appears to sit atop Mt. Fuji. The application pr
 - Atmospheric refraction corrections
 - Earth ellipsoid model considerations
 - Automatic season detection for optimal viewing periods
+- Azimuth precision within ±1.5 degrees
+- 10-second interval calculation for optimal timing
+
+### Weather Information System
+- 7-day weather forecast integration (mock implementation)
+- Shooting condition recommendations based on weather
+- Visual weather icons and color-coded recommendations
+- Integration with event detail displays
 
 ### Admin Management Features
 - Location management with pagination and search
 - JSON import/export for bulk operations
 - Password change functionality
 - Comprehensive location database with 28+ famous viewing spots
+- JWT-based authentication with account lockout protection
+- Brute force attack prevention
+
+### UI/UX Improvements
+- Responsive design with 1280px max-width layout
+- Tailwind CSS integration for consistent styling
+- Enhanced calendar visibility with better event icons
+- Smooth animations and hover effects
+- Accessible keyboard navigation
+- Intuitive route navigation with 🗺️ icon integration
+- One-click route planning to photography locations
 
 ## Contributing
 

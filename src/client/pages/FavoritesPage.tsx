@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import { useFavorites } from '../hooks/useFavorites';
-import { FavoriteEvent, FavoriteLocation } from '../../shared/types';
-import { timeUtils } from '../../shared/utils/timeUtils';
 import styles from './FavoritesPage.module.css';
 import diamondFujiIcon from '../assets/icons/diamond_fuji_small.png';
 import pearlFujiIcon from '../assets/icons/pearl_fuji_small.png';
@@ -129,8 +127,9 @@ const FavoritesPage: React.FC = () => {
 
   return (
     <div className={styles.favoritesPage}>
-      {/* ヘッダー */}
-      <div className={styles.header}>
+      <div className="content-wide">
+        {/* ヘッダー */}
+        <div className={styles.header}>
         <h1 className={styles.title}>お気に入り管理</h1>
         <div className={styles.stats}>
           <div className={styles.statItem}>
@@ -399,6 +398,7 @@ const FavoritesPage: React.FC = () => {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };

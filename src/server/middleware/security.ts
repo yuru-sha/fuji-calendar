@@ -1,5 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
+
+// セッション用のRequest拡張
+interface RequestWithSession extends Request {
+  sessionID?: string;
+}
 import helmet from 'helmet';
 import { getClientIP } from './auth';
 
@@ -102,7 +107,7 @@ export const detectSQLInjection = (req: Request, res: Response, next: NextFuncti
 // CSRFトークン管理
 const csrfTokens = new Map<string, { token: string; expires: Date }>();
 
-export const generateCSRFToken = (req: Request): string => {
+export const generateCSRFToken = (req: RequestWithSession): string => {
   const token = Math.random().toString(36).substring(2, 15) + 
                 Math.random().toString(36).substring(2, 15);
   const expires = new Date(Date.now() + 30 * 60 * 1000); // 30分後に期限切れ
@@ -116,7 +121,7 @@ export const generateCSRFToken = (req: Request): string => {
   return token;
 };
 
-export const verifyCSRFToken = (req: Request, res: Response, next: NextFunction) => {
+export const verifyCSRFToken = (req: RequestWithSession, res: Response, next: NextFunction) => {
   // GET、HEAD、OPTIONSリクエストはCSRFチェックをスキップ
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
     return next();

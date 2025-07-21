@@ -6,7 +6,6 @@ import {
   CacheKeyOptions 
 } from '../../shared/types/cache';
 import { FujiEvent, Location } from '../../shared/types';
-import { timeUtils } from '../../shared/utils/timeUtils';
 import { getComponentLogger, StructuredLogger } from '../../shared/utils/logger';
 
 /**

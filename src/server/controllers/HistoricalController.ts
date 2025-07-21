@@ -155,19 +155,19 @@ export class HistoricalController {
     }
   }
 
-  async reportPhotoSuccess(req: Request, res: Response): Promise<void> {
+  async reportPhotoSuccess(req: Request, res: Response): Promise<Response | void> {
     try {
       const { eventId, visibilityRating, weatherCondition, notes } = req.body;
 
       if (!eventId || !visibilityRating) {
-        res.status(400).json({
+        return res.status(400).json({
           error: 'Missing required fields',
           message: 'イベントIDと視界評価が必要です。'
         });
       }
 
       if (visibilityRating < 1 || visibilityRating > 5) {
-        res.status(400).json({
+        return res.status(400).json({
           error: 'Invalid visibility rating',
           message: '視界評価は1-5の範囲で指定してください。'
         });
@@ -212,7 +212,7 @@ export class HistoricalController {
     }
   }
 
-  async addObservedEvent(req: Request, res: Response): Promise<void> {
+  async addObservedEvent(req: Request, res: Response): Promise<Response | void> {
     try {
       const {
         locationId,
@@ -233,7 +233,7 @@ export class HistoricalController {
       } = req.body;
 
       if (!locationId || !year || !month || !day || !eventType || !subType || !eventTime) {
-        res.status(400).json({
+        return res.status(400).json({
           error: 'Missing required fields',
           message: '必須フィールドが不足しています。'
         });

@@ -353,7 +353,7 @@ export class AstronomicalCalculatorAstronomyEngine {
     const searchStart = new Date(candidateTime.getTime() - 2 * 60 * 60 * 1000); // 2時間前
     const searchEnd = new Date(candidateTime.getTime() + 2 * 60 * 60 * 1000);   // 2時間後
 
-    let bestMatch: { time: Date; score: number; subType: string } | null = null;
+    let bestMatch: { time: Date; score: number; subType: 'rising' | 'setting' } | null = null;
     let bestScore = Infinity;
 
     // 10分刻みで詳細検索

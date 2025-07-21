@@ -488,10 +488,9 @@ export class CalendarService {
         this.logger.info('バックグラウンド計算開始', { year, month, locationCount: locations.length });
         
         // 既存のキャッシュをチェック
-        const cacheKey = `calendar_${year}_${month}`;
-        const existingCache = await this.cacheModel.getEvents(cacheKey);
+        const existingCache = await this.cacheModel.getCache({ year, month, locationId: 0 });
         
-        if (existingCache && existingCache.length > 0) {
+        if (existingCache && existingCache.hit && existingCache.data && existingCache.data.length > 0) {
           this.logger.info('キャッシュ済みデータが存在するため計算スキップ', { year, month });
           return;
         }
@@ -500,7 +499,7 @@ export class CalendarService {
         const events = await this.astronomicalCalculator.calculateMonthlyEvents(year, month, locations);
         
         // 結果をキャッシュに保存
-        await this.cacheModel.cacheEvents(cacheKey, events, 24 * 60 * 60); // 24時間キャッシュ
+        await this.cacheModel.setCache({ year, month, locationId: 0 }, events, 0, 1); // 1日キャッシュ
         
         this.logger.info('バックグラウンド計算完了', {
           year,
@@ -537,9 +536,10 @@ export class CalendarService {
       // await this.batchService.calculateMonthlyEvents(nextYear, nextMonth, undefined, 'low');
       
     } catch (error) {
-      this.logger.warn('次月プリロードエラー', error, {
+      this.logger.warn('次月プリロードエラー', {
         year,
-        month
+        month,
+        error: error instanceof Error ? error.message : 'Unknown error'
       });
       // プリロードエラーは致命的でないため、例外を再スローしない
     }
@@ -558,8 +558,7 @@ export class CalendarService {
       
       // 超軽量化：サンプル日のみ計算（1日、15日、月末）
       const events: FujiEvent[] = [];
-      const daysInMonth = new Date(year, month, 0).getDate();
-      const sampleDays = [1, 15, daysInMonth];
+      // const sampleDays = [1, 15, daysInMonth];
       
       // 12月のパール富士データを追加
       if (year === 2024 && month === 12 && majorLocations.length > 0) {

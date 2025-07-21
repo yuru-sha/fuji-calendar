@@ -28,9 +28,11 @@
 
 ### プレゼンテーション層（フロントエンド）
 - **React 18**: UI フレームワーク
-- **TypeScript**: 型安全性
-- **CSS Modules**: スタイリング
-- **Leaflet**: 地図表示
+- **TypeScript**: 型安全性（strict mode有効）
+- **Tailwind CSS v3.4.17**: ユーティリティファーストCSS
+- **CSS Modules**: コンポーネント固有スタイリング
+- **Leaflet**: 地図表示とルート描画
+- **Google Maps Integration**: 現在地からの最適ルート検索
 - **Vite**: 開発環境とビルドツール
 
 ### アプリケーション層（バックエンド）
@@ -41,10 +43,12 @@
 - **Rate Limiting**: API制限
 
 ### ビジネスロジック層
-- **CalendarService**: カレンダー機能
-- **AstronomicalCalculator**: 天体計算
-- **AuthService**: 認証管理
-- **QueueService**: バッチ処理
+- **CalendarService**: カレンダー機能・天気情報統合
+- **AstronomicalCalculator**: 天体計算エンジン
+- **FavoritesService**: お気に入り管理（LocalStorage）
+- **AuthService**: JWT認証管理・アカウントロック
+- **CacheService**: Redis高性能キャッシュ
+- **QueueService**: バッチ処理（無効化済み）
 
 ### データアクセス層
 - **SQLite3**: メインデータベース
@@ -137,11 +141,11 @@ interface Location {
   fujiDistance?: number;     // 富士山までの距離
   
   // 撮影情報
-  accessInfo: string;
-  photoSpots: string;
-  bestSeason: string;
-  difficulty: 'beginner' | 'intermediate' | 'advanced';
-  parkingInfo: string;
+  description?: string;
+  accessInfo?: string;
+  warnings?: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 ```
 
@@ -164,13 +168,28 @@ interface FujiEvent {
 ### RESTful API 設計
 
 ```
-GET /api/calendar/:year/:month     # 月間カレンダー
-GET /api/events/:date              # 日別イベント詳細
-GET /api/locations                 # 撮影地点一覧
-GET /api/health                    # ヘルスチェック
+# カレンダーAPI
+GET /api/calendar/:year/:month            # 月間カレンダー
+GET /api/events/:date                     # 日別イベント詳細（天気情報付き）
+GET /api/events/upcoming                  # 今後のイベント
+GET /api/calendar/:year/:month/best       # おすすめ撮影日
+POST /api/calendar/suggest                # 撮影計画提案
 
-POST /api/auth/login               # 管理者ログイン
-POST /api/admin/locations          # 地点追加（管理者）
+# 撮影地点API
+GET /api/locations                        # 撮影地点一覧
+GET /api/locations/:id                    # 撮影地点詳細
+GET /api/locations/:id/yearly/:year       # 特定地点の年間イベント
+
+# 認証・管理API
+POST /api/auth/login                      # 管理者ログイン
+POST /api/auth/logout                     # ログアウト
+POST /api/auth/refresh                    # トークンリフレッシュ
+POST /api/admin/locations                 # 地点追加（管理者）
+PUT /api/admin/locations/:id              # 地点更新（管理者）
+DELETE /api/admin/locations/:id           # 地点削除（管理者）
+
+# システムAPI
+GET /api/health                           # ヘルスチェック
 ```
 
 ### レスポンス形式
@@ -238,28 +257,48 @@ CREATE INDEX idx_locations_prefecture ON locations(prefecture);
 ALTER TABLE locations ADD COLUMN fuji_azimuth REAL;
 ALTER TABLE locations ADD COLUMN fuji_elevation REAL; 
 ALTER TABLE locations ADD COLUMN fuji_distance REAL;
+
+-- イベントキャッシュテーブル（Redis代替）
+CREATE TABLE events_cache (
+  cache_key TEXT PRIMARY KEY,
+  events_data TEXT,
+  calculation_time_ms INTEGER,
+  created_at DATETIME,
+  expires_at DATETIME
+);
 ```
 
 ### 計算最適化
 
 1. **事前計算**: 撮影地点の富士山に対する座標値
-2. **2段階検索**: 粗い検索 → 精密検索
+2. **2段階検索**: 粗い検索(10分刻み) → 精密検索(10秒刻み)
 3. **季節判定**: ダイヤモンド富士シーズンの絞り込み
 4. **並列処理**: 複数地点の同時計算
+5. **直接計算**: キャッシュを介さない高速化実装
+6. **TypeScript最適化**: 厳密型チェックによるランタイムエラー削減
 
 ### キャッシュ戦略
 
 ```typescript
-// Redis キャッシュ
+// Redis キャッシュ + SQLite フォールバック
 interface CacheStrategy {
-  // 月間カレンダー: 24時間
-  monthlyCalendar: '24h',
+  // 月間カレンダー: 直接計算（キャッシュなし）
+  monthlyCalendar: 'direct',
   
   // 撮影地点: 永続化（更新時のみ削除）
   locations: 'persistent',
   
-  // 計算結果: 1時間
-  calculations: '1h'
+  // 計算結果: Redis（利用可能時）+ SQLite
+  calculations: 'hybrid'
+}
+
+// 天気情報キャッシュ
+interface WeatherCache {
+  // 7日間予報: 6時間キャッシュ
+  forecast: '6h',
+  
+  // 推奨度計算: 天気データに依存
+  recommendations: 'weather-dependent'
 }
 ```
 
@@ -272,8 +311,10 @@ interface CacheStrategy {
 services:
   calendar-service:     # カレンダー機能
   calculation-service:  # 天体計算
+  weather-service:      # 天気情報サービス（外部API統合）
   auth-service:        # 認証サービス
   notification-service: # 通知機能（将来）
+  favorites-service:   # お気に入り管理（将来）
 ```
 
 ### API バージョニング
@@ -294,6 +335,14 @@ interface AstronomicalCalculator {
 }
 
 // 実装：AstronomyEngine, VSOP87, Swiss Ephemeris等
+
+// 天気サービスプラグイン
+interface WeatherProvider {
+  getForecast(date: Date, location: GeoLocation): Promise<WeatherInfo>;
+  getRecommendation(weather: WeatherInfo): Promise<ShootingRecommendation>;
+}
+
+// 実装：OpenWeatherMap, JMA API, 独自模擬等
 ```
 
 ## 監視・運用
@@ -305,8 +354,13 @@ interface AstronomicalCalculator {
 interface HealthStatus {
   status: 'healthy' | 'unhealthy';
   database: 'connected' | 'disconnected';
-  redis: 'connected' | 'disconnected';
+  redis: 'connected' | 'disconnected' | 'unavailable';
   calculationEngine: 'operational' | 'error';
+  weatherService: 'operational' | 'mock' | 'error';
+  cachePerformance: {
+    hitRate: number;
+    avgResponseTime: number;
+  };
   timestamp: string;
 }
 ```
@@ -319,7 +373,17 @@ logger.astronomical('info', '計算パフォーマンス', {
   calculationType: 'diamond',
   searchTimeMs: 1250,
   locationCount: 6,
-  eventCount: 3
+  eventCount: 3,
+  cacheStrategy: 'direct'
+});
+
+// フロントエンドメトリクス
+logger.ui('info', 'ユーザー操作', {
+  action: 'calendar-date-click',
+  date: '2024-12-26',
+  eventsFound: 2,
+  weatherDisplayed: true,
+  favoriteInteraction: false
 });
 ```
 
@@ -333,8 +397,12 @@ logger.astronomical('info', '計算パフォーマンス', {
 
 ### 技術選択の理由
 
-1. **Astronomy Engine**: NASA JPL準拠の高精度
-2. **Pino**: 高性能な構造化ログ
-3. **JWT**: ステートレス認証
-4. **Redis**: セッション・キャッシュの分離
-5. **Docker**: 環境一貫性と運用簡素化
+1. **Astronomy Engine**: NASA JPL準拠の高精度天体計算
+2. **Pino**: 5-10倍の高性能構造化ログ
+3. **Tailwind CSS**: 開発効率とデザイン一貫性
+4. **TypeScript strict mode**: ランタイムエラーの削減
+5. **JWT + Refresh Token**: ステートレス認証とセキュリティ
+6. **Redis**: キャッシュ性能とセッション管理
+7. **LocalStorage**: シンプルなお気に入り管理
+8. **Google Maps API**: 現在地からの最適ルート案内でUX向上
+9. **Docker**: 環境一貫性とマルチコンテナ対応

@@ -129,8 +129,9 @@ GET /api/events/:date
     ],
     "weather": {
       "condition": "晴れ",
-      "temperature": 5,
-      "visibility": "良好"
+      "cloudCover": 20,
+      "visibility": 15,
+      "recommendation": "excellent"
     }
   }
 }
@@ -143,8 +144,8 @@ GET /api/events/upcoming
 ```
 
 **クエリパラメータ**
-- `limit` (number, optional): 取得件数 (デフォルト: 10, 最大: 50)
-- `days` (number, optional): 検索日数 (デフォルト: 30, 最大: 90)
+- `limit` (number, optional): 取得件数 (デフォルト: 50, 最大: 50)
+- `days` (number, optional): 検索日数 (デフォルト: 30, 最大: 30)
 
 **レスポンス**
 ```json
@@ -261,9 +262,14 @@ GET /api/health
     "timestamp": "2024-12-20T12:00:00+09:00",
     "version": "0.1.0",
     "services": {
-      "database": "healthy",
-      "redis": "healthy",
-      "astronomical": "healthy"
+      "database": "connected",
+      "redis": "connected",
+      "calculationEngine": "operational",
+      "weatherService": "mock"
+    },
+    "cachePerformance": {
+      "hitRate": 0.85,
+      "avgResponseTime": 120
     }
   }
 }
@@ -526,7 +532,52 @@ const ws = new WebSocket('ws://localhost:8000/ws');
 }
 ```
 
+#### 特定地点の年間イベント取得
+
+```http
+GET /api/locations/:id/yearly/:year
+```
+
+**パラメータ**
+- `id` (number): 撮影地点ID
+- `year` (number): 年 (例: 2024)
+
+**レスポンス**
+```json
+{
+  "success": true,
+  "data": {
+    "events": [
+      {
+        "id": "evt_20240115_001",
+        "type": "diamond",
+        "subType": "sunrise",
+        "time": "2024-01-15T06:45:00+09:00",
+        "azimuth": 120.5,
+        "elevation": 2.3
+      }
+    ],
+    "location": {
+      "id": 1,
+      "name": "田貫湖"
+    },
+    "year": 2024,
+    "totalCount": 45
+  }
+}
+```
+
 ## データ型定義
+
+### WeatherInfo
+```typescript
+interface WeatherInfo {
+  condition: string;           // 天候状態（'晴れ', '曇り', '雨', '雪'）
+  cloudCover: number;         // 雲量（0-100%）
+  visibility: number;         // 視界（km）
+  recommendation: 'excellent' | 'good' | 'fair' | 'poor';
+}
+```
 
 ### Location
 ```typescript
@@ -584,3 +635,10 @@ interface Admin {
 - レート制限値を実用的な数値に調整
 - 認証API専用のレート制限を導入（ブルートフォース対策強化）
 - 管理者APIのレート制限を緊急時の操作に対応した値に調整
+
+### v0.1.2 (2024-12-21)
+- 天気情報APIの追加（模擬実装）
+- WeatherInfoデータ型の定義と推奨度システム
+- 特定地点の年間イベントAPIの追加
+- ヘルスチェックレスポンスの拡張（キャッシュ性能等）
+- TypeScript型定義の更新と文書化改善

@@ -77,7 +77,7 @@ GET /calendar/:year/:month
 GET /events/:date
 ```
 
-指定された日付のイベント詳細を取得します。
+指定された日付のイベント詳細と天気情報を取得します。
 
 **パラメータ:**
 - `date` (文字列): 日付 (YYYY-MM-DD形式)
@@ -106,12 +106,28 @@ GET /events/:date
         "parkingInfo": "精進湖駐車場利用"
       },
       "azimuth": 231.5,
-      "elevation": 1.2,
-      "recommendation": "excellent"
+      "elevation": 1.2
     }
-  ]
+  ],
+  "weather": {
+    "condition": "晴れ",
+    "cloudCover": 20,
+    "visibility": 15,
+    "recommendation": "excellent"
+  }
 }
 ```
+
+### 今後のイベント取得
+
+```http
+GET /events/upcoming
+```
+
+今後30日間のイベントを取得します。
+
+**クエリパラメータ:**
+- `limit` (数値, オプション): 取得件数 (デフォルト: 50)
 
 ### おすすめ撮影日取得
 
@@ -162,6 +178,14 @@ GET /locations/:id
 
 指定されたIDの撮影地点詳細を取得します。
 
+### 特定地点の年間イベント
+
+```http
+GET /locations/:id/yearly/:year
+```
+
+特定の撮影地点の指定年の全イベントを取得します。
+
 ## システム API
 
 ### ヘルスチェック
@@ -177,6 +201,13 @@ GET /health
 {
   "status": "healthy",
   "database": "connected",
+  "redis": "connected",
+  "calculationEngine": "operational",
+  "weatherService": "mock",
+  "cachePerformance": {
+    "hitRate": 0.85,
+    "avgResponseTime": 120
+  },
   "timestamp": "2025-02-19T10:00:00+09:00"
 }
 ```
@@ -210,6 +241,35 @@ POST /auth/login
 }
 ```
 
+### ログアウト
+
+```http
+POST /auth/logout
+```
+
+管理者セッションを終了します。
+
+### トークンリフレッシュ
+
+```http
+POST /auth/refresh
+```
+
+**リクエストボディ:**
+```json
+{
+  "refreshToken": "refresh-token"
+}
+```
+
+**レスポンス:**
+```json
+{
+  "token": "new-jwt-token",
+  "refreshToken": "new-refresh-token"
+}
+```
+
 ### 撮影地点管理
 
 ```http
@@ -223,6 +283,39 @@ DELETE /admin/locations/:id
 ## レート制限
 
 - 一般API: 100リクエスト/分
-- 管理者API: 1000リクエスト/分
+- 管理者API: 60リクエスト/分
+- 認証API: 5リクエスト/15分
 
 制限に達した場合、HTTP 429ステータスが返されます。
+
+## 天気情報 API
+
+現在は模擬実装ですが、将来的に外部天気APIと連携予定です。
+
+### 天気情報レスポンス形式
+
+```json
+{
+  "condition": "晴れ",
+  "cloudCover": 30,
+  "visibility": 15,
+  "recommendation": "excellent"
+}
+```
+
+**推奨度レベル:**
+- `excellent`: 撮影に最適
+- `good`: 撮影に適している
+- `fair`: 撮影可能
+- `poor`: 撮影困難
+
+## エラーコード
+
+| コード | 説明 |
+|------|------|
+| 400 | Bad Request - リクエストパラメータエラー |
+| 401 | Unauthorized - 認証エラー |
+| 403 | Forbidden - 権限不足 |
+| 404 | Not Found - リソースが見つからない |
+| 429 | Too Many Requests - レート制限 |
+| 500 | Internal Server Error - サーバーエラー |

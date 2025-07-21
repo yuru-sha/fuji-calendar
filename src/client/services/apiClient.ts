@@ -1,12 +1,12 @@
 import { 
   CalendarResponse, 
   EventsResponse, 
-  LocationsResponse, 
   FujiEvent, 
   Location,
   CalendarEvent,
   CalendarEventResponse,
-  FujiEventResponse
+  FujiEventResponse,
+  WeatherInfo
 } from '../../shared/types';
 
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
@@ -17,7 +17,7 @@ class ApiError extends Error {
   constructor(
     message: string,
     public status: number,
-    public response?: any
+    public response?: unknown
   ) {
     super(message);
     this.name = 'ApiError';
@@ -98,13 +98,13 @@ export class ApiClient {
     const data = await handleResponse<{
       date: string;
       events: FujiEventResponse[];
-      weather?: any;
+      weather?: unknown;
     }>(response);
     
     return {
       date: data.date,
       events: data.events.map(convertFujiEvent),
-      weather: data.weather
+      weather: data.weather as WeatherInfo | undefined
     };
   }
 

@@ -7,7 +7,7 @@ import diamondFujiIcon from '../assets/icons/diamond_fuji_small.png';
 import pearlFujiIcon from '../assets/icons/pearl_fuji_small.png';
 
 // Leafletのアイコン設定を修正
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+delete (L.Icon.Default.prototype as unknown as { _getIconUrl: unknown })._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -28,28 +28,14 @@ interface MapViewProps {
 const MapView: React.FC<MapViewProps> = ({
   center = [35.3606, 138.7274], // 富士山の座標
   zoom = 10,
-  locations = [],
   fujiEvent,
   showDirection = false,
-  onLocationClick,
   onClose,
   className
 }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
-  const markersRef = useRef<L.Marker[]>([]);
   const directionLineRef = useRef<L.Polyline | null>(null);
-
-  // カスタムアイコンの作成
-  const createLocationIcon = (location: Location) => {
-    return L.divIcon({
-      html: `<div class="${styles.locationMarker}">📍</div>`,
-      className: styles.customDivIcon,
-      iconSize: [30, 30],
-      iconAnchor: [15, 30],
-      popupAnchor: [0, -30]
-    });
-  };
 
   const createFujiIcon = () => {
     return L.divIcon({

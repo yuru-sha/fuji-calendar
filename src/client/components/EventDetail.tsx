@@ -2,8 +2,6 @@ import React from 'react';
 import { FujiEvent, WeatherInfo } from '../../shared/types';
 import { timeUtils } from '../../shared/utils/timeUtils';
 import { useFavorites } from '../hooks/useFavorites';
-import FavoriteButton from './FavoriteButton';
-import LocationFavoriteButton from './LocationFavoriteButton';
 import styles from './EventDetail.module.css';
 import diamondFujiIcon from '../assets/icons/diamond_fuji_small.png';
 import pearlFujiIcon from '../assets/icons/pearl_fuji_small.png';
@@ -103,7 +101,7 @@ const EventDetail: React.FC<EventDetailProps> = ({
   };
 
   const handleGoogleMapsClick = (event: FujiEvent) => {
-    const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${event.location.latitude},${event.location.longitude}`;
+    const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${event.location.latitude},${event.location.longitude}`;
     window.open(googleMapsUrl, '_blank');
   };
 
@@ -202,7 +200,7 @@ const EventDetail: React.FC<EventDetailProps> = ({
                       className={styles.googleMapsButton}
                       onClick={() => handleGoogleMapsClick(event)}
                     >
-                      Google Mapsで開く
+                      ルートを検索
                     </button>
                   </div>
                 </div>

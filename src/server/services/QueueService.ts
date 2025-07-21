@@ -5,7 +5,6 @@ import { getComponentLogger } from '../../shared/utils/logger';
 
 import { BatchCalculationService } from './BatchCalculationService';
 
-import { EventsCacheModel } from '../models/EventsCache';
 import { HistoricalEventsModel } from '../models/HistoricalEvents';
 
 const logger = getComponentLogger('queue-service');
@@ -314,7 +313,10 @@ export class QueueService {
           completedYears: year - startYear,
         });
 
-        await this.batchService.calculateLocationYear(locationId, year);
+        // 年間計算（月ごとに分割）
+        for (let month = 1; month <= 12; month++) {
+          await this.batchService.calculateMonthlyEvents(year, month, [locationId]);
+        }
         
         logger.info('Year calculation completed', {
           jobId: job.id,
@@ -356,7 +358,7 @@ export class QueueService {
     });
 
     try {
-      await this.batchService.calculateLocationMonth(locationId, year, month);
+      await this.batchService.calculateMonthlyEvents(year, month, [locationId]);
       
       logger.info('Monthly calculation completed', {
         jobId: job.id,
@@ -392,7 +394,7 @@ export class QueueService {
     });
 
     try {
-      await this.batchService.calculateLocationDay(locationId, year, month, day);
+      await this.batchService.calculateDayEvents(year, month, day, [locationId]);
       
       logger.info('Daily calculation completed', {
         jobId: job.id,
@@ -443,7 +445,10 @@ export class QueueService {
         });
 
         // その年のデータを計算
-        await this.batchService.calculateLocationYear(locationId, year);
+        // 年間計算（月ごとに分割）
+        for (let month = 1; month <= 12; month++) {
+          await this.batchService.calculateMonthlyEvents(year, month, [locationId]);
+        }
 
         // 計算結果をhistoricalテーブルに保存
         await this.historicalModel.archiveEventsFromCache(year);

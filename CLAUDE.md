@@ -8,11 +8,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### 主要機能
 - **カレンダービュー**: 月間カレンダーでイベントを一覧表示（視認性向上済み）
-- **イベント詳細**: 日付クリックで詳細情報と地図表示
+- **イベント詳細**: 日付クリックで詳細情報と地図表示・ルート案内
 - **お気に入り管理**: 撮影地点・イベントの保存・エクスポート機能
 - **管理者機能**: JWT認証による地点管理システム
 - **高性能**: RedisキャッシュとPino構造化ログで最適化（5-10倍性能向上）
 - **開発支援**: 包括的デバッグスクリプト群とパフォーマンス分析ツール
+- **天気情報**: 7日間天気予報と撮影条件レコメンデーション（模擬実装）
 
 ## Development Commands
 
@@ -47,7 +48,7 @@ npm run test:watch    # Watch mode for tests
 - **AuthService** (`src/server/services/AuthService.ts`): JWTベースの認証システム。アカウントロック、リフレッシュトークン対応
 - **CacheService** (`src/server/services/CacheService.ts`): Redisベースの高性能キャッシュシステム。メモリフォールバック付き
 - **TimeUtils** (`src/shared/utils/timeUtils.ts`): JST/UTC変換と時刻処理。日本の撮影者向けに全ての時刻をJST基準で統一
-- **CalendarService** (`src/server/services/CalendarService.ts`): 月間イベントの集計とレコメンデーション生成
+- **CalendarService** (`src/server/services/CalendarService.ts`): 月間イベントの集計とレコメンデーション生成、天気情報統合（模擬実装）
 - **Logger** (`src/shared/utils/logger.ts`): Pinoベースの高性能構造化ログシステム。天体計算の詳細追跡とパフォーマンス監視
 
 ### Key Technical Concepts
@@ -90,10 +91,12 @@ SQLite3使用、初回起動時に `src/server/database/schema.sql` から初期
 
 ### Frontend Architecture
 
-React 18 + TypeScript構成
-- **Custom Hooks**: `useCalendar` でカレンダー状態管理
-- **CSS Modules**: コンポーネント別スタイリング
+React 18 + TypeScript + Tailwind CSS v3.4.17構成
+- **Custom Hooks**: `useCalendar` でカレンダー状態管理、`useFavorites` でお気に入り管理
+- **Styling**: CSS Modules + Tailwind CSS utilityクラス（@apply directive活用）
+- **Layout**: 1280px最大幅の統一されたコンテナデザイン
 - **Leaflet**: 地図表示とルート描画
+- **Google Maps**: 現在地からの最適ルート検索機能
 - **API Client**: `src/client/services/apiClient.ts` で一元管理
 
 ### Common Issues & Solutions
@@ -102,13 +105,19 @@ React 18 + TypeScript構成
 
 **UI視認性問題**: イベントアイコンが小さく件数表示が見えない場合、`Calendar.module.css`でアイコンサイズを28pxに、件数表示に白背景と境界線を追加。`HomePage.module.css`で今後のイベントリストを白背景に変更
 
+**レイアウト一貫性**: カレンダーヘッダーとメイン+サイドバーの幅を統一するため、`content-wide` (max-w-6xl, 1152px) ラッパーを使用
+
+**TypeScript設定**: 厳密な型チェック有効。ESLint設定でReact/TypeScript/Tailwind CSS対応
+
+**Tailwind CSS**: v3.4.17を使用（v4互換性問題のため）。PostCSS設定は `tailwindcss` プラグインを使用
+
 **精度問題**: AstronomicalCalculatorで「なし」と判定される場合、以下を確認:
 - 検索時間範囲 (日の出: 4-12時、日の入り: 14-20時)
 - 高度条件 (position.elevation > -2)
 - 方位角許容範囲 (現在1.5度)
 - デバッグログで `minDifference` と `bestTime` の値を確認
 
-**型定義**: `src/shared/types/index.ts` の `FUJI_COORDINATES` で富士山の座標・標高を定義。Location型には必須の `createdAt`/`updatedAt` フィールドあり
+**型定義**: `src/shared/types/index.ts` の `FUJI_COORDINATES` で富士山の座標・標高を定義。Location型には必須の `createdAt`/`updatedAt` フィールドあり。`WeatherInfo` インターフェースで天気情報を定義
 
 **デバッグスクリプト**: `scripts/`ディレクトリに天体計算のデバッグ用スクリプトが完備。`debug_diamond_fuji_detailed.js`、`debug_pearl_fuji_detailed.js`等で詳細な計算過程を確認可能
 
@@ -203,15 +212,51 @@ LOG_DIR=/var/log/fuji-calendar
 - 🟢 テストを通したら: `feat: implement [feature] to pass test`
 - 🔵 リファクタリングしたら: `refactor: [description]`
 
+## 天気機能実装詳細
+
+### WeatherInfo Interface
+```typescript
+export interface WeatherInfo {
+  condition: string;           // 天候状態（'晴れ', '曇り', '雨', '雪'）
+  cloudCover: number;         // 雲量（0-100%）
+  visibility: number;         // 視界（km）
+  recommendation: 'excellent' | 'good' | 'fair' | 'poor';  // 撮影推奨度
+}
+```
+
+### 実装概要
+- **CalendarService.getWeatherInfo()**: 模擬天気データ生成（7日間予報対応）
+- **EventDetail コンポーネント**: 天気アイコン・推奨度表示・カラーコード化
+- **撮影条件判定**: 晴れ+雲量30%未満で「撮影に最適」、曇り・雨・雪で段階的評価
+
+### UI Components
+- **天気アイコン**: 絵文字による視覚表現（☀️☁️🌧️❄️🌤️）
+- **推奨度カラー**: excellent(緑), good(青), fair(黄), poor(赤)
+- **表示項目**: 天候・雲量・視界・撮影条件をカード形式で表示
+- **ルートボタン**: 🗺️ アイコン付きの直感的なルート検索ボタン
+
 ## トラブルシューティング
 
 ### よくある問題
-1. **依存関係エラー**: `make setup-dev`を再実行
-2. **型チェックエラー**: `mypy src/pyrogue/`でチェック
-3. **テスト失敗**: `make test -v`で詳細確認
+1. **TypeScript エラー**: `npm run typecheck` でチェック、`npm run lint:fix` で自動修正
+2. **Tailwind CSS クラス未適用**: PostCSS設定確認、Tailwind v3.4.17使用確認
+3. **レイアウト崩れ**: `content-wide` クラス適用確認、max-width統一確認
+4. **天気情報未表示**: 7日間以内の未来日付のみ表示される仕様を確認
+
+### 開発環境セットアップ
+```bash
+# 依存関係インストール
+npm install
+
+# 開発サーバー起動
+npm run dev
+
+# TypeScript + ESLint チェック
+npm run typecheck && npm run lint
+```
 
 ### 参考資料
-- **詳細な概要**: `docs/overview.md`
-- **アーキテクチャ**: `docs/architecture.md`
-- **機能一覧**: `docs/features.md`
-- **開発ガイド**: `docs/development.md`
+- **プロジェクト概要**: README.md
+- **API仕様**: `src/server/routes/` 各コントローラー
+- **型定義**: `src/shared/types/index.ts`
+- **設定ファイル**: `tailwind.config.js`, `tsconfig.json`, `.eslintrc.js`

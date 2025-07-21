@@ -187,8 +187,9 @@ export class EventsCacheModel {
             result.set(row.location_id, cachedData.events);
             totalEvents += cachedData.events.length;
           } catch (parseError) {
-            this.logger.warn('月間キャッシュパースエラー', parseError, { 
-              locationId: row.location_id 
+            this.logger.warn('月間キャッシュパースエラー', { 
+              locationId: row.location_id,
+              error: parseError
             });
           }
         }

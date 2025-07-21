@@ -523,8 +523,9 @@ const AdminPage: React.FC = () => {
 
   return (
     <div className={styles.adminPage}>
-      <div className="card">
-        <div className={styles.adminHeader}>
+      <div className="content-narrow">
+        <div className="card">
+          <div className={styles.adminHeader}>
           <h2 className="card-title">撮影地点管理</h2>
           <div className={styles.headerActions}>
             <button onClick={() => setShowPasswordModal(true)} className={styles.passwordButton}>
@@ -1017,6 +1018,7 @@ const AdminPage: React.FC = () => {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };

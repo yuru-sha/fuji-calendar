@@ -1,6 +1,5 @@
 import Redis from 'ioredis';
 import { getComponentLogger } from '../../shared/utils/logger';
-import { timeUtils } from '../../shared/utils/timeUtils';
 
 export interface CacheConfig {
   ttl: {

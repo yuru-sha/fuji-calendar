@@ -5,10 +5,7 @@
 }
 
 .mainContent {
-  display: grid;
-  grid-template-columns: 1fr 300px;
-  gap: 2rem;
-  margin-top: 1rem; /* 上部マージンを削減 */
+  @apply grid grid-cols-[1fr_300px] gap-8 mt-4;
 }
 
 /* 詳細表示エリアのスタイル */
@@ -176,27 +173,25 @@
 /* レスポンシブデザイン */
 @media (max-width: 1024px) {
   .mainContent {
-    grid-template-columns: 1fr 250px;
-    gap: 1.5rem;
+    @apply grid-cols-[1fr_250px] gap-6;
   }
 
   .sidebar {
-    gap: 1rem;
+    @apply gap-4;
   }
 }
 
 @media (max-width: 768px) {
   .mainContent {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
+    @apply grid-cols-1 gap-6;
   }
 
   .calendarSection {
-    order: 2; /* カレンダーセクションを下に移動 */
+    @apply order-2;
   }
 
   .sidebar {
-    order: 1; /* サイドバーを上に表示 */
+    @apply order-1;
   }
 
   .locationStats {

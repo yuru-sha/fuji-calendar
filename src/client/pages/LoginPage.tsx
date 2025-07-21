@@ -57,7 +57,8 @@ const LoginPage: React.FC = () => {
 
   return (
     <div className={styles.loginPage}>
-      <div className={styles.loginContainer}>
+      <div className="content-narrow">
+        <div className={styles.loginContainer}>
         <div className={styles.loginHeader}>
           <h1 className={styles.title}>管理者ログイン</h1>
           <p className={styles.subtitle}>ダイヤモンド富士・パール富士カレンダー</p>
@@ -117,6 +118,7 @@ const LoginPage: React.FC = () => {
             ← カレンダーに戻る
           </a>
         </div>
+      </div>
       </div>
     </div>
   );

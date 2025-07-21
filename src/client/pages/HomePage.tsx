@@ -70,6 +70,36 @@ const HomePage: React.FC = () => {
     setSelectedEvent(null);
   };
 
+  const handleUpcomingEventClick = async (event: FujiEvent) => {
+    // イベントの日付を取得
+    const eventDate = new Date(event.time);
+    
+    // その年月のカレンダーに移動
+    const year = eventDate.getFullYear();
+    const month = eventDate.getMonth() + 1;
+    
+    if (calendarData?.year !== year || calendarData?.month !== month) {
+      // 別の月なら月を変更
+      setCurrentDate(year, month);
+    }
+    
+    // 日付を選択して詳細を表示
+    setSelectedDate(eventDate);
+    const dateString = timeUtils.formatDateString(eventDate);
+    await loadDayEvents(dateString);
+    
+    // 詳細エリアにスクロール
+    setTimeout(() => {
+      const detailArea = document.querySelector(`.${styles.detailArea}`) as HTMLElement;
+      if (detailArea) {
+        detailArea.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
+      }
+    }, 100);
+  };
+
   const handleFavoriteEventClick = async (favoriteEvent: FavoriteEvent) => {
     // お気に入りイベントの日付を取得
     const eventDate = new Date(favoriteEvent.time);
@@ -179,7 +209,18 @@ const HomePage: React.FC = () => {
             ) : upcomingEvents.length > 0 ? (
               <div className={styles.upcomingEvents}>
                 {upcomingEvents.slice(0, 5).map((event, index) => (
-                  <div key={event.id || index} className={styles.upcomingEvent}>
+                  <div 
+                    key={event.id || index} 
+                    className={styles.upcomingEvent}
+                    onClick={() => handleUpcomingEventClick(event)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        handleUpcomingEventClick(event);
+                      }
+                    }}
+                  >
                     <div className={styles.eventIcon}>
                       {event.type === 'diamond' 
                         ? <img src={diamondFujiIcon} alt="ダイヤモンド富士" className={styles.eventIconImg} />

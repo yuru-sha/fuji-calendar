@@ -67,28 +67,6 @@ model CelestialOrbitData {
   @@map("celestial_orbit_data")
 }
 
-model AstronomicalData {
-  id                BigInt   @id @default(autoincrement())
-  date              DateTime @db.Date
-  elevation         Int
-  timeOfDay         String   @map("time_of_day") @db.VarChar(10)
-  preciseTime       DateTime @map("precise_time") @db.Timestamptz(6)
-  azimuth           Float
-  moonElevation     Float?   @map("moon_elevation")
-  moonAzimuth       Float?   @map("moon_azimuth")
-  moonPhase         Float?   @map("moon_phase")
-  atmosphericFactor Float?   @map("atmospheric_factor")
-  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  pattern           Pattern
-  quality           Quality?
-
-  @@unique([date, pattern, elevation, timeOfDay], map: "unique_date_pattern_elevation_timeofday")
-  @@index([date, pattern], map: "idx_astro_date_pattern")
-  @@index([pattern, elevation], map: "idx_astro_pattern_elevation")
-  @@index([quality, date], map: "idx_astro_quality_date")
-  @@map("astronomical_data")
-}
 
 model LocationFujiEvent {
   id               BigInt    @id @default(autoincrement())
@@ -115,17 +93,6 @@ model LocationFujiEvent {
   @@map("location_fuji_events")
 }
 
-enum Pattern {
-  diamond
-  pearl
-}
-
-enum Quality {
-  excellent
-  good
-  fair
-  poor
-}
 
 enum EventType {
   diamond_sunrise

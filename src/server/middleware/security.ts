@@ -170,7 +170,7 @@ function cleanupExpiredCSRFTokens() {
 // API用レート制限（一般的な利用に適した設定）
 export const apiRateLimit = rateLimit({
   windowMs: 1 * 60 * 1000, // 1分
-  max: 100, // 100リクエスト/分
+  max: 300, // 300リクエスト/分
   message: {
     error: 'Too many requests',
     message: 'リクエストが多すぎます。しばらく待ってから再試行してください。'
@@ -183,7 +183,7 @@ export const apiRateLimit = rateLimit({
 // 管理API用レート制限（適度な制限）
 export const adminApiRateLimit = rateLimit({
   windowMs: 1 * 60 * 1000, // 1分
-  max: 60, // 60リクエスト/分
+  max: 120, // 120リクエスト/分
   message: {
     error: 'Too many admin requests',
     message: '管理APIへのリクエストが多すぎます。'
@@ -196,7 +196,7 @@ export const adminApiRateLimit = rateLimit({
 // 認証API用の厳格なレート制限（ブルートフォース攻撃対策）
 export const authRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000, // 15分
-  max: 5, // 5回まで（厳格）
+  max: 10, // 10回まで
   message: {
     error: 'Too many authentication attempts',
     message: '認証試行回数が多すぎます。15分後に再試行してください。'

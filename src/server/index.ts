@@ -26,7 +26,7 @@ import { LocationModel } from './models/Location';
 // import { queueService } from './services/QueueService'; // パフォーマンス向上のため一時無効化
 
 const app = express();
-const PORT = process.env.PORT || 8000;
+const PORT = process.env.PORT || 3000;
 
 setupFileLogging();
 const serverLogger = getComponentLogger('server');
@@ -43,7 +43,7 @@ app.use(securityHeaders);
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? process.env.FRONTEND_URL 
-    : 'http://localhost:3000',
+    : true, // 開発環境では同一ポートなのでtrue
   credentials: true
 }));
 

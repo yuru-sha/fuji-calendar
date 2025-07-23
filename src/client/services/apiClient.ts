@@ -9,9 +9,7 @@ import {
   WeatherInfo
 } from '../../shared/types';
 
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? '/api' 
-  : 'http://localhost:8000/api';
+const API_BASE_URL = '/api'; // 開発・本番共に同一ポートなのでパス指定のみ
 
 class ApiError extends Error {
   constructor(

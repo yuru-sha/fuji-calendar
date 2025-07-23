@@ -1,6 +1,6 @@
 import jwt, { SignOptions } from 'jsonwebtoken';
 import { AdminModel } from '../models/Admin';
-import { Admin, AuthResult, LoginRequest } from '../../shared/types';
+import { Admin, AuthResult } from '../../shared/types';
 
 export interface AuthService {
   login(username: string, password: string): Promise<AuthResult>;
@@ -62,7 +62,7 @@ export class AuthServiceImpl implements AuthService {
         failedLoginCount: admin.failedLoginCount || 0
       };
       const token = this.generateToken(adminWithDefaults);
-      const refreshToken = this.generateRefreshToken(adminWithDefaults);
+      // const refreshToken = this.generateRefreshToken(adminWithDefaults); // 未実装
 
       return {
         success: true,

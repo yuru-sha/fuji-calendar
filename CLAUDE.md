@@ -26,8 +26,8 @@ npm run build
 npm start
 
 # Individual services
-npm run dev:server    # Backend only (port 8000)
-npm run dev:client    # Frontend only (port 3000)
+npm run dev:server    # Backend only (port 3000)
+npm run dev:client    # Frontend only (port 3001)
 
 # Code quality
 npm run typecheck     # TypeScript type checking
@@ -124,7 +124,7 @@ React 18 + TypeScript + Tailwind CSS v3.4.17構成
 ### Environment Variables
 
 Required in production:
-- `PORT`: Server port (default: 8000)
+- `PORT`: Server port (default: 3000)
 - `NODE_ENV`: Environment mode
 - `DB_PATH`: SQLite database path
 - `JWT_SECRET`: JWT signing secret

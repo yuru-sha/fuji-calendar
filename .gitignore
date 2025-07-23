@@ -84,3 +84,4 @@ temp/
 
 data/redis/
 data/redis-*/
+data/fuji-calendar.db

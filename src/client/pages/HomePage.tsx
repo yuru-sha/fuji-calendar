@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import Calendar from '../components/Calendar';
 import EventDetail from '../components/EventDetail';
 import MapView from '../components/MapView';
-import { useCalendar } from '../hooks/useCalendar';
+import { useCalendar } from '../hooks/useCalendarReducer';
 import { useFavorites } from '../hooks/useFavorites';
 import { FujiEvent, FavoriteEvent } from '../../shared/types';
 import { timeUtils } from '../../shared/utils/timeUtils';
@@ -38,7 +38,7 @@ const HomePage: React.FC = () => {
   const currentYear = calendarData?.year || currentDate.getFullYear();
   const currentMonth = calendarData?.month || (currentDate.getMonth() + 1);
 
-  const handleDateClick = async (date: Date) => {
+  const handleDateClick = useCallback(async (date: Date) => {
     setSelectedDate(date);
     const dateString = timeUtils.formatDateString(date);
     await loadDayEvents(dateString);
@@ -53,22 +53,22 @@ const HomePage: React.FC = () => {
         });
       }
     }, 100);
-  };
+  }, [loadDayEvents]);
 
-  const handleMonthChange = (year: number, month: number) => {
+  const handleMonthChange = useCallback((year: number, month: number) => {
     setCurrentDate(year, month);
     setSelectedDate(null);
-  };
+  }, [setCurrentDate]);
 
-  const handleMapClick = (event: FujiEvent) => {
+  const handleMapClick = useCallback((event: FujiEvent) => {
     setSelectedEvent(event);
     setShowMap(true);
-  };
+  }, []);
 
-  const handleCloseMap = () => {
+  const handleCloseMap = useCallback(() => {
     setShowMap(false);
     setSelectedEvent(null);
-  };
+  }, []);
 
   const handleUpcomingEventClick = async (event: FujiEvent) => {
     // イベントの日付を取得
@@ -223,8 +223,8 @@ const HomePage: React.FC = () => {
                   >
                     <div className={styles.eventIcon}>
                       {event.type === 'diamond' 
-                        ? <img src={diamondFujiIcon} alt="ダイヤモンド富士" className={styles.eventIconImg} />
-                        : <img src={pearlFujiIcon} alt="パール富士" className={styles.eventIconImg} />
+                        ? <img src={diamondFujiIcon} alt="ダイヤモンド富士" className={styles.eventIconImg} loading="lazy" />
+                        : <img src={pearlFujiIcon} alt="パール富士" className={styles.eventIconImg} loading="lazy" />
                       }
                     </div>
                     <div className={styles.eventInfo}>
@@ -308,8 +308,8 @@ const HomePage: React.FC = () => {
                   >
                     <div className={styles.favoriteEventIcon}>
                       {event.type === 'diamond' 
-                        ? <img src={diamondFujiIcon} alt="ダイヤモンド富士" className={styles.eventIconImg} />
-                        : <img src={pearlFujiIcon} alt="パール富士" className={styles.eventIconImg} />
+                        ? <img src={diamondFujiIcon} alt="ダイヤモンド富士" className={styles.eventIconImg} loading="lazy" />
+                        : <img src={pearlFujiIcon} alt="パール富士" className={styles.eventIconImg} loading="lazy" />
                       }
                     </div>
                     <div className={styles.favoriteEventInfo}>

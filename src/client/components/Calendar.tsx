@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, memo } from 'react';
 import { CalendarEvent, FujiEvent } from '../../shared/types';
 import { timeUtils } from '../../shared/utils/timeUtils';
 import styles from './Calendar.module.css';
@@ -14,7 +14,7 @@ interface CalendarProps {
   selectedDate?: Date;
 }
 
-const Calendar: React.FC<CalendarProps> = ({
+const Calendar: React.FC<CalendarProps> = memo(({
   year,
   month,
   events,
@@ -141,14 +141,14 @@ const Calendar: React.FC<CalendarProps> = ({
   const getEventIcon = (eventType?: 'diamond' | 'pearl' | 'both'): JSX.Element | string => {
     switch (eventType) {
       case 'diamond':
-        return <img src={diamondFujiIcon} alt="ダイヤモンド富士" className={styles.eventIcon} />;
+        return <img src={diamondFujiIcon} alt="ダイヤモンド富士" className={styles.eventIcon} loading="lazy" />;
       case 'pearl':
-        return <img src={pearlFujiIcon} alt="パール富士" className={styles.eventIcon} />;
+        return <img src={pearlFujiIcon} alt="パール富士" className={styles.eventIcon} loading="lazy" />;
       case 'both':
         return (
           <div className={styles.bothIcons}>
-            <img src={diamondFujiIcon} alt="ダイヤモンド富士" className={styles.eventIconSmall} />
-            <img src={pearlFujiIcon} alt="パール富士" className={styles.eventIconSmall} />
+            <img src={diamondFujiIcon} alt="ダイヤモンド富士" className={styles.eventIconSmall} loading="lazy" />
+            <img src={pearlFujiIcon} alt="パール富士" className={styles.eventIconSmall} loading="lazy" />
           </div>
         );
       default:
@@ -320,6 +320,8 @@ const Calendar: React.FC<CalendarProps> = ({
       </div>
     </div>
   );
-};
+});
+
+Calendar.displayName = 'Calendar';
 
 export default Calendar;

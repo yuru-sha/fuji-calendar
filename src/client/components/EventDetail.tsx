@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { FujiEvent, WeatherInfo } from '../../shared/types';
 import { timeUtils } from '../../shared/utils/timeUtils';
 import { useFavorites } from '../hooks/useFavorites';
@@ -13,7 +13,7 @@ interface EventDetailProps {
   onMapClick?: (event: FujiEvent) => void;
 }
 
-const EventDetail: React.FC<EventDetailProps> = ({
+const EventDetail: React.FC<EventDetailProps> = memo(({
   date,
   events,
   weather,
@@ -45,8 +45,8 @@ const EventDetail: React.FC<EventDetailProps> = ({
 
   const getEventIcon = (event: FujiEvent): JSX.Element => {
     return event.type === 'diamond' 
-      ? <img src={diamondFujiIcon} alt="ダイヤモンド富士" className={styles.eventIcon} />
-      : <img src={pearlFujiIcon} alt="パール富士" className={styles.eventIcon} />;
+      ? <img src={diamondFujiIcon} alt="ダイヤモンド富士" className={styles.eventIcon} loading="lazy" />
+      : <img src={pearlFujiIcon} alt="パール富士" className={styles.eventIcon} loading="lazy" />;
   };
 
   const getWeatherIcon = (condition: string): string => {
@@ -256,6 +256,8 @@ const EventDetail: React.FC<EventDetailProps> = ({
       </div>
     </div>
   );
-};
+});
+
+EventDetail.displayName = 'EventDetail';
 
 export default EventDetail;

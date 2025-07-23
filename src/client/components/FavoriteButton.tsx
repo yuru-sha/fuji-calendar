@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import styles from './FavoriteButton.module.css';
 
 export interface FavoriteButtonProps {
@@ -10,7 +10,7 @@ export interface FavoriteButtonProps {
   tooltip?: string;
 }
 
-const FavoriteButton: React.FC<FavoriteButtonProps> = ({
+const FavoriteButton: React.FC<FavoriteButtonProps> = memo(({
   isFavorite,
   onClick,
   className = '',
@@ -54,6 +54,8 @@ const FavoriteButton: React.FC<FavoriteButtonProps> = ({
       </svg>
     </button>
   );
-};
+});
+
+FavoriteButton.displayName = 'FavoriteButton';
 
 export default FavoriteButton;

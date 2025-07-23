@@ -3,6 +3,7 @@ import cors from 'cors';
 import path from 'path';
 
 import { initializeDatabase } from './database/connection';
+import { initializeUnifiedDatabase } from './database/connection-unified';
 import { securityHeaders, apiRateLimit, adminApiRateLimit, authRateLimit, sanitizeInput, detectSQLInjection } from './middleware/security';
 import { authenticateAdmin } from './middleware/auth';
 import { 
@@ -20,10 +21,13 @@ import CalendarController from './controllers/CalendarController';
 import AdminController from './controllers/AdminController';
 import AuthController from './controllers/AuthController';
 import HistoricalController from './controllers/HistoricalController';
+import PrismaAdminController from './controllers/PrismaAdminController';
 
 import { LocationModel } from './models/Location';
-// import BackgroundJobScheduler from './services/BackgroundJobScheduler'; // パフォーマンス向上のため一時無効化
-// import { queueService } from './services/QueueService'; // パフォーマンス向上のため一時無効化
+import BackgroundJobScheduler from './services/BackgroundJobScheduler';
+import BackgroundJobSchedulerPrisma from './services/BackgroundJobSchedulerPrisma';
+import { queueService } from './services/QueueService';
+import { calendarServicePrisma } from './services/CalendarServicePrisma';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -68,11 +72,12 @@ const calendarController = new CalendarController();
 const adminController = new AdminController();
 const authController = new AuthController();
 const historicalController = new HistoricalController();
+const prismaAdminController = new PrismaAdminController();
 const locationModel = new LocationModel();
 
 // バックグラウンドジョブスケジューラー
-// バックグラウンドジョブを一時的に無効化（パフォーマンス改善）
-// const backgroundScheduler = new BackgroundJobScheduler();
+const backgroundScheduler = new BackgroundJobScheduler();
+const backgroundSchedulerPrisma = new BackgroundJobSchedulerPrisma();
 
 // ヘルスチェックエンドポイント
 app.get('/api/health', (req, res) => {
@@ -117,11 +122,18 @@ app.put('/api/admin/password', adminApiRateLimit, authenticateAdmin, adminContro
 // 管理者用過去データAPI
 app.post('/api/admin/historical/add-observed', adminApiRateLimit, authenticateAdmin, historicalController.addObservedEvent.bind(historicalController));
 
+// Prismaベース管理者API
+app.get('/api/admin/prisma/health/:year?', adminApiRateLimit, authenticateAdmin, prismaAdminController.getSystemHealth.bind(prismaAdminController));
+app.post('/api/admin/prisma/calculate/:year', adminApiRateLimit, authenticateAdmin, prismaAdminController.executeYearlyCalculation.bind(prismaAdminController));
+app.post('/api/admin/prisma/calculate-location', adminApiRateLimit, authenticateAdmin, prismaAdminController.executeLocationCalculation.bind(prismaAdminController));
+app.get('/api/admin/prisma/stats', adminApiRateLimit, authenticateAdmin, prismaAdminController.getSystemStats.bind(prismaAdminController));
+app.get('/api/admin/prisma/stats/:year', adminApiRateLimit, authenticateAdmin, prismaAdminController.getYearStats.bind(prismaAdminController));
+app.post('/api/admin/prisma/maintenance', adminApiRateLimit, authenticateAdmin, prismaAdminController.performMaintenance.bind(prismaAdminController));
+
 // キャッシュ管理API（管理者用）
 app.get('/api/admin/cache/stats', adminApiRateLimit, authenticateAdmin, async (req, res) => {
   try {
-    // const stats = await backgroundScheduler.batchService.getCacheStatistics();
-    const stats = { totalEntries: 0, hitRate: 0, cacheSize: 0 }; // 仮データ
+    const stats = await backgroundScheduler.batchService.getCacheStatistics();
     res.json({
       success: true,
       data: stats,
@@ -141,7 +153,7 @@ app.get('/api/admin/cache/stats', adminApiRateLimit, authenticateAdmin, async (r
 app.post('/api/admin/cache/precompute', authenticateAdmin, async (req, res) => {
   try {
     const { monthsAhead = 2 } = req.body;
-    // await backgroundScheduler.triggerImmediatePrecomputation(monthsAhead);
+    await backgroundScheduler.triggerImmediatePrecomputation(monthsAhead);
     res.json({
       success: true,
       message: `${monthsAhead}ヶ月分の事前計算を開始しました`,
@@ -159,8 +171,7 @@ app.post('/api/admin/cache/precompute', authenticateAdmin, async (req, res) => {
 });
 
 app.get('/api/admin/background/status', authenticateAdmin, (req, res) => {
-  // const status = backgroundScheduler.getStatus();
-  const status = { scheduledJobs: 0, runningJobs: 0, completedJobs: 0 }; // 仮データ
+  const status = backgroundScheduler.getStatus();
   res.json({
     success: true,
     data: status,
@@ -185,15 +196,6 @@ app.post('/api/admin/background/yearly-maintenance', authenticateAdmin, async (r
       requestId: req.requestId
     });
 
-    // バックグラウンドジョブは一時的に無効化
-    res.json({
-      success: true,
-      message: `${type} ジョブは一時的に無効化されています`,
-      timestamp: new Date().toISOString()
-    });
-    return;
-    
-    /*
     switch (type) {
       case 'preparation':
         await backgroundScheduler.performYearlyPreparation();
@@ -205,7 +207,6 @@ app.post('/api/admin/background/yearly-maintenance', authenticateAdmin, async (r
         await backgroundScheduler.performYearlyArchive();
         break;
     }
-    */
 
     res.json({
       success: true,
@@ -240,13 +241,14 @@ app.post('/api/admin/background/monthly-maintenance', authenticateAdmin, async (
       requestId: req.requestId
     });
 
-    // 月次バックグラウンドジョブも一時的に無効化
-    res.json({
-      success: true,
-      message: `月次${type}は一時的に無効化されています`,
-      timestamp: new Date().toISOString()
-    });
-    return;
+    switch (type) {
+      case 'preparation':
+        await backgroundScheduler.performMonthlyPreparation();
+        break;
+      case 'verification':
+        await backgroundScheduler.performMonthlyVerification();
+        break;
+    }
 
     res.json({
       success: true,
@@ -267,8 +269,7 @@ app.post('/api/admin/background/monthly-maintenance', authenticateAdmin, async (
 // キューシステムの状態確認
 app.get('/api/admin/queue/stats', authenticateAdmin, async (req, res) => {
   try {
-    // const stats = await queueService.getQueueStats();
-    const stats = { waiting: 0, active: 0, completed: 0, failed: 0 }; // 仮データ
+    const stats = await queueService.getQueueStats();
     res.json({
       success: true,
       data: stats,
@@ -297,8 +298,7 @@ app.get('/api/admin/queue/job/:jobId/:queueType', authenticateAdmin, async (req,
       });
     }
     
-    // const progress = await queueService.getJobProgress(jobId, queueType as 'location' | 'monthly' | 'daily' | 'historical');
-    const progress = null; // 仮データ
+    const progress = await queueService.getJobProgress(jobId, queueType as 'location' | 'monthly' | 'daily' | 'historical');
     
     if (!progress) {
       return res.status(404).json({
@@ -339,8 +339,36 @@ app.post('/api/admin/queue/calculate', authenticateAdmin, async (req, res) => {
     
     let jobId: string;
     
-    // バックグラウンドジョブは一時的に無効化
-    jobId = `temp_job_${Date.now()}`;
+    if (day) {
+      // 日別計算
+      jobId = await queueService.scheduleDailyCalculation(
+        parseInt(locationId),
+        year || new Date().getFullYear(),
+        month || new Date().getMonth() + 1,
+        day,
+        priority,
+        req.requestId
+      );
+    } else if (month) {
+      // 月間計算
+      jobId = await queueService.scheduleMonthlyCalculation(
+        parseInt(locationId),
+        year || new Date().getFullYear(),
+        month,
+        priority,
+        req.requestId
+      );
+    } else {
+      // 地点全体計算
+      const currentYear = new Date().getFullYear();
+      jobId = await queueService.scheduleLocationCalculation(
+        parseInt(locationId),
+        year || currentYear,
+        year || currentYear + 2,
+        priority,
+        req.requestId
+      );
+    }
     
     res.json({
       success: true,
@@ -386,14 +414,13 @@ app.post('/api/admin/queue/calculate-historical', authenticateAdmin, async (req,
       });
     }
 
-    // const jobId = await queueService.scheduleHistoricalCalculation(
-    //   parseInt(locationId),
-    //   parseInt(startYear),
-    //   parseInt(endYear),
-    //   priority,
-    //   req.requestId
-    // );
-    const jobId = `temp_historical_job_${Date.now()}`;
+    const jobId = await queueService.scheduleHistoricalCalculation(
+      parseInt(locationId),
+      parseInt(startYear),
+      parseInt(endYear),
+      priority,
+      req.requestId
+    );
 
     serverLogger.info('過去データ計算ジョブ起動', {
       jobId,
@@ -521,12 +548,25 @@ app.use((req, res) => {
 async function startServer() {
   try {
     serverLogger.info('データベース初期化開始');
-    await initializeDatabase();
-    serverLogger.info('データベース初期化完了');
+    
+    // 環境変数でデータベースタイプを切り替え
+    const dbType = process.env.DB_TYPE || 'sqlite';
+    
+    if (dbType === 'postgres') {
+      await initializeUnifiedDatabase();
+      serverLogger.info('PostgreSQL データベース初期化完了');
+    } else {
+      await initializeDatabase();
+      serverLogger.info('SQLite データベース初期化完了');
+    }
     
     // バックグラウンドスケジューラー開始
-    // backgroundScheduler.start(); // 一時的に無効化
-    serverLogger.info('バックグラウンドジョブスケジューラー開始');
+    backgroundScheduler.start();
+    backgroundSchedulerPrisma.start();
+    serverLogger.info('バックグラウンドジョブスケジューラー開始', {
+      legacyScheduler: backgroundScheduler.getStatus(),
+      prismaScheduler: backgroundSchedulerPrisma.getStatus()
+    });
     
     app.listen(PORT, () => {
       serverLogger.info('サーバー起動完了', {
@@ -535,7 +575,7 @@ async function startServer() {
         endpoint: `http://localhost:${PORT}/api`,
         logLevel: process.env.LOG_LEVEL || 'info',
         fileLogging: process.env.ENABLE_FILE_LOGGING === 'true',
-        backgroundJobs: { status: 'disabled' } // backgroundScheduler.getStatus()
+        backgroundJobs: backgroundScheduler.getStatus()
       });
     });
   } catch (error) {
@@ -545,17 +585,19 @@ async function startServer() {
 }
 
 // グレースフルシャットダウン
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   serverLogger.info('SIGTERM受信 - グレースフルシャットダウン開始');
-  // backgroundScheduler.stop();
-  // queueService.shutdown();
+  backgroundScheduler.stop();
+  backgroundSchedulerPrisma.stop();
+  await queueService.shutdown();
   process.exit(0);
 });
 
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
   serverLogger.info('SIGINT受信 - グレースフルシャットダウン開始');
-  // backgroundScheduler.stop();
-  // queueService.shutdown();
+  backgroundScheduler.stop();
+  backgroundSchedulerPrisma.stop();
+  await queueService.shutdown();
   process.exit(0);
 });
 

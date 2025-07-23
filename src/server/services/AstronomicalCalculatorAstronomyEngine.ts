@@ -75,27 +75,73 @@ export class AstronomicalCalculatorAstronomyEngine {
   /**
    * 撮影地点から剣ヶ峰の高さ（標高3776m地点）への仰角を計算
    * ダイヤモンド富士：太陽の中心がこの仰角と一致する現象
+   * 
+   * Gemini提供の高精度計算式: 地球曲率と大気屈折を考慮
    */
   calculateElevationToFuji(fromLocation: Location): number {
-    // 地球の曲率を考慮した距離計算
-    const earthRadius = 6371; // km
-    const lat1 = this.toRadians(fromLocation.latitude);
-    const lat2 = this.toRadians(FUJI_COORDINATES.latitude);
-    const deltaLat = lat2 - lat1;
-    const deltaLon = this.toRadians(FUJI_COORDINATES.longitude - fromLocation.longitude);
+    // アイレベル（観測者の目の高さ）を考慮
+    const observerEyeLevel = 1.7; // メートル
+    
+    return this.calculatePreciseElevationAngle(
+      FUJI_COORDINATES.elevation,  // 富士山標高
+      fromLocation.elevation,      // 観測地点標高
+      observerEyeLevel,           // アイレベル
+      fromLocation               // 観測地点（距離計算用）
+    );
+  }
 
-    const a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
-      Math.cos(lat1) * Math.cos(lat2) *
-      Math.sin(deltaLon / 2) * Math.sin(deltaLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const waterDistance = earthRadius * c; // 水平距離
+  /**
+   * 高精度仰角計算（Gemini提供の理論式）
+   * 地球の丸みと大気差を考慮した仰角計算
+   */
+  private calculatePreciseElevationAngle(
+    targetElevation: number,      // ターゲット標高（メートル）
+    observerElevation: number,    // 観測者標高（メートル）
+    observerEyeLevel: number,     // 観測者アイレベル（メートル）
+    observerLocation: Location    // 観測者位置
+  ): number {
+    // 定数
+    const earthRadius = 6371000; // 地球平均半径（メートル）
+    const refractionCoefficient = 0.13; // 大気屈折率（k値）
 
-    // 剣ヶ峰の高さ（標高3776m）への仰角計算
-    // 太陽の中心がこの高さに重なる時がダイヤモンド富士
-    const heightDifference = (FUJI_COORDINATES.elevation - fromLocation.elevation) / 1000; // km
-    const elevation = this.toDegrees(Math.atan(heightDifference / waterDistance));
+    // 距離計算（Haversine formula）
+    const distance = this.calculateDistanceToFuji(observerLocation) * 1000; // kmをmに変換
 
-    return elevation;
+    // 1. 観測者の実効的な高さ（地面からの目の高さ）
+    const observerEffectiveHeight = observerElevation + observerEyeLevel;
+
+    // 2. 富士山山頂と観測者の目の高さの標高差
+    const heightDifference = targetElevation - observerEffectiveHeight;
+
+    // 3. 地球の丸みによる見かけの低下（メートル）
+    const curvatureDrop = Math.pow(distance, 2) / (2 * earthRadius);
+
+    // 4. 大気差による見かけの持ち上げ（低下の相殺）（メートル）
+    const refractionLift = refractionCoefficient * curvatureDrop;
+
+    // 5. 正味の見かけの低下（メートル）
+    const netApparentDrop = curvatureDrop - refractionLift;
+
+    // 6. 最終的な見かけの垂直距離
+    const apparentVerticalDistance = heightDifference - netApparentDrop;
+
+    // 7. 仰角の計算（ラジアン→度）
+    const angleRad = Math.atan2(apparentVerticalDistance, distance);
+    
+    // デバッグログ（開発時）
+    this.logger.astronomical('debug', '高精度仰角計算', {
+      location: observerLocation.name,
+      distance: distance / 1000, // km
+      observerEffectiveHeight,
+      heightDifference,
+      curvatureDrop: curvatureDrop.toFixed(3),
+      refractionLift: refractionLift.toFixed(3),
+      netApparentDrop: netApparentDrop.toFixed(3),
+      apparentVerticalDistance: apparentVerticalDistance.toFixed(3),
+      resultDegrees: (angleRad * 180 / Math.PI).toFixed(6)
+    });
+
+    return angleRad * (180 / Math.PI);
   }
 
   /**
@@ -645,7 +691,7 @@ export class AstronomicalCalculatorAstronomyEngine {
    * Astronomy Engineを使用した高精度太陽位置計算
    * @param time JST時刻のDateオブジェクト
    */
-  private async calculateSunPositionPrecise(time: Date, location: Location): Promise<CelestialPosition> {
+  async calculateSunPositionPrecise(time: Date, location: Location): Promise<CelestialPosition> {
     // 値の妥当性チェック
     if (!Number.isFinite(location.latitude) || !Number.isFinite(location.longitude) || !Number.isFinite(location.elevation)) {
       throw new Error(`Invalid location coordinates: lat=${location.latitude}, lng=${location.longitude}, elev=${location.elevation} for location ${location.name}`);
@@ -660,8 +706,8 @@ export class AstronomicalCalculatorAstronomyEngine {
 
     return {
       azimuth: horizontal.azimuth,
-      elevation: horizontal.altitude,
-      correctedElevation: horizontal.altitude + this.getAtmosphericRefraction(horizontal.altitude)
+      elevation: horizontal.altitude, // astronomy-engineの'normal'で大気屈折補正済み
+      correctedElevation: horizontal.altitude // 追加補正なし（astronomy-engineに委ねる）
     };
   }
 
@@ -669,7 +715,7 @@ export class AstronomicalCalculatorAstronomyEngine {
    * Astronomy Engineを使用した高精度月位置計算
    * @param time JST時刻のDateオブジェクト
    */
-  private async calculateMoonPositionPrecise(time: Date, location: Location): Promise<CelestialPosition> {
+  async calculateMoonPositionPrecise(time: Date, location: Location): Promise<CelestialPosition> {
     // 値の妥当性チェック
     if (!Number.isFinite(location.latitude) || !Number.isFinite(location.longitude) || !Number.isFinite(location.elevation)) {
       throw new Error(`Invalid location coordinates: lat=${location.latitude}, lng=${location.longitude}, elev=${location.elevation} for location ${location.name}`);
@@ -684,8 +730,8 @@ export class AstronomicalCalculatorAstronomyEngine {
 
     return {
       azimuth: horizontal.azimuth,
-      elevation: horizontal.altitude,
-      correctedElevation: horizontal.altitude + this.getAtmosphericRefraction(horizontal.altitude)
+      elevation: horizontal.altitude, // astronomy-engineの'normal'で大気屈折補正済み
+      correctedElevation: horizontal.altitude // 追加補正なし（astronomy-engineに委ねる）
     };
   }
 

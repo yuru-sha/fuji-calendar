@@ -82,6 +82,7 @@ temp/
 # Claude Code settings
 .claude/settings.local.json
 
-data/redis/
-data/redis-*/
-data/fuji-calendar.db
+# Fuji Calendar data
+data/
+
+/generated/prisma

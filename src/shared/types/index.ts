@@ -26,6 +26,10 @@ export interface FujiEvent {
   location: Location;
   azimuth: number;
   elevation?: number;
+  qualityScore?: number;
+  accuracy?: 'perfect' | 'excellent' | 'good' | 'fair';
+  moonPhase?: number;
+  moonIllumination?: number;
 }
 
 export interface CalendarEvent {

@@ -1,5 +1,4 @@
-import { Database } from 'sqlite3';
-import { getDatabase } from '../database/connection';
+import { getUnifiedDatabase, UnifiedDatabase } from '../database/connection-unified';
 import { FujiEvent } from '../../shared/types';
 import { 
   EventsCacheEntry, 
@@ -12,11 +11,11 @@ import {
 import { getComponentLogger, StructuredLogger } from '../../shared/utils/logger';
 
 export class EventsCacheModel {
-  private db: Database;
+  private db: UnifiedDatabase;
   private logger: StructuredLogger;
 
   constructor() {
-    this.db = getDatabase().getRawDb();
+    this.db = getUnifiedDatabase();
     this.logger = getComponentLogger('events-cache');
   }
 
@@ -42,12 +41,6 @@ export class EventsCacheModel {
     calculationDurationMs: number,
     expiryDays: number = 30
   ): Promise<void> {
-    // キャッシュ機能を一時的に無効化
-    this.logger.debug('キャッシュ保存をスキップ（一時無効化）', { 
-      cacheKey: this.generateCacheKey(options), 
-      eventCount: events.length 
-    });
-    return Promise.resolve();
     const cacheKey = this.generateCacheKey(options);
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + expiryDays);
@@ -66,7 +59,7 @@ export class EventsCacheModel {
 
     const eventsDataJson = JSON.stringify(cachedData);
 
-    return new Promise((resolve, reject) => {
+    try {
       const sql = `
         INSERT OR REPLACE INTO events_cache (
           cache_key, year, month, location_id, 
@@ -79,7 +72,7 @@ export class EventsCacheModel {
         ? `${options.year}-${options.month.toString().padStart(2, '0')}-${options.day.toString().padStart(2, '0')}`
         : `${options.year}-${options.month.toString().padStart(2, '0')}`;
       
-      this.db.run(sql, [
+      await this.db.runAdapted(sql, [
         cacheKey,
         options.year,
         options.month,
@@ -88,21 +81,18 @@ export class EventsCacheModel {
         'all', // event_type
         eventsDataJson,
         expiresAt.toISOString()
-      ], (err) => {
-        if (err) {
-          this.logger.error('キャッシュ保存エラー', err, { cacheKey, eventCount: events.length });
-          reject(err);
-        } else {
-          this.logger.info('キャッシュ保存成功', {
-            cacheKey,
-            eventCount: events.length,
-            calculationDurationMs,
-            expiryDays
-          });
-          resolve();
-        }
+      ]);
+      
+      this.logger.info('キャッシュ保存成功', {
+        cacheKey,
+        eventCount: events.length,
+        calculationDurationMs,
+        expiryDays
       });
-    });
+    } catch (err) {
+      this.logger.error('キャッシュ保存エラー', err, { cacheKey, eventCount: events.length });
+      throw err;
+    }
   }
 
   /**
@@ -111,50 +101,55 @@ export class EventsCacheModel {
   async getCache(options: CacheKeyOptions): Promise<CacheResult<FujiEvent[]>> {
     const cacheKey = this.generateCacheKey(options);
 
-    return new Promise((resolve) => {
+    try {
       const sql = `
         SELECT events_data, created_at, expires_at, calculation_duration_ms
         FROM events_cache 
         WHERE cache_key = ? AND expires_at > CURRENT_TIMESTAMP
       `;
 
-      this.db.get(sql, [cacheKey], (err, row: any) => {
-        if (err || !row) {
-          this.logger.debug('キャッシュミス', { cacheKey, error: err?.message });
-          resolve({
-            hit: false,
-            key: cacheKey
-          });
-          return;
-        }
+      const row: any = await this.db.getAdapted(sql, [cacheKey]);
+      
+      if (!row) {
+        this.logger.debug('キャッシュミス', { cacheKey });
+        return {
+          hit: false,
+          key: cacheKey
+        };
+      }
 
-        try {
-          const cachedData: CachedEventsData = JSON.parse(row.cached_data);
-          
-          this.logger.info('キャッシュヒット', {
-            cacheKey,
-            eventCount: cachedData.events.length,
-            cachedAt: row.created_at,
-            age: Date.now() - new Date(row.created_at).getTime()
-          });
+      try {
+        const cachedData: CachedEventsData = JSON.parse(row.events_data);
+        
+        this.logger.info('キャッシュヒット', {
+          cacheKey,
+          eventCount: cachedData.events.length,
+          cachedAt: row.created_at,
+          age: Date.now() - new Date(row.created_at).getTime()
+        });
 
-          resolve({
-            hit: true,
-            data: cachedData.events,
-            key: cacheKey,
-            cachedAt: new Date(row.created_at),
-            expiresAt: new Date(row.expires_at),
-            generationTimeMs: row.calculation_duration_ms
-          });
-        } catch (parseError) {
-          this.logger.error('キャッシュデータパースエラー', parseError, { cacheKey });
-          resolve({
-            hit: false,
-            key: cacheKey
-          });
-        }
-      });
-    });
+        return {
+          hit: true,
+          data: cachedData.events,
+          key: cacheKey,
+          cachedAt: new Date(row.created_at),
+          expiresAt: new Date(row.expires_at),
+          generationTimeMs: row.calculation_duration_ms
+        };
+      } catch (parseError) {
+        this.logger.error('キャッシュデータパースエラー', parseError, { cacheKey });
+        return {
+          hit: false,
+          key: cacheKey
+        };
+      }
+    } catch (err) {
+      this.logger.error('キャッシュ取得エラー', err, { cacheKey });
+      return {
+        hit: false,
+        key: cacheKey
+      };
+    }
   }
 
   /**
@@ -211,62 +206,74 @@ export class EventsCacheModel {
    * 期限切れキャッシュの削除
    */
   async cleanupExpiredCache(): Promise<number> {
-    return new Promise((resolve, reject) => {
+    try {
       const sql = `
         DELETE FROM events_cache 
         WHERE expires_at < CURRENT_TIMESTAMP OR is_valid = 0
       `;
 
-      this.db.run(sql, [], function(err) {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(this.changes || 0);
-        }
-      });
-    });
+      const result = await this.db.runAdapted(sql, []);
+      const deletedCount = result.changes || 0;
+      
+      this.logger.info('期限切れキャッシュ削除完了', { deletedCount });
+      return deletedCount;
+    } catch (err) {
+      this.logger.error('期限切れキャッシュ削除エラー', err);
+      throw err;
+    }
   }
 
   /**
    * キャッシュ統計情報の取得
    */
   async getCacheStats(): Promise<CacheStats> {
-    return new Promise((resolve, reject) => {
+    try {
       const sql = `
         SELECT 
           COUNT(*) as total_entries,
-          SUM(CASE WHEN is_valid = 1 AND expires_at > CURRENT_TIMESTAMP THEN 1 ELSE 0 END) as valid_entries,
+          SUM(CASE WHEN expires_at > CURRENT_TIMESTAMP THEN 1 ELSE 0 END) as valid_entries,
           SUM(CASE WHEN expires_at <= CURRENT_TIMESTAMP THEN 1 ELSE 0 END) as expired_entries,
-          SUM(event_count) as total_events,
-          AVG(calculation_duration_ms) as avg_calculation_time,
+          COUNT(*) as total_events,
           MIN(created_at) as oldest_entry,
-          MAX(updated_at) as newest_entry
+          MAX(created_at) as newest_entry
         FROM events_cache
       `;
 
-      this.db.get(sql, [], (err, row: any) => {
-        if (err) {
-          reject(err);
-          return;
-        }
+      const row: any = await this.db.getAdapted(sql, []);
+      
+      if (!row) {
+        return {
+          totalEntries: 0,
+          validEntries: 0,
+          expiredEntries: 0,
+          totalEvents: 0,
+          avgCalculationTime: 0,
+          cacheHitRate: 0,
+          oldestEntry: new Date(),
+          newestEntry: new Date(),
+          diskUsageMB: 0
+        };
+      }
 
-        // ファイルサイズの計算（概算）
-        const avgEventSize = 200; // バイト
-        const diskUsageMB = (row.total_events * avgEventSize) / (1024 * 1024);
+      // ファイルサイズの計算（概算）
+      const avgEventSize = 200; // バイト
+      const diskUsageMB = (row.total_events * avgEventSize) / (1024 * 1024);
 
-        resolve({
-          totalEntries: row.total_entries || 0,
-          validEntries: row.valid_entries || 0,
-          expiredEntries: row.expired_entries || 0,
-          totalEvents: row.total_events || 0,
-          avgCalculationTime: row.avg_calculation_time || 0,
-          cacheHitRate: 0, // 実装時に別途計算
-          oldestEntry: row.oldest_entry ? new Date(row.oldest_entry) : new Date(),
-          newestEntry: row.newest_entry ? new Date(row.newest_entry) : new Date(),
-          diskUsageMB
-        });
-      });
-    });
+      return {
+        totalEntries: row.total_entries || 0,
+        validEntries: row.valid_entries || 0,
+        expiredEntries: row.expired_entries || 0,
+        totalEvents: row.total_events || 0,
+        avgCalculationTime: 0, // 実装時に別途計算
+        cacheHitRate: 0, // 実装時に別途計算
+        oldestEntry: row.oldest_entry ? new Date(row.oldest_entry) : new Date(),
+        newestEntry: row.newest_entry ? new Date(row.newest_entry) : new Date(),
+        diskUsageMB
+      };
+    } catch (err) {
+      this.logger.error('キャッシュ統計取得エラー', err);
+      throw err;
+    }
   }
 
   /**

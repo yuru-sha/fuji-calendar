@@ -4,6 +4,8 @@ import { Location } from '../../shared/types';
 import { cacheService } from '../services/CacheService';
 import { getComponentLogger } from '../../shared/utils/logger';
 import { AdminModel } from '../models/Admin';
+import { queueService } from '../services/QueueService';
+import { fujiCalculationOrchestrator } from '../services/FujiCalculationOrchestrator';
 import bcrypt from 'bcrypt';
 
 export class AdminController {
@@ -75,13 +77,12 @@ export class AdminController {
       });
       
       // キューシステムで事前計算を開始（非同期）
-      // 一時的に無効化
-      /* try {
+      try {
         const currentYear = new Date().getFullYear();
         const jobId = await queueService.scheduleLocationCalculation(
           newLocation.id!,
           currentYear,
-          currentYear + 2, // 2年先まで計算
+          currentYear + 2, // 3年分の計算（当年+2年先）
           'high',
           req.requestId
         );
@@ -90,6 +91,7 @@ export class AdminController {
           locationId: newLocation.id,
           locationName: newLocation.name,
           jobId,
+          yearRange: `${currentYear}-${currentYear + 2}`,
           requestId: req.requestId
         });
         
@@ -99,7 +101,7 @@ export class AdminController {
             ...newLocation, 
             calculationJobId: jobId 
           },
-          message: '撮影地点が正常に作成されました。天体計算を開始します。'
+          message: '撮影地点が正常に作成されました。3年分の天体計算を開始します。'
         });
       } catch (queueError) {
         // キュー追加に失敗しても地点作成は成功として扱う
@@ -113,14 +115,7 @@ export class AdminController {
           data: newLocation,
           message: '撮影地点が正常に作成されました。天体計算は手動で開始してください。'
         });
-      } */
-      
-      // 一時的な簡単なレスポンス
-      res.status(201).json({
-        success: true,
-        data: newLocation,
-        message: '撮影地点が正常に作成されました。'
-      });
+      }
     } catch (error) {
       this.logger.error('地点作成エラー', error, {
         requestId: req.requestId

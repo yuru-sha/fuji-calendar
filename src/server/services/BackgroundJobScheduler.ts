@@ -2,6 +2,7 @@ import { getComponentLogger, StructuredLogger } from '../../shared/utils/logger'
 
 import { BatchCalculationService } from './BatchCalculationService';
 import { queueService } from './QueueService';
+import { fujiCalculationOrchestrator } from './FujiCalculationOrchestrator';
 
 import { EventsCacheModel } from '../models/EventsCache';
 import { LocationModel } from '../models/Location';
@@ -121,7 +122,18 @@ export class BackgroundJobScheduler {
    * 年次メンテナンスのスケジュール
    */
   private scheduleYearlyMaintenance(): void {
-    // 毎年12月15日 午前1時に翌年のデータ準備開始
+    // 毎年12月1日 午前0時に年間富士現象計算実行（新アーキテクチャ）
+    this.scheduleYearly('fuji-yearly-calculation', 12, 1, 0, 0, async () => {
+      try {
+        this.logger.info('年間富士現象計算ジョブ開始（3段階アーキテクチャ）');
+        await this.performYearlyFujiCalculation();
+        this.logger.info('年間富士現象計算ジョブ完了');
+      } catch (error) {
+        this.logger.error('年間富士現象計算ジョブエラー', error);
+      }
+    });
+
+    // 毎年12月15日 午前1時に翌年のデータ準備開始（従来システム）
     this.scheduleYearly('yearly-preparation', 12, 15, 1, 0, async () => {
       try {
         this.logger.info('年次データ準備ジョブ開始');
@@ -384,6 +396,57 @@ export class BackgroundJobScheduler {
   }
 
   /**
+   * 手動での年間富士現象計算実行（テスト・メンテナンス用）
+   */
+  async triggerYearlyFujiCalculation(year: number): Promise<{
+    success: boolean;
+    result?: any;
+    error?: Error;
+  }> {
+    this.logger.info('手動年間富士現象計算開始', { year });
+    
+    try {
+      const result = await fujiCalculationOrchestrator.executeFullYearlyCalculation(year);
+      
+      this.logger.info('手動年間富士現象計算完了', {
+        year,
+        success: result.success,
+        totalTimeMs: result.totalTimeMs,
+        phenomenaCount: result.finalStats?.totalPhenomena || 0
+      });
+
+      return { success: true, result };
+      
+    } catch (error) {
+      this.logger.error('手動年間富士現象計算エラー', error, { year });
+      return { success: false, error: error as Error };
+    }
+  }
+
+  /**
+   * 計算システムの健康状態チェック（手動実行用）
+   */  
+  async checkFujiCalculationSystemHealth(year: number): Promise<any> {
+    this.logger.info('富士計算システム健康チェック開始', { year });
+    
+    try {
+      const healthCheck = await fujiCalculationOrchestrator.healthCheck(year);
+      
+      this.logger.info('富士計算システム健康チェック完了', {
+        year,
+        healthy: healthCheck.healthy,
+        recommendationCount: healthCheck.recommendations.length
+      });
+
+      return healthCheck;
+      
+    } catch (error) {
+      this.logger.error('富士計算システム健康チェックエラー', error, { year });
+      throw error;
+    }
+  }
+
+  /**
    * スケジューラーの状態取得
    */
   getStatus(): {
@@ -399,7 +462,90 @@ export class BackgroundJobScheduler {
   }
 
   /**
-   * 年次データ準備処理
+   * 年間富士現象計算処理（12月1日実行）
+   * 新しい3段階アーキテクチャによる翌年の事前計算
+   */
+  async performYearlyFujiCalculation(): Promise<void> {
+    const nextYear = new Date().getFullYear() + 1;
+    this.logger.info('年間富士現象計算開始（3段階アーキテクチャ）', { targetYear: nextYear });
+
+    try {
+      // 1. オーケストレーターによる年間計算実行
+      const result = await fujiCalculationOrchestrator.executeFullYearlyCalculation(nextYear);
+      
+      if (result.success) {
+        this.logger.info('年間富士現象計算完了', {
+          targetYear: nextYear,
+          totalTimeMs: result.totalTimeMs,
+          totalTimeHours: Math.round(result.totalTimeMs / 1000 / 60 / 60 * 10) / 10,
+          stages: result.stages,
+          finalStats: result.finalStats
+        });
+
+        // 2. 計算システムの健康状態チェック
+        const healthCheck = await fujiCalculationOrchestrator.healthCheck(nextYear);
+        
+        if (!healthCheck.healthy) {
+          this.logger.warn('年間計算後の健康状態警告', {
+            targetYear: nextYear,
+            recommendations: healthCheck.recommendations
+          });
+        }
+
+        // 3. 成功通知（将来的にはSlackやメール通知）
+        this.logger.info('年間富士現象計算成功通知', {
+          targetYear: nextYear,
+          phenomenaCount: result.finalStats.totalPhenomena,
+          locationCoverage: result.finalStats.matchedLocations,
+          qualityDistribution: result.finalStats
+        });
+
+      } else {
+        throw new Error('年間富士現象計算が失敗しました');
+      }
+
+    } catch (error) {
+      this.logger.error('年間富士現象計算エラー', error, { targetYear: nextYear });
+      
+      // エラー通知とフォールバック処理
+      await this.handleYearlyCalculationFailure(nextYear, error);
+      throw error;
+    }
+  }
+
+  /**
+   * 年間計算失敗時のフォールバック処理
+   */
+  private async handleYearlyCalculationFailure(year: number, error: Error): Promise<void> {
+    this.logger.warn('年間計算失敗 - フォールバック処理開始', { year });
+
+    try {
+      // 1. 従来システムによる部分的な計算をスケジュール
+      const locations = await this.locationModel.findAll();
+      
+      for (const location of locations) {
+        await queueService.scheduleLocationCalculation(
+          location.id,
+          year,
+          year,
+          'high', // 高優先度
+          `fallback-yearly-${year}`
+        );
+      }
+
+      this.logger.info('フォールバック処理完了', {
+        year,
+        locationCount: locations.length,
+        method: '従来システム'
+      });
+
+    } catch (fallbackError) {
+      this.logger.error('フォールバック処理も失敗', fallbackError, { year });
+    }
+  }
+
+  /**
+   * 年次データ準備処理（従来システム）
    */
   async performYearlyPreparation(): Promise<void> {
     const nextYear = new Date().getFullYear() + 1;

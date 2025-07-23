@@ -409,26 +409,40 @@ export class FujiSystemOrchestrator {
    * 最終統計情報を取得
    */
   private async getFinalStatistics(year: number): Promise<any> {
-    const [
-      celestialStats,
-      candidateStats,
-      eventStats
-    ] = await Promise.all([
-      celestialOrbitDataService.getStatistics(),
-      astronomicalDataService.getStatistics(year),
-      locationFujiEventService.getStatistics(year)
-    ]);
+    try {
+      const [
+        celestialStats,
+        candidateStats,
+        eventStats
+      ] = await Promise.all([
+        celestialOrbitDataService.getStatistics().catch(err => {
+          this.logger.error('Failed to get celestial statistics', err);
+          return { total: 0, byType: {} };
+        }),
+        astronomicalDataService.getStatistics(year).catch(err => {
+          this.logger.error('Failed to get astronomical statistics', err);
+          return { total: 0, byQuality: {} };
+        }),
+        locationFujiEventService.getStatistics(year).catch(err => {
+          this.logger.error('Failed to get event statistics', err);
+          return { total: 0, byType: {}, totalEvents: 0, locationCount: 0 };
+        })
+      ]);
 
-    return {
-      celestialData: celestialStats,
-      candidates: candidateStats,
-      events: eventStats,
-      totalEvents: eventStats.totalEvents,
-      locationCount: eventStats.locationCount,
-      eventTypeDistribution: eventStats.eventTypeDistribution,
-      accuracyDistribution: eventStats.accuracyDistribution,
-      avgEventsPerLocation: eventStats.avgEventsPerLocation
-    };
+      return {
+        celestialData: celestialStats,
+        candidates: candidateStats,
+        events: eventStats,
+        totalEvents: eventStats.totalEvents,
+        locationCount: eventStats.locationCount,
+        eventTypeDistribution: eventStats.eventTypeDistribution,
+        accuracyDistribution: eventStats.accuracyDistribution,
+        avgEventsPerLocation: eventStats.avgEventsPerLocation
+      };
+    } catch (error) {
+      this.logger.error('Failed to get final statistics', error);
+      throw new Error('統計情報の取得に失敗しました');
+    }
   }
 
   /**
@@ -488,37 +502,51 @@ export class FujiSystemOrchestrator {
       recommendedBatchSize: number;
     };
   }> {
-    const [
-      celestialStats,
-      candidateStats,
-      eventStats
-    ] = await Promise.all([
-      celestialOrbitDataService.getStatistics(),
-      astronomicalDataService.getStatistics(),
-      locationFujiEventService.getStatistics()
-    ]);
+    try {
+      const [
+        celestialStats,
+        candidateStats,
+        eventStats
+      ] = await Promise.all([
+        celestialOrbitDataService.getStatistics().catch(err => {
+          this.logger.error('Failed to get celestial statistics for performance metrics', err);
+          return { totalRecords: 0 };
+        }),
+        astronomicalDataService.getStatistics().catch(err => {
+          this.logger.error('Failed to get astronomical statistics for performance metrics', err);
+          return { totalCandidates: 0 };
+        }),
+        locationFujiEventService.getStatistics().catch(err => {
+          this.logger.error('Failed to get event statistics for performance metrics', err);
+          return { totalEvents: 0 };
+        })
+      ]);
 
-    const candidateExtractionRate = celestialStats.totalRecords > 0 ? 
-      candidateStats.totalCandidates / celestialStats.totalRecords : 0;
-    
-    const eventMatchingRate = candidateStats.totalCandidates > 0 ? 
-      eventStats.totalEvents / candidateStats.totalCandidates : 0;
+      const candidateExtractionRate = celestialStats.totalRecords > 0 ? 
+        candidateStats.totalCandidates / celestialStats.totalRecords : 0;
+      
+      const eventMatchingRate = candidateStats.totalCandidates > 0 ? 
+        eventStats.totalEvents / candidateStats.totalCandidates : 0;
 
-    return {
-      dataVolume: {
-        celestialRecords: celestialStats.totalRecords,
-        candidateRecords: candidateStats.totalCandidates,
-        eventRecords: eventStats.totalEvents
-      },
-      efficiency: {
-        candidateExtractionRate,
-        eventMatchingRate
-      },
-      systemLoad: {
-        averageEventCalculationTime: 50, // ms（実測値に基づいて調整）
-        recommendedBatchSize: Math.max(100, Math.floor(candidateStats.totalCandidates / 100))
-      }
-    };
+      return {
+        dataVolume: {
+          celestialRecords: celestialStats.totalRecords,
+          candidateRecords: candidateStats.totalCandidates,
+          eventRecords: eventStats.totalEvents
+        },
+        efficiency: {
+          candidateExtractionRate,
+          eventMatchingRate
+        },
+        systemLoad: {
+          averageEventCalculationTime: 50, // ms（実測値に基づいて調整）
+          recommendedBatchSize: Math.max(100, Math.floor(candidateStats.totalCandidates / 100))
+        }
+      };
+    } catch (error) {
+      this.logger.error('Failed to get performance metrics', error);
+      throw new Error('パフォーマンス指標の取得に失敗しました');
+    }
   }
 }
 

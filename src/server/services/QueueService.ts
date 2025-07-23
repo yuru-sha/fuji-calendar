@@ -557,19 +557,36 @@ export class QueueService {
     daily: any;
     historical: any;
   }> {
-    const [locationStats, monthlyStats, dailyStats, historicalStats] = await Promise.all([
-      this.locationQueue.getJobCounts(),
-      this.monthlyQueue.getJobCounts(),
-      this.dailyQueue.getJobCounts(),
-      this.historicalQueue.getJobCounts(),
-    ]);
+    try {
+      const [locationStats, monthlyStats, dailyStats, historicalStats] = await Promise.all([
+        this.locationQueue.getJobCounts().catch(err => {
+          logger.error('Failed to get location queue stats', err);
+          return { waiting: 0, active: 0, completed: 0, failed: 0 };
+        }),
+        this.monthlyQueue.getJobCounts().catch(err => {
+          logger.error('Failed to get monthly queue stats', err);
+          return { waiting: 0, active: 0, completed: 0, failed: 0 };
+        }),
+        this.dailyQueue.getJobCounts().catch(err => {
+          logger.error('Failed to get daily queue stats', err);
+          return { waiting: 0, active: 0, completed: 0, failed: 0 };
+        }),
+        this.historicalQueue.getJobCounts().catch(err => {
+          logger.error('Failed to get historical queue stats', err);
+          return { waiting: 0, active: 0, completed: 0, failed: 0 };
+        }),
+      ]);
 
-    return {
-      location: locationStats,
-      monthly: monthlyStats,
-      daily: dailyStats,
-      historical: historicalStats,
-    };
+      return {
+        location: locationStats,
+        monthly: monthlyStats,
+        daily: dailyStats,
+        historical: historicalStats,
+      };
+    } catch (error) {
+      logger.error('Failed to get queue statistics', error);
+      throw new Error('キューの状態取得に失敗しました');
+    }
   }
 
   /**
@@ -608,21 +625,41 @@ export class QueueService {
   async shutdown(): Promise<void> {
     logger.info('Shutting down queue service');
     
-    // ワーカーの停止
-    await Promise.all(this.workers.map(worker => worker.close()));
-    
-    // キューの停止
-    await Promise.all([
-      this.locationQueue.close(),
-      this.monthlyQueue.close(),
-      this.dailyQueue.close(),
-      this.historicalQueue.close(),
-    ]);
+    try {
+      // ワーカーの停止（個別にエラーハンドリング）
+      const workerClosePromises = this.workers.map(worker => 
+        worker.close().catch(err => {
+          logger.error('Failed to close worker', err);
+        })
+      );
+      await Promise.all(workerClosePromises);
+      
+      // キューの停止（個別にエラーハンドリング）
+      await Promise.all([
+        this.locationQueue.close().catch(err => {
+          logger.error('Failed to close location queue', err);
+        }),
+        this.monthlyQueue.close().catch(err => {
+          logger.error('Failed to close monthly queue', err);
+        }),
+        this.dailyQueue.close().catch(err => {
+          logger.error('Failed to close daily queue', err);
+        }),
+        this.historicalQueue.close().catch(err => {
+          logger.error('Failed to close historical queue', err);
+        }),
+      ]);
 
-    // Redis接続の切断
-    await redisConnection.quit();
-    
-    logger.info('Queue service shutdown completed');
+      // Redis接続の切断
+      await redisConnection.quit().catch(err => {
+        logger.error('Failed to close Redis connection', err);
+      });
+      
+      logger.info('Queue service shutdown completed');
+    } catch (error) {
+      logger.error('Error during queue service shutdown', error);
+      throw error;
+    }
   }
 }
 

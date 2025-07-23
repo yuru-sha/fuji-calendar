@@ -457,7 +457,11 @@ export class CalendarService {
           60 // 60日間有効
         );
         
-        cachePromises.push(cachePromise);
+        cachePromises.push(
+          cachePromise.catch(err => {
+            this.logger.error('Failed to cache events for location', { locationId: location.id, error: err });
+          })
+        );
       }
       
       await Promise.all(cachePromises);

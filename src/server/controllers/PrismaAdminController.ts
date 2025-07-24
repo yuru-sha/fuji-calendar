@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { fujiSystemOrchestrator } from '../services/FujiSystemOrchestrator';
 import { calendarServicePrisma } from '../services/CalendarServicePrisma';
 import { celestialOrbitDataService } from '../services/CelestialOrbitDataService';
-import { astronomicalDataService } from '../services/AstronomicalDataService';
+// import { astronomicalDataService } from '../services/AstronomicalDataService'; // 削除済み
 import { locationFujiEventService } from '../services/LocationFujiEventService';
 import { getComponentLogger } from '../../shared/utils/logger';
 
@@ -252,7 +252,7 @@ export class PrismaAdminController {
         performanceMetrics
       ] = await Promise.all([
         celestialOrbitDataService.getStatistics(),
-        astronomicalDataService.getStatistics(),
+        Promise.resolve({ totalCandidates: 0 }), // AstronomicalDataService削除により無効化
         locationFujiEventService.getStatistics(),
         fujiSystemOrchestrator.getPerformanceMetrics()
       ]);
@@ -322,7 +322,7 @@ export class PrismaAdminController {
         candidateStats,
         eventStats
       ] = await Promise.all([
-        astronomicalDataService.getStatistics(year),
+        Promise.resolve({ totalCandidates: 0 }), // AstronomicalDataService削除により無効化
         locationFujiEventService.getStatistics(year)
       ]);
 

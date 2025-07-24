@@ -1,7 +1,7 @@
 import { prisma } from '../database/prisma';
-import { LocationFujiEvent, EventType, Accuracy, Location } from '@prisma/client';
+import { LocationFujiEvent, EventType, Accuracy, Location, CelestialOrbitData } from '@prisma/client';
 import { getComponentLogger, StructuredLogger } from '../../shared/utils/logger';
-import { astronomicalDataService } from './AstronomicalDataService';
+// AstronomicalDataService は削除されました
 
 interface FujiEventCandidate {
   locationId: number;
@@ -184,25 +184,43 @@ export class LocationFujiEventService {
     year: number
   ): Promise<FujiEventCandidate[]> {
     
-    // 年間の富士現象候補データを取得
+    // 年間の天体軌道データを直接取得
     const startDate = new Date(year, 0, 1);
     const endDate = new Date(year, 11, 31);
     
-    // 一時的に無効化: AstronomicalData テーブルが廃止されたため
-    this.logger.warn('AstronomicalDataService is temporarily disabled - no candidates will be matched', {
+    this.logger.info('CelestialOrbitDataから富士現象候補を検索', {
       locationId: location.id,
       year,
       startDate,
-      endDate
+      endDate,
+      fujiAzimuth: location.fujiAzimuth,
+      fujiElevation: location.fujiElevation
     });
-    const candidates: any[] = []; // 空の配列を使用
+
+    // celestial_orbit_dataから候補を取得
+    const candidates = await prisma.celestialOrbitData.findMany({
+      where: {
+        date: {
+          gte: startDate,
+          lte: endDate
+        },
+        visible: true,
+        elevation: {
+          gte: -2 // 地平線近辺まで含める
+        }
+      },
+      orderBy: [
+        { date: 'asc' },
+        { time: 'asc' }
+      ]
+    });
 
     const matchedEvents: FujiEventCandidate[] = [];
 
     for (const candidate of candidates) {
       // 地点の富士山データと候補の天体位置を比較
       const azimuthDiff = Math.abs(candidate.azimuth - location.fujiAzimuth);
-      const altitudeDiff = Math.abs((candidate.moonElevation || candidate.elevation) - location.fujiElevation);
+      const altitudeDiff = Math.abs(candidate.elevation - location.fujiElevation);
       const totalDiff = Math.sqrt(azimuthDiff ** 2 + altitudeDiff ** 2);
 
       // 許容範囲内かチェック
@@ -214,24 +232,24 @@ export class LocationFujiEventService {
         const qualityScore = this.calculateLocationQualityScore(
           azimuthDiff,
           altitudeDiff,
-          candidate.quality || 'fair',
+          'good', // CelestialOrbitDataにはqualityフィールドがないため固定値
           location.fujiDistance / 1000 // kmに変換
         );
 
-        // イベントタイプを決定
-        const eventType = this.determineEventType(candidate.pattern, candidate.timeOfDay);
+        // イベントタイプを決定（CelestialOrbitDataの構造に基づく）
+        const eventType = this.determineEventTypeFromCelestialData(candidate);
 
         matchedEvents.push({
           locationId: location.id,
           eventDate: candidate.date,
-          eventTime: candidate.preciseTime,
+          eventTime: candidate.time, // CelestialOrbitDataのtimeフィールド
           eventType,
           azimuth: candidate.azimuth,
-          altitude: candidate.moonElevation || candidate.elevation,
+          altitude: candidate.elevation,
           qualityScore,
           accuracy,
           moonPhase: candidate.moonPhase || undefined,
-          moonIllumination: (candidate as any).moonIllumination || undefined,
+          moonIllumination: candidate.moonIllumination || undefined,
           calculationYear: year
         });
       }
@@ -360,7 +378,20 @@ export class LocationFujiEventService {
   }
 
   /**
-   * イベントタイプを決定
+   * CelestialOrbitDataからイベントタイプを決定
+   */
+  private determineEventTypeFromCelestialData(celestialData: CelestialOrbitData): EventType {
+    const isMorning = celestialData.hour < 12;
+    
+    if (celestialData.celestialType === 'sun') {
+      return isMorning ? 'diamond_sunrise' : 'diamond_sunset';
+    } else {
+      return isMorning ? 'pearl_moonrise' : 'pearl_moonset';
+    }
+  }
+
+  /**
+   * イベントタイプを決定（旧版 - 廃止予定）
    */
   private determineEventType(pattern: string, timeOfDay: string): EventType {
     if (pattern === 'diamond') {

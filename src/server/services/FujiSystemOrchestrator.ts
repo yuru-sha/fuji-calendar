@@ -1,6 +1,6 @@
 import { getComponentLogger, StructuredLogger } from '../../shared/utils/logger';
 import { celestialOrbitDataService } from './CelestialOrbitDataService';
-import { astronomicalDataService } from './AstronomicalDataService';
+// import { astronomicalDataService } from './AstronomicalDataService'; // 削除済み
 import { locationFujiEventService } from './LocationFujiEventService';
 import { PrismaClientManager } from '../database/prisma';
 
@@ -59,7 +59,9 @@ export class FujiSystemOrchestrator {
       this.logger.info('Stage 2: 富士現象候補抽出開始', { year });
       const stage2Start = Date.now();
       
-      const candidatesResult = await astronomicalDataService.generateYearlyCandidates(year);
+      // AstronomicalDataService削除により一時的に無効化
+      // const candidatesResult = await astronomicalDataService.generateYearlyCandidates(year);
+      const candidatesResult = { success: false, message: 'AstronomicalDataService is removed' };
       
       if (!candidatesResult.success) {
         throw new Error('富士現象候補抽出に失敗しました');
@@ -185,7 +187,8 @@ export class FujiSystemOrchestrator {
     try {
       console.log('🚀 Stage 2: 天体データから富士現象の候補を抽出...');
       const stage2StartTime = Date.now();
-      const candidatesResult = await this.astronomicalDataService.extractAllCandidates(year);
+      // AstronomicalDataService削除により一時的に無効化
+      const candidatesResult = { success: false, message: 'AstronomicalDataService is removed' };
       const stage2Time = Date.now() - stage2StartTime;
       
       this.logger.info('Stage 2完了', {
@@ -350,7 +353,8 @@ export class FujiSystemOrchestrator {
       const celestialExists = celestialCount > 0;
 
       // 候補データの確認
-      const candidateStats = await astronomicalDataService.getStatistics(year);
+      // AstronomicalDataService削除により一時的に無効化
+      const candidateStats = { totalCandidates: 0, diamondCandidates: 0, pearlCandidates: 0 };
       const candidateExists = candidateStats.totalCandidates > 0;
 
       // イベントデータの確認
@@ -419,7 +423,7 @@ export class FujiSystemOrchestrator {
           this.logger.error('Failed to get celestial statistics', err);
           return { total: 0, byType: {} };
         }),
-        astronomicalDataService.getStatistics(year).catch(err => {
+        Promise.resolve({ totalCandidates: 0 }).catch(err => { // AstronomicalDataService削除により無効化
           this.logger.error('Failed to get astronomical statistics', err);
           return { total: 0, byQuality: {} };
         }),
@@ -512,7 +516,7 @@ export class FujiSystemOrchestrator {
           this.logger.error('Failed to get celestial statistics for performance metrics', err);
           return { totalRecords: 0 };
         }),
-        astronomicalDataService.getStatistics().catch(err => {
+        Promise.resolve({ totalCandidates: 0 }).catch(err => { // AstronomicalDataService削除により無効化
           this.logger.error('Failed to get astronomical statistics for performance metrics', err);
           return { totalCandidates: 0 };
         }),

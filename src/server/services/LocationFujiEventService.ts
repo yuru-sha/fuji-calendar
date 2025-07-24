@@ -187,7 +187,15 @@ export class LocationFujiEventService {
     // 年間の富士現象候補データを取得
     const startDate = new Date(year, 0, 1);
     const endDate = new Date(year, 11, 31);
-    const candidates = await astronomicalDataService.getCandidatesForPeriod(startDate, endDate);
+    
+    // 一時的に無効化: AstronomicalData テーブルが廃止されたため
+    this.logger.warn('AstronomicalDataService is temporarily disabled - no candidates will be matched', {
+      locationId: location.id,
+      year,
+      startDate,
+      endDate
+    });
+    const candidates: any[] = []; // 空の配列を使用
 
     const matchedEvents: FujiEventCandidate[] = [];
 

@@ -1,11 +1,11 @@
 import { prisma } from '../database/prisma';
-import { AstronomicalData, Pattern, Quality } from '@prisma/client';
+import { CelestialOrbitData } from '@prisma/client';
 import { getComponentLogger, StructuredLogger } from '../../shared/utils/logger';
 import { celestialOrbitDataService } from './CelestialOrbitDataService';
 
 interface FujiCandidate {
   date: Date;
-  pattern: Pattern;
+  celestialType: 'sun' | 'moon';
   elevation: number;
   timeOfDay: 'morning' | 'afternoon';
   preciseTime: Date;
@@ -13,7 +13,7 @@ interface FujiCandidate {
   moonElevation?: number;
   moonAzimuth?: number;
   moonPhase?: number;
-  quality?: Quality;
+  visible: boolean;
   atmosphericFactor?: number;
 }
 
@@ -344,24 +344,16 @@ export class AstronomicalDataService {
   async getCandidatesForPeriod(
     startDate: Date,
     endDate: Date,
-    pattern?: Pattern
-  ): Promise<AstronomicalData[]> {
-    return await prisma.astronomicalData.findMany({
-      where: {
-        date: {
-          gte: startDate,
-          lte: endDate
-        },
-        ...(pattern && { pattern }),
-        quality: {
-          in: ['excellent', 'good', 'fair'] // poorは除外
-        }
-      },
-      orderBy: [
-        { date: 'asc' },
-        { preciseTime: 'asc' }
-      ]
+    celestialType?: 'sun' | 'moon'
+  ): Promise<CelestialOrbitData[]> {
+    // AstronomicalData テーブルは廃止されました
+    // CelestialOrbitData を直接使用するように修正が必要
+    this.logger.warn('getCandidatesForPeriod is deprecated - AstronomicalData table removed', {
+      startDate,
+      endDate,
+      celestialType
     });
+    return [];
   }
 
   /**

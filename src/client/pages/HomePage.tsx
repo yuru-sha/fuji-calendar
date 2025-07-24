@@ -154,30 +154,149 @@ const HomePage: React.FC = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {/* 使い方ガイド */}
           <div style={{
+            position: 'sticky',
+            top: '1rem',
             backgroundColor: 'white',
-            borderRadius: '8px',
-            padding: '1rem',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+            borderRadius: '12px',
+            padding: '1.5rem',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            border: '1px solid #e5e7eb',
+            marginBottom: '1rem'
           }}>
-            <h3 style={{ 
-              margin: '0 0 1rem 0',
-              fontSize: '1.125rem',
-              fontWeight: '600',
-              color: '#1f2937'
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              marginBottom: '1rem',
+              paddingBottom: '0.75rem',
+              borderBottom: '1px solid #f3f4f6'
             }}>
-              📖 使い方
-            </h3>
-            <ol style={{ 
-              margin: 0,
-              paddingLeft: '1.25rem',
-              color: '#4b5563',
-              fontSize: '0.875rem',
-              lineHeight: '1.5'
+              <span style={{ fontSize: '1.5rem', marginRight: '0.5rem' }}>📖</span>
+              <h3 style={{ 
+                margin: 0,
+                fontSize: '1.25rem',
+                fontWeight: '700',
+                color: '#1f2937'
+              }}>
+                使い方ガイド
+              </h3>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '0.75rem',
+                padding: '0.5rem',
+                borderRadius: '8px',
+                backgroundColor: '#f8fafc',
+                border: '1px solid #e2e8f0'
+              }}>
+                <span style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '24px',
+                  height: '24px',
+                  backgroundColor: '#3b82f6',
+                  color: 'white',
+                  borderRadius: '50%',
+                  fontSize: '0.75rem',
+                  fontWeight: 'bold',
+                  flexShrink: 0
+                }}>1</span>
+                <div>
+                  <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#1e293b', marginBottom: '0.25rem' }}>
+                    日付を選択
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', lineHeight: '1.4' }}>
+                    カレンダーから撮影したい日付をクリック
+                  </div>
+                </div>
+              </div>
+              
+              <div style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '0.75rem',
+                padding: '0.5rem',
+                borderRadius: '8px',
+                backgroundColor: '#f8fafc',
+                border: '1px solid #e2e8f0'
+              }}>
+                <span style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '24px',
+                  height: '24px',
+                  backgroundColor: '#10b981',
+                  color: 'white',
+                  borderRadius: '50%',
+                  fontSize: '0.75rem',
+                  fontWeight: 'bold',
+                  flexShrink: 0
+                }}>2</span>
+                <div>
+                  <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#1e293b', marginBottom: '0.25rem' }}>
+                    地点を確認
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', lineHeight: '1.4' }}>
+                    地図で撮影地点を確認・選択
+                  </div>
+                </div>
+              </div>
+              
+              <div style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '0.75rem',
+                padding: '0.5rem',
+                borderRadius: '8px',
+                backgroundColor: '#f8fafc',
+                border: '1px solid #e2e8f0'
+              }}>
+                <span style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '24px',
+                  height: '24px',
+                  backgroundColor: '#f59e0b',
+                  color: 'white',
+                  borderRadius: '50%',
+                  fontSize: '0.75rem',
+                  fontWeight: 'bold',
+                  flexShrink: 0
+                }}>3</span>
+                <div>
+                  <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#1e293b', marginBottom: '0.25rem' }}>
+                    詳細をチェック
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', lineHeight: '1.4' }}>
+                    イベント詳細で時刻や条件を確認
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div style={{
+              marginTop: '1rem',
+              padding: '0.75rem',
+              backgroundColor: '#fef3c7',
+              borderRadius: '8px',
+              border: '1px solid #fbbf24'
             }}>
-              <li>カレンダーから撮影したい日付をクリック</li>
-              <li>地図で撮影地点を確認・選択</li>
-              <li>イベント詳細で時刻や条件をチェック</li>
-            </ol>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                fontSize: '0.75rem',
+                color: '#92400e',
+                fontWeight: '500'
+              }}>
+                <span>💡</span>
+                <span>☀️ダイヤモンド富士 🌙パール富士のアイコンで種類を確認できます</span>
+              </div>
+            </div>
           </div>
 
           {/* 選択された日の詳細 */}

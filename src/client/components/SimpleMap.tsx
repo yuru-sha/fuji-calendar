@@ -91,17 +91,18 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
       }
     });
 
-    // 富士山マーカー
-    const fujiIcon = L.divIcon({
-      html: '<div style="width: 32px; height: 32px; background: #dc2626; border: 3px solid #ffffff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; color: white; font-weight: bold; box-shadow: 0 3px 8px rgba(220, 38, 38, 0.4), 0 1px 3px rgba(0,0,0,0.3);">🗻</div>',
-      className: '',
-      iconSize: [32, 32],
-      iconAnchor: [16, 16]
+    // 富士山マーカー（標準の赤いマーカー）
+    const fujiIcon = L.icon({
+      iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      shadowSize: [41, 41]
     });
 
     L.marker([FUJI_COORDINATES.latitude, FUJI_COORDINATES.longitude], { icon: fujiIcon })
-      .addTo(map)
-      .bindPopup('🗻 富士山');
+      .addTo(map);
 
     // 撮影地点マーカー
     locations.forEach((location) => {
@@ -145,30 +146,8 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
         iconAnchor: [13, 13]
       });
 
-      // イベント情報を含むポップアップ
-      let popupContent = `
-        <div style="min-width: 220px;">
-          <h4 style="margin: 0 0 8px 0; font-size: 14px; font-weight: bold;">${location.name}</h4>
-          <p style="margin: 4px 0; font-size: 12px; color: #666;">📍 ${location.prefecture}</p>
-          <p style="margin: 4px 0; font-size: 12px; color: #666;">⛰️ 標高: ${location.elevation}m</p>
-          ${location.fujiDistance ? `<p style="margin: 4px 0; font-size: 12px; color: #666;">🗻 富士山まで: ${location.fujiDistance.toFixed(1)}km</p>` : ''}
-      `;
-      
-      if (hasEvents && selectedDate) {
-        popupContent += `<hr style="margin: 8px 0; border: none; border-top: 1px solid #e5e7eb;">`;
-        popupContent += `<p style="margin: 4px 0; font-size: 12px; font-weight: bold; color: #374151;">${selectedDate.toLocaleDateString('ja-JP')} のイベント:</p>`;
-        locationEvents.forEach(event => {
-          const icon = event.type === 'diamond' ? '☀️' : '🌙';
-          const subType = event.subType === 'rising' ? '昇る' : '沈む';
-          popupContent += `<p style="margin: 2px 0; font-size: 11px; color: #6b7280;">${icon} ${subType} ${event.time.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}</p>`;
-        });
-      }
-      
-      popupContent += `</div>`;
-
       const marker = L.marker([location.latitude, location.longitude], { icon: markerIcon })
-        .addTo(map)
-        .bindPopup(popupContent);
+        .addTo(map);
 
       if (onLocationSelect) {
         marker.on('click', () => {

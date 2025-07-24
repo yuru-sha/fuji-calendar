@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Location, FujiEvent, CalendarResponse } from '../../shared/types';
 import { apiClient } from '../services/apiClient';
+import { timeUtils } from '../../shared/utils/timeUtils';
 import SimpleCalendar from '../components/SimpleCalendar';
 import SimpleMap from '../components/SimpleMap';
 import FilterPanel, { FilterOptions } from '../components/FilterPanel';
@@ -12,19 +13,28 @@ const HomePage: React.FC = () => {
   const [dayEvents, setDayEvents] = useState<FujiEvent[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [selectedLocationId, setSelectedLocationId] = useState<number | undefined>(undefined);
+  const [selectedEventId, setSelectedEventId] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
   const [filters, setFilters] = useState<FilterOptions>({
     distance: 'all',
-    timeType: 'all',
-    eventType: 'all'
+    diamondSunrise: false,
+    diamondSunset: false,
+    pearlMoonrise: false,
+    pearlMoonset: false,
+    specialEvents: {
+      solarEclipse: false,
+      lunarEclipse: false,
+      supermoon: false
+    }
   });
   const [cameraSettings, setCameraSettings] = useState<CameraSettings>({
     showAngles: false,
     focalLength: 50,
     sensorType: 'fullframe',
-    customFocalLength: '50'
+    aspectRatio: '3:2',
+    orientation: 'landscape'
   });
 
   // カレンダーデータを取得
@@ -34,6 +44,7 @@ const HomePage: React.FC = () => {
       try {
         const response = await apiClient.getMonthlyCalendar(currentYear, currentMonth);
         console.log('Calendar data loaded:', response);
+        console.log('First event structure:', response.events[0]);
         setCalendarData(response);
       } catch (error) {
         console.error('Failed to load calendar:', error);
@@ -72,7 +83,7 @@ const HomePage: React.FC = () => {
     setLoading(true);
     
     try {
-      const dateString = date.toISOString().split('T')[0];
+      const dateString = timeUtils.formatDateString(date);
       const response = await apiClient.getDayEvents(dateString);
       setDayEvents(response.events || []);
     } catch (error) {
@@ -96,22 +107,48 @@ const HomePage: React.FC = () => {
       // 距離フィルター
       if (filters.distance !== 'all') {
         const distance = event.location.fujiDistance || 0;
-        if (filters.distance === 'near' && distance > 100) return false;
-        if (filters.distance === 'far' && distance <= 100) return false;
+        switch (filters.distance) {
+          case 'very_near':
+            if (distance > 50) return false;
+            break;
+          case 'near':
+            if (distance > 100) return false;
+            break;
+          case 'medium':
+            if (distance > 200) return false;
+            break;
+          case 'far':
+            if (distance > 300) return false;
+            break;
+          case 'very_far':
+            if (distance <= 300) return false;
+            break;
+        }
       }
 
-      // 時間帯フィルター
-      if (filters.timeType !== 'all') {
+      // イベントタイプフィルター（複数選択可能）
+      const hasEventTypeFilter = filters.diamondSunrise || filters.diamondSunset || 
+                                 filters.pearlMoonrise || filters.pearlMoonset;
+      
+      if (hasEventTypeFilter) {
+        const isDiamond = event.type === 'diamond';
+        const isPearl = event.type === 'pearl';
         const isRising = event.subType === 'rising' || event.subType === 'sunrise';
-        if (filters.timeType === 'morning' && !isRising) return false;
-        if (filters.timeType === 'evening' && isRising) return false;
+        const isSetting = event.subType === 'setting' || event.subType === 'sunset';
+
+        let matchesFilter = false;
+        
+        if (isDiamond && isRising && filters.diamondSunrise) matchesFilter = true;
+        if (isDiamond && isSetting && filters.diamondSunset) matchesFilter = true;
+        if (isPearl && isRising && filters.pearlMoonrise) matchesFilter = true;
+        if (isPearl && isSetting && filters.pearlMoonset) matchesFilter = true;
+
+        if (!matchesFilter) return false;
       }
 
-      // イベントタイプフィルター
-      if (filters.eventType !== 'all') {
-        if (filters.eventType !== event.type) return false;
-      }
-
+      // 特別イベントフィルター（現在は基本のイベントのみなので、将来の拡張用）
+      // TODO: 実際の日食・月食・スーパームーンデータが利用可能になったら実装
+      
       return true;
     });
   }, [dayEvents, filters]);
@@ -182,31 +219,37 @@ const HomePage: React.FC = () => {
             selectedDate={selectedDate}
           />
           
-          <SimpleMap
-            locations={locations}
-            selectedDate={selectedDate}
-            selectedEvents={filteredEvents}
-            selectedLocationId={selectedLocationId}
-            onLocationSelect={handleLocationSelect}
-            cameraSettings={cameraSettings}
-          />
+          {selectedDate && (
+            <SimpleMap
+              locations={locations}
+              selectedDate={selectedDate}
+              selectedEvents={filteredEvents}
+              selectedLocationId={selectedLocationId}
+              selectedEventId={selectedEventId}
+              onLocationSelect={handleLocationSelect}
+              cameraSettings={cameraSettings}
+            />
+          )}
           
           {/* 地図下のコントロールパネル */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '2fr 1fr',
-            gap: '1rem'
-          }}>
-            <FilterPanel
-              filters={filters}
-              onFilterChange={setFilters}
-              eventCount={filteredEvents.length}
-            />
-            <CameraPanel
-              cameraSettings={cameraSettings}
-              onCameraSettingsChange={setCameraSettings}
-            />
-          </div>
+          {selectedDate && (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '2fr 1fr',
+              gap: '1rem'
+            }}>
+              <FilterPanel
+                filters={filters}
+                onFilterChange={setFilters}
+                eventCount={filteredEvents.length}
+                uniqueLocationCount={new Set(filteredEvents.map(e => e.location.id)).size}
+              />
+              <CameraPanel
+                cameraSettings={cameraSettings}
+                onCameraSettingsChange={setCameraSettings}
+              />
+            </div>
+          )}
         </div>
 
         {/* 右カラム: サイドバー */}
@@ -397,12 +440,19 @@ const HomePage: React.FC = () => {
               ) : filteredEvents.length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                   {filteredEvents.map((event, index) => (
-                    <div key={index} style={{ 
-                      padding: '0.75rem',
-                      backgroundColor: '#f9fafb',
-                      borderRadius: '6px',
-                      border: '1px solid #e5e7eb'
-                    }}>
+                    <div 
+                      key={index} 
+                      onClick={() => {
+                        setSelectedLocationId(event.location.id);
+                        setSelectedEventId(event.id);
+                      }}
+                      style={{ 
+                        padding: '0.75rem',
+                        backgroundColor: selectedEventId === event.id ? '#e0f2fe' : '#f9fafb',
+                        borderRadius: '6px',
+                        border: selectedEventId === event.id ? '2px solid #0284c7' : '1px solid #e5e7eb',
+                        cursor: 'pointer'
+                      }}>
                       <div style={{ 
                         display: 'flex',
                         alignItems: 'center',

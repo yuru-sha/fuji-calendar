@@ -1,5 +1,6 @@
 import React from 'react';
 import { CalendarEvent } from '../../shared/types';
+import { timeUtils } from '../../shared/utils/timeUtils';
 
 interface SimpleCalendarProps {
   year: number;
@@ -34,11 +35,13 @@ const SimpleCalendar: React.FC<SimpleCalendarProps> = ({
     const days = [];
     const current = new Date(startDate);
     while (current <= endDate) {
-      const dateString = current.toISOString().split('T')[0];
+      const dateString = timeUtils.formatDateString(current);
       const dayEvents = events.find(e => {
-        const eventDateString = e.date instanceof Date 
-          ? e.date.toISOString().split('T')[0]
-          : new Date(e.date).toISOString().split('T')[0];
+        // APIレスポンスのdate フィールドまたは event_date フィールドを確認
+        const eventDate = (e as any).event_date || e.date;
+        const eventDateString = eventDate instanceof Date 
+          ? timeUtils.formatDateString(eventDate)
+          : timeUtils.formatDateString(new Date(eventDate));
         return eventDateString === dateString;
       });
       

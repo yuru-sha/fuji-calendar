@@ -13,15 +13,39 @@ L.Icon.Default.mergeOptions({
 });
 
 // 画角計算ヘルパー関数
-const getFieldOfViewAngle = (focalLength: number, sensorType: string): number => {
-  const sensorWidths = {
-    fullframe: 36,   // mm
-    apsc: 23.5,      // mm (Canon APS-C)
-    micro43: 17.3    // mm
+const getFieldOfViewAngle = (focalLength: number, sensorType: string, aspectRatio: string = '3:2', orientation: string = 'landscape'): number => {
+  const sensorDimensions = {
+    fullframe: { width: 36, height: 24 },   // mm
+    apsc: { width: 23.5, height: 15.6 },    // mm (Canon APS-C)
+    micro43: { width: 17.3, height: 13 }    // mm
   };
   
-  const sensorWidth = sensorWidths[sensorType as keyof typeof sensorWidths] || 36;
-  return 2 * Math.atan(sensorWidth / (2 * focalLength)) * (180 / Math.PI);
+  const sensor = sensorDimensions[sensorType as keyof typeof sensorDimensions] || sensorDimensions.fullframe;
+  
+  const aspectRatios = {
+    '3:2': 3/2,
+    '4:3': 4/3,
+    '16:9': 16/9,
+    '1:1': 1/1
+  };
+  
+  const ratio = aspectRatios[aspectRatio as keyof typeof aspectRatios] || aspectRatios['3:2'];
+  
+  let actualWidth = sensor.width;
+  let actualHeight = sensor.height;
+  
+  if (ratio > sensor.width / sensor.height) {
+    actualHeight = sensor.width / ratio;
+  } else {
+    actualWidth = sensor.height * ratio;
+  }
+  
+  // 撮影向きに応じて水平画角を計算（地図表示用）
+  if (orientation === 'portrait') {
+    [actualWidth, actualHeight] = [actualHeight, actualWidth];
+  }
+  
+  return 2 * Math.atan(actualWidth / (2 * focalLength)) * (180 / Math.PI);
 };
 
 // 指定した方位角と距離の地点を計算
@@ -49,6 +73,7 @@ interface SimpleMapProps {
   selectedDate?: Date;
   selectedEvents?: FujiEvent[];
   selectedLocationId?: number;
+  selectedEventId?: string;
   onLocationSelect?: (location: Location) => void;
   cameraSettings: CameraSettings;
 }
@@ -58,6 +83,7 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
   selectedDate,
   selectedEvents,
   selectedLocationId,
+  selectedEventId,
   onLocationSelect,
   cameraSettings
 }) => {
@@ -68,7 +94,7 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
 
-    const map = L.map(mapRef.current).setView([35.3606, 138.7274], 9);
+    const map = L.map(mapRef.current).setView([35.3606, 138.7274], 7);
     
     L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
       attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">国土地理院</a>'
@@ -110,34 +136,66 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
     L.marker([FUJI_COORDINATES.latitude, FUJI_COORDINATES.longitude], { icon: fujiIcon })
       .addTo(map);
 
-    // 撮影地点マーカー
-    locations.forEach((location) => {
+    // その日のイベントがある撮影地点のみを表示
+    const eventLocations = selectedEvents?.map(event => event.location) || [];
+    const uniqueEventLocations = eventLocations.filter((location, index, self) => 
+      index === self.findIndex(l => l.id === location.id)
+    );
+
+    uniqueEventLocations.forEach((location) => {
       const isSelected = selectedLocationId === location.id;
       const locationEvents = selectedEvents?.filter(event => event.location.id === location.id) || [];
       const hasEvents = locationEvents.length > 0;
       
-      // マーカーの色を決定
+      // マーカーの色を決定（距離ベース）
       let markerColor = '#6b7280'; // デフォルト: グレー
-      if (hasEvents) {
-        const hasDiamond = locationEvents.some(e => e.type === 'diamond');
-        const hasPearl = locationEvents.some(e => e.type === 'pearl');
-        if (hasDiamond && hasPearl) {
-          markerColor = '#8b5cf6'; // 両方: 紫
-        } else if (hasDiamond) {
-          markerColor = '#f59e0b'; // ダイヤモンド: オレンジ
-        } else if (hasPearl) {
-          markerColor = '#3b82f6'; // パール: 青
-        }
-      } else if (isSelected) {
+      
+      if (isSelected) {
         markerColor = '#10b981'; // 選択: 緑
+      } else {
+        const distance = location.fujiDistance || 0;
+        
+        // 距離に応じた色分け
+        if (distance <= 50) {
+          markerColor = '#dc2626'; // 〜50km: 赤（とても近い）
+        } else if (distance <= 100) {
+          markerColor = '#ea580c'; // 〜100km: オレンジレッド（近い）
+        } else if (distance <= 200) {
+          markerColor = '#f59e0b'; // 〜200km: オレンジ（中距離）
+        } else if (distance <= 300) {
+          markerColor = '#3b82f6'; // 〜300km: 青（遠い）
+        } else {
+          markerColor = '#6366f1'; // 300km〜: インディゴ（とても遠い）
+        }
+        
       }
+      
+      // イベントタイプによる境界線の色を決定
+      const hasDiamond = locationEvents.some(e => e.type === 'diamond');
+      const hasPearl = locationEvents.some(e => e.type === 'pearl');
+      let borderColor = 'white';
+      let borderWidth = '2px';
+      
+      if (hasDiamond && hasPearl) {
+        borderColor = '#fbbf24'; // 両方: 金色
+        borderWidth = '3px';
+      } else if (hasDiamond) {
+        borderColor = '#fcd34d'; // ダイヤモンド: 黄色
+        borderWidth = '3px';
+      } else if (hasPearl) {
+        borderColor = '#e5e7eb'; // パール: 薄グレー
+        borderWidth = '3px';
+      }
+      
+      // 選択された地点がある場合、他の地点を半透明にする
+      const opacity = selectedLocationId && !isSelected ? 0.3 : 1.0;
       
       const markerIcon = L.divIcon({
         html: `<div style="
           width: 26px; 
           height: 26px; 
           background: ${markerColor}; 
-          border: 2px solid white; 
+          border: ${borderWidth} solid ${borderColor}; 
           border-radius: 50%; 
           display: flex; 
           align-items: center; 
@@ -146,6 +204,7 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
           color: white;
           font-weight: bold;
           box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+          opacity: ${opacity};
         ">📷</div>`,
         className: '',
         iconSize: [26, 26],
@@ -168,14 +227,89 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
           [FUJI_COORDINATES.latitude, FUJI_COORDINATES.longitude]
         ], {
           color: '#ef4444',
-          weight: 3,
-          opacity: 0.8,
+          weight: 4,
+          opacity: 1.0,
           dashArray: '5, 10'
         }).addTo(map);
 
+        // 選択されたイベントIDがある場合はそのイベントのみ、なければ最初のイベント
+        const targetEvent = selectedEventId 
+          ? locationEvents.find(e => e.id === selectedEventId)
+          : locationEvents[0];
+        
+        if (targetEvent) {
+          const event = targetEvent;
+          const locationToFujiAzimuth = location.fujiAzimuth || 0; // 撮影地点から富士山への方位角
+          const observerToSunMoonAzimuth = event.azimuth; // 撮影地点から見た太陽・月の方位角（イベントデータから取得）
+          
+          const lineDistance = 700000; // 700km in meters
+          
+          // イベントタイプによる色分け
+          const lineColor = event.type === 'diamond' ? '#fbbf24' : '#a855f7'; // 金色（太陽）、紫（月）
+          const lineOpacity = event.type === 'diamond' ? 0.8 : 0.6;
+          
+          // 撮影地点から太陽・月方向への線
+          const sunMoonSidePoint = getPointAtDistance(
+            location.latitude,
+            location.longitude,
+            observerToSunMoonAzimuth,
+            lineDistance // 700km（撮影地点から）
+          );
+          
+          // 撮影地点から太陽・月への方位角ライン
+          L.polyline([
+            [location.latitude, location.longitude],
+            sunMoonSidePoint
+          ], {
+            color: lineColor,
+            weight: 3,
+            opacity: lineOpacity,
+            dashArray: event.type === 'diamond' ? '8, 4' : '4, 8'
+          }).addTo(map);
+          
+          // 太陽・月の方位角ラベル（撮影地点から太陽・月方向に、富士山の少し先）
+          const labelDistance = (location.fujiDistance || 50) * 1000 + 50000; // 富士山の50km先
+          const sunMoonLabelPoint = getPointAtDistance(
+            location.latitude,
+            location.longitude,
+            observerToSunMoonAzimuth,
+            labelDistance
+          );
+          
+          const eventTypeIcon = event.type === 'diamond' ? '☀️' : '🌙';
+          const eventTime = event.time.toLocaleTimeString('ja-JP', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          });
+          
+          // 方位角の差を計算してラベルに含める（ダイヤモンド富士の精度を示す）
+          const azimuthDifference = Math.abs(observerToSunMoonAzimuth - locationToFujiAzimuth);
+          const normalizedDifference = azimuthDifference > 180 ? 360 - azimuthDifference : azimuthDifference;
+          
+          L.marker(sunMoonLabelPoint, {
+            icon: L.divIcon({
+              html: `<div style="
+                background: rgba(255,255,255,0.95);
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-size: 11px;
+                font-weight: bold;
+                color: #1f2937;
+                border: 2px solid ${lineColor};
+                white-space: nowrap;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+              ">${eventTypeIcon} ${observerToSunMoonAzimuth.toFixed(0)}° ${eventTime}<br/>
+              <span style="font-size: 9px; color: #6b7280;">富士山方位との差: ${normalizedDifference.toFixed(1)}°</span></div>`,
+              className: '',
+              iconSize: [100, 30],
+              iconAnchor: [50, 15]
+            })
+          }).addTo(map);
+        }
+
         // 画角表示
         if (cameraSettings.showAngles && location.fujiAzimuth) {
-          const angle = getFieldOfViewAngle(cameraSettings.focalLength, cameraSettings.sensorType);
+          const angle = getFieldOfViewAngle(cameraSettings.focalLength, cameraSettings.sensorType, cameraSettings.aspectRatio, cameraSettings.orientation);
           const distance = location.fujiDistance ? location.fujiDistance * 1000 : 50000; // meters
           
           const startAzimuth = (location.fujiAzimuth! - angle / 2) % 360;
@@ -190,14 +324,30 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
             endPoint
           ], {
             color: '#3b82f6',
-            weight: 2,
-            opacity: 0.7,
-            fillOpacity: 0.2
+            weight: 3,
+            opacity: 0.9,
+            fillOpacity: 0.3
           }).addTo(map);
         }
       }
     });
-  }, [locations, selectedLocationId, selectedEvents, onLocationSelect, cameraSettings]);
+
+    // イベントがある撮影地点がある場合、すべてが見えるように表示範囲を調整
+    if (uniqueEventLocations.length > 0) {
+      const bounds = L.latLngBounds([]);
+      
+      // 富士山も含める
+      bounds.extend([FUJI_COORDINATES.latitude, FUJI_COORDINATES.longitude]);
+      
+      // イベントがある撮影地点を含める
+      uniqueEventLocations.forEach(location => {
+        bounds.extend([location.latitude, location.longitude]);
+      });
+      
+      // 適切なズームレベルで表示（パディングを追加）
+      map.fitBounds(bounds, { padding: [20, 20] });
+    }
+  }, [selectedLocationId, selectedEventId, selectedEvents, onLocationSelect, cameraSettings]);
 
   return (
     <div style={{
@@ -245,11 +395,50 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
               <div style={{ 
                 width: '12px', 
-                height: '12px', 
+                height: '2px', 
                 backgroundColor: '#ef4444',
+                border: '1px dashed #ef4444',
+                borderStyle: 'dashed'
+              }}></div>
+              <span>撮影地点→富士山</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              <div style={{ 
+                width: '12px', 
+                height: '2px', 
+                backgroundColor: '#fbbf24',
+                border: '1px dashed #fbbf24',
+                borderStyle: 'dashed'
+              }}></div>
+              <span>撮影地点→太陽</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              <div style={{ 
+                width: '12px', 
+                height: '2px', 
+                backgroundColor: '#a855f7',
+                border: '1px dashed #a855f7',
+                borderStyle: 'dashed'
+              }}></div>
+              <span>撮影地点→月</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              <div style={{ 
+                width: '12px', 
+                height: '12px', 
+                backgroundColor: '#dc2626',
                 borderRadius: '50%'
               }}></div>
-              <span>太陽/月の軌道</span>
+              <span>〜50km</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              <div style={{ 
+                width: '12px', 
+                height: '12px', 
+                backgroundColor: '#ea580c',
+                borderRadius: '50%'
+              }}></div>
+              <span>〜100km</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
               <div style={{ 
@@ -258,13 +447,42 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
                 backgroundColor: '#f59e0b',
                 borderRadius: '50%'
               }}></div>
-              <span>ダイヤモンド富士</span>
+              <span>〜200km</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
               <div style={{ 
                 width: '12px', 
                 height: '12px', 
                 backgroundColor: '#3b82f6',
+                borderRadius: '50%'
+              }}></div>
+              <span>〜300km</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              <div style={{ 
+                width: '12px', 
+                height: '12px', 
+                backgroundColor: '#6366f1',
+                borderRadius: '50%'
+              }}></div>
+              <span>300km〜</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              <div style={{ 
+                width: '12px', 
+                height: '12px', 
+                backgroundColor: '#6b7280',
+                border: '2px solid #fcd34d',
+                borderRadius: '50%'
+              }}></div>
+              <span>ダイヤモンド富士</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              <div style={{ 
+                width: '12px', 
+                height: '12px', 
+                backgroundColor: '#6b7280',
+                border: '2px solid #e5e7eb',
                 borderRadius: '50%'
               }}></div>
               <span>パール富士</span>

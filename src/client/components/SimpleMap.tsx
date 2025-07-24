@@ -64,10 +64,10 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
 
     // 富士山マーカー
     const fujiIcon = L.divIcon({
-      html: '<div style="width: 30px; height: 30px; background: linear-gradient(135deg, #fff8dc 0%, #faf0e6 50%, #f0f8ff 100%); border: 3px solid #e74c3c; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.3);">🗻</div>',
+      html: '<div style="width: 32px; height: 32px; background: #dc2626; border: 3px solid #ffffff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; color: white; font-weight: bold; box-shadow: 0 3px 8px rgba(220, 38, 38, 0.4), 0 1px 3px rgba(0,0,0,0.3);">🗻</div>',
       className: '',
-      iconSize: [30, 30],
-      iconAnchor: [15, 15]
+      iconSize: [32, 32],
+      iconAnchor: [16, 16]
     });
 
     L.marker([FUJI_COORDINATES.latitude, FUJI_COORDINATES.longitude], { icon: fujiIcon })

@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Location, FujiEvent, FUJI_COORDINATES } from '../../shared/types';
+import { CameraSettings } from './CameraPanel';
 
 // Leafletのアイコン設定を修正
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl: unknown })._getIconUrl;
@@ -12,9 +13,14 @@ L.Icon.Default.mergeOptions({
 });
 
 // 画角計算ヘルパー関数
-const getFieldOfViewAngle = (focalLength: number): number => {
-  // フルフレーム（35mm）センサーでの水平画角を計算
-  const sensorWidth = 36; // mm
+const getFieldOfViewAngle = (focalLength: number, sensorType: string): number => {
+  const sensorWidths = {
+    fullframe: 36,   // mm
+    apsc: 23.5,      // mm (Canon APS-C)
+    micro43: 17.3    // mm
+  };
+  
+  const sensorWidth = sensorWidths[sensorType as keyof typeof sensorWidths] || 36;
   return 2 * Math.atan(sensorWidth / (2 * focalLength)) * (180 / Math.PI);
 };
 
@@ -44,7 +50,7 @@ interface SimpleMapProps {
   selectedEvents?: FujiEvent[];
   selectedLocationId?: number;
   onLocationSelect?: (location: Location) => void;
-  showCameraAngles?: boolean;
+  cameraSettings: CameraSettings;
 }
 
 const SimpleMap: React.FC<SimpleMapProps> = ({
@@ -53,7 +59,7 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
   selectedEvents,
   selectedLocationId,
   onLocationSelect,
-  showCameraAngles = false
+  cameraSettings
 }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -168,39 +174,30 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
         }).addTo(map);
 
         // 画角表示
-        if (showCameraAngles && location.fujiAzimuth) {
-          const drawCameraAngle = (focalLength: number, color: string, opacity: number) => {
-            const angle = getFieldOfViewAngle(focalLength);
-            const distance = location.fujiDistance ? location.fujiDistance * 1000 : 50000; // meters
-            
-            const startAzimuth = (location.fujiAzimuth! - angle / 2) % 360;
-            const endAzimuth = (location.fujiAzimuth! + angle / 2) % 360;
-            
-            const startPoint = getPointAtDistance(location.latitude, location.longitude, startAzimuth, distance);
-            const endPoint = getPointAtDistance(location.latitude, location.longitude, endAzimuth, distance);
-            
-            L.polygon([
-              [location.latitude, location.longitude],
-              startPoint,
-              endPoint
-            ], {
-              color: color,
-              weight: 1,
-              opacity: opacity,
-              fillOpacity: opacity * 0.3
-            }).addTo(map);
-          };
-
-          // 各焦点距離の画角を表示
-          drawCameraAngle(14, '#ff6b6b', 0.6);   // 14mm
-          drawCameraAngle(24, '#4ecdc4', 0.5);   // 24mm
-          drawCameraAngle(35, '#45b7d1', 0.4);   // 35mm
-          drawCameraAngle(50, '#f39c12', 0.3);   // 50mm
-          drawCameraAngle(85, '#9b59b6', 0.2);   // 85mm
+        if (cameraSettings.showAngles && location.fujiAzimuth) {
+          const angle = getFieldOfViewAngle(cameraSettings.focalLength, cameraSettings.sensorType);
+          const distance = location.fujiDistance ? location.fujiDistance * 1000 : 50000; // meters
+          
+          const startAzimuth = (location.fujiAzimuth! - angle / 2) % 360;
+          const endAzimuth = (location.fujiAzimuth! + angle / 2) % 360;
+          
+          const startPoint = getPointAtDistance(location.latitude, location.longitude, startAzimuth, distance);
+          const endPoint = getPointAtDistance(location.latitude, location.longitude, endAzimuth, distance);
+          
+          L.polygon([
+            [location.latitude, location.longitude],
+            startPoint,
+            endPoint
+          ], {
+            color: '#3b82f6',
+            weight: 2,
+            opacity: 0.7,
+            fillOpacity: 0.2
+          }).addTo(map);
         }
       }
     });
-  }, [locations, selectedLocationId, selectedEvents, onLocationSelect]);
+  }, [locations, selectedLocationId, selectedEvents, onLocationSelect, cameraSettings]);
 
   return (
     <div style={{
@@ -242,7 +239,8 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
             display: 'flex', 
             alignItems: 'center',
             gap: '1rem',
-            fontSize: '0.875rem'
+            fontSize: '0.875rem',
+            flexWrap: 'wrap'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
               <div style={{ 
@@ -257,11 +255,31 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
               <div style={{ 
                 width: '12px', 
                 height: '12px', 
-                backgroundColor: '#fbbf24',
+                backgroundColor: '#f59e0b',
                 borderRadius: '50%'
               }}></div>
-              <span>撮影可能地点</span>
+              <span>ダイヤモンド富士</span>
             </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              <div style={{ 
+                width: '12px', 
+                height: '12px', 
+                backgroundColor: '#3b82f6',
+                borderRadius: '50%'
+              }}></div>
+              <span>パール富士</span>
+            </div>
+            {cameraSettings.showAngles && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                <div style={{ 
+                  width: '12px', 
+                  height: '12px', 
+                  backgroundColor: '#3b82f6',
+                  opacity: 0.3
+                }}></div>
+                <span>画角範囲 ({cameraSettings.focalLength}mm)</span>
+              </div>
+            )}
           </div>
         </div>
       )}

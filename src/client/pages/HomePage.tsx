@@ -4,7 +4,7 @@ import { apiClient } from '../services/apiClient';
 import SimpleCalendar from '../components/SimpleCalendar';
 import SimpleMap from '../components/SimpleMap';
 import FilterPanel, { FilterOptions } from '../components/FilterPanel';
-import CameraPanel from '../components/CameraPanel';
+import CameraPanel, { CameraSettings } from '../components/CameraPanel';
 
 const HomePage: React.FC = () => {
   const [calendarData, setCalendarData] = useState<CalendarResponse | null>(null);
@@ -20,7 +20,12 @@ const HomePage: React.FC = () => {
     timeType: 'all',
     eventType: 'all'
   });
-  const [showCameraAngles, setShowCameraAngles] = useState(false);
+  const [cameraSettings, setCameraSettings] = useState<CameraSettings>({
+    showAngles: false,
+    focalLength: 50,
+    sensorType: 'fullframe',
+    customFocalLength: '50'
+  });
 
   // カレンダーデータを取得
   useEffect(() => {
@@ -183,7 +188,7 @@ const HomePage: React.FC = () => {
             selectedEvents={filteredEvents}
             selectedLocationId={selectedLocationId}
             onLocationSelect={handleLocationSelect}
-            showCameraAngles={showCameraAngles}
+            cameraSettings={cameraSettings}
           />
           
           {/* 地図下のコントロールパネル */}
@@ -198,8 +203,8 @@ const HomePage: React.FC = () => {
               eventCount={filteredEvents.length}
             />
             <CameraPanel
-              showCameraAngles={showCameraAngles}
-              onToggleCameraAngles={setShowCameraAngles}
+              cameraSettings={cameraSettings}
+              onCameraSettingsChange={setCameraSettings}
             />
           </div>
         </div>

@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Location, FujiEvent, CalendarResponse } from '../../shared/types';
 import { apiClient } from '../services/apiClient';
 import SimpleCalendar from '../components/SimpleCalendar';
 import SimpleMap from '../components/SimpleMap';
+import FilterPanel, { FilterOptions } from '../components/FilterPanel';
+import CameraPanel from '../components/CameraPanel';
 
 const HomePage: React.FC = () => {
   const [calendarData, setCalendarData] = useState<CalendarResponse | null>(null);
@@ -13,6 +15,12 @@ const HomePage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
+  const [filters, setFilters] = useState<FilterOptions>({
+    distance: 'all',
+    timeType: 'all',
+    eventType: 'all'
+  });
+  const [showCameraAngles, setShowCameraAngles] = useState(false);
 
   // カレンダーデータを取得
   useEffect(() => {
@@ -74,6 +82,34 @@ const HomePage: React.FC = () => {
   const handleLocationSelect = (location: Location) => {
     setSelectedLocationId(location.id);
   };
+
+  // フィルタリングされたイベントを計算
+  const filteredEvents = useMemo(() => {
+    if (!dayEvents.length) return [];
+
+    return dayEvents.filter(event => {
+      // 距離フィルター
+      if (filters.distance !== 'all') {
+        const distance = event.location.fujiDistance || 0;
+        if (filters.distance === 'near' && distance > 100) return false;
+        if (filters.distance === 'far' && distance <= 100) return false;
+      }
+
+      // 時間帯フィルター
+      if (filters.timeType !== 'all') {
+        const isRising = event.subType === 'rising' || event.subType === 'sunrise';
+        if (filters.timeType === 'morning' && !isRising) return false;
+        if (filters.timeType === 'evening' && isRising) return false;
+      }
+
+      // イベントタイプフィルター
+      if (filters.eventType !== 'all') {
+        if (filters.eventType !== event.type) return false;
+      }
+
+      return true;
+    });
+  }, [dayEvents, filters]);
 
   if (!calendarData) {
     return (
@@ -144,10 +180,28 @@ const HomePage: React.FC = () => {
           <SimpleMap
             locations={locations}
             selectedDate={selectedDate}
-            selectedEvents={dayEvents}
+            selectedEvents={filteredEvents}
             selectedLocationId={selectedLocationId}
             onLocationSelect={handleLocationSelect}
+            showCameraAngles={showCameraAngles}
           />
+          
+          {/* 地図下のコントロールパネル */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '2fr 1fr',
+            gap: '1rem'
+          }}>
+            <FilterPanel
+              filters={filters}
+              onFilterChange={setFilters}
+              eventCount={filteredEvents.length}
+            />
+            <CameraPanel
+              showCameraAngles={showCameraAngles}
+              onToggleCameraAngles={setShowCameraAngles}
+            />
+          </div>
         </div>
 
         {/* 右カラム: サイドバー */}
@@ -335,9 +389,9 @@ const HomePage: React.FC = () => {
                   }}></div>
                   <p style={{ color: '#6b7280', fontSize: '0.875rem' }}>読み込み中...</p>
                 </div>
-              ) : dayEvents.length > 0 ? (
+              ) : filteredEvents.length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  {dayEvents.map((event, index) => (
+                  {filteredEvents.map((event, index) => (
                     <div key={index} style={{ 
                       padding: '0.75rem',
                       backgroundColor: '#f9fafb',

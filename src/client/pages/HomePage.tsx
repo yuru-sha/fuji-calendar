@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Location, FujiEvent, CalendarData } from '../../shared/types';
+import { Location, FujiEvent, CalendarResponse } from '../../shared/types';
 import { apiClient } from '../services/apiClient';
 import SimpleCalendar from '../components/SimpleCalendar';
 import SimpleMap from '../components/SimpleMap';
 
 const HomePage: React.FC = () => {
-  const [calendarData, setCalendarData] = useState<CalendarData | null>(null);
+  const [calendarData, setCalendarData] = useState<CalendarResponse | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [dayEvents, setDayEvents] = useState<FujiEvent[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
@@ -19,8 +19,9 @@ const HomePage: React.FC = () => {
     const loadCalendar = async () => {
       setLoading(true);
       try {
-        const response = await apiClient.get(`/api/calendar/${currentYear}/${currentMonth}`);
-        setCalendarData(response.data);
+        const response = await apiClient.getMonthlyCalendar(currentYear, currentMonth);
+        console.log('Calendar data loaded:', response);
+        setCalendarData(response);
       } catch (error) {
         console.error('Failed to load calendar:', error);
       } finally {
@@ -35,8 +36,9 @@ const HomePage: React.FC = () => {
   useEffect(() => {
     const loadLocations = async () => {
       try {
-        const response = await apiClient.get('/api/locations');
-        setLocations(response.data);
+        const response = await apiClient.getLocations();
+        console.log('Locations loaded:', response);
+        setLocations(response.locations);
       } catch (error) {
         console.error('Failed to load locations:', error);
       }
@@ -58,8 +60,8 @@ const HomePage: React.FC = () => {
     
     try {
       const dateString = date.toISOString().split('T')[0];
-      const response = await apiClient.get(`/api/events/day/${dateString}`);
-      setDayEvents(response.data.events || []);
+      const response = await apiClient.getDayEvents(dateString);
+      setDayEvents(response.events || []);
     } catch (error) {
       console.error('Failed to load day events:', error);
       setDayEvents([]);

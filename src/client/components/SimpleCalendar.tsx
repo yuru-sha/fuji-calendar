@@ -35,9 +35,12 @@ const SimpleCalendar: React.FC<SimpleCalendarProps> = ({
     const current = new Date(startDate);
     while (current <= endDate) {
       const dateString = current.toISOString().split('T')[0];
-      const dayEvents = events.find(e => 
-        new Date(e.date).toISOString().split('T')[0] === dateString
-      );
+      const dayEvents = events.find(e => {
+        const eventDateString = e.date instanceof Date 
+          ? e.date.toISOString().split('T')[0]
+          : new Date(e.date).toISOString().split('T')[0];
+        return eventDateString === dateString;
+      });
       
       days.push({
         date: new Date(current),
@@ -158,7 +161,7 @@ const SimpleCalendar: React.FC<SimpleCalendarProps> = ({
             onClick={() => onDateClick(day.date)}
             style={{
               padding: '0.5rem',
-              backgroundColor: day.events ? '#fef3c7' : 'white',
+              backgroundColor: day.events && day.events.events.length > 0 ? '#fef3c7' : 'white',
               textAlign: 'center',
               cursor: 'pointer',
               minHeight: '60px',
@@ -178,10 +181,12 @@ const SimpleCalendar: React.FC<SimpleCalendarProps> = ({
               {day.date.getDate()}
             </div>
             
-            {day.events && (
+            {day.events && day.events.events.length > 0 && (
               <div style={{ fontSize: '0.75rem', color: '#92400e' }}>
-                {day.events.diamondCount && `💎${day.events.diamondCount}`}
-                {day.events.pearlCount && `🌙${day.events.pearlCount}`}
+                {day.events.events.some(e => e.type === 'diamond') && 
+                  `💎${day.events.events.filter(e => e.type === 'diamond').length}`}
+                {day.events.events.some(e => e.type === 'pearl') && 
+                  `🌙${day.events.events.filter(e => e.type === 'pearl').length}`}
               </div>
             )}
           </div>

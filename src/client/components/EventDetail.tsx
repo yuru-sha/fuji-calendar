@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { FujiEvent, WeatherInfo } from '../../shared/types';
+import { FujiEvent, WeatherInfo, Location } from '../../shared/types';
 import { timeUtils } from '../../shared/utils/timeUtils';
 import { useFavorites } from '../hooks/useFavorites';
 import styles from './EventDetail.module.css';
@@ -10,14 +10,16 @@ interface EventDetailProps {
   date: Date;
   events: FujiEvent[];
   weather?: WeatherInfo;
-  onMapClick?: (event: FujiEvent) => void;
+  selectedLocationId?: number;
+  onLocationSelect?: (location: Location | null) => void;
 }
 
 const EventDetail: React.FC<EventDetailProps> = memo(({
   date,
   events,
   weather,
-  onMapClick
+  selectedLocationId,
+  onLocationSelect
 }) => {
   const { isEventFavorite, toggleEventFavorite, isLocationFavorite, toggleLocationFavorite } = useFavorites();
   const formatTime = (time: Date): string => {
@@ -94,15 +96,17 @@ const EventDetail: React.FC<EventDetailProps> = memo(({
     }
   };
 
-  const handleMapClick = (event: FujiEvent) => {
-    if (onMapClick) {
-      onMapClick(event);
-    }
-  };
 
   const handleGoogleMapsClick = (event: FujiEvent) => {
     const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${event.location.latitude},${event.location.longitude}`;
     window.open(googleMapsUrl, '_blank');
+  };
+
+  const handleLocationSelectClick = (location: Location) => {
+    if (onLocationSelect) {
+      const isSelected = selectedLocationId === location.id;
+      onLocationSelect(isSelected ? null : location);
+    }
   };
 
   return (
@@ -187,20 +191,21 @@ const EventDetail: React.FC<EventDetailProps> = memo(({
                   >
                     {isLocationFavorite(event.location.id) ? '⭐' : '☆'}
                   </button>
-                  <div className={styles.mapButtons}>
-                    {onMapClick && (
+                  <div className={styles.actionButtons}>
+                    {onLocationSelect && (
                       <button 
-                        className={styles.mapButton}
-                        onClick={() => handleMapClick(event)}
+                        className={`${styles.selectLocationButton} ${selectedLocationId === event.location.id ? styles.selected : ''}`}
+                        onClick={() => handleLocationSelectClick(event.location)}
+                        title={selectedLocationId === event.location.id ? '地点選択を解除' : '地点を選択してハイライト'}
                       >
-                        地図を確認
+                        {selectedLocationId === event.location.id ? '✓ 選択中' : '📍 地点選択'}
                       </button>
                     )}
                     <button 
                       className={styles.googleMapsButton}
                       onClick={() => handleGoogleMapsClick(event)}
                     >
-                      ルートを検索
+                      ルート検索
                     </button>
                   </div>
                 </div>

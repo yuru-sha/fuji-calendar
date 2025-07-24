@@ -1,7 +1,12 @@
 import { prisma } from '../database/prisma';
 import { LocationFujiEvent, EventType, Accuracy, Location, CelestialOrbitData } from '@prisma/client';
 import { getComponentLogger, StructuredLogger } from '../../shared/utils/logger';
-// AstronomicalDataService は削除されました
+
+// 高精度ダイヤモンド富士検出用定数
+const FUJI_SUMMIT_WIDTH = 800; // 富士山山頂の物理的な幅（メートル）
+const SUN_RADIUS = 0.265; // 太陽の視半径（度）
+const IDEAL_OFFSET = 0.594; // 太陽下端が富士山山頂に接触する理想的オフセット（実測値）
+const OFFSET_TOLERANCE = 0.12; // 許容範囲（±0.12度）
 
 interface FujiEventCandidate {
   locationId: number;
@@ -24,11 +29,10 @@ interface FujiEventCandidate {
 export class LocationFujiEventService {
   private logger: StructuredLogger;
 
-  // マッチング精度基準（高精度化）
-  private readonly PERFECT_THRESHOLD = 0.3;   // 完璧マッチ（0.3度以内）- より厳密に
-  private readonly EXCELLENT_THRESHOLD = 0.7; // 優秀マッチ（0.7度以内）- より厳密に  
-  private readonly GOOD_THRESHOLD = 1.2;      // 良好マッチ（1.2度以内）- より厳密に
-  private readonly FAIR_THRESHOLD = 2.5;      // 許容マッチ（2.5度以内）- より厳密に
+  // 高精度マッチング基準（物理的精度重視）
+  private readonly PERFECT_THRESHOLD = 0.05;   // 完璧マッチ（0.05度以内）- 実測レベル
+  private readonly EXCELLENT_THRESHOLD = 0.08; // 優秀マッチ（0.08度以内）- 高精度
+  private readonly GOOD_THRESHOLD = 0.12;      // 良好マッチ（0.12度以内）- OFFSET_TOLERANCE内
 
   constructor() {
     this.logger = getComponentLogger('location-fuji-event');
@@ -173,7 +177,8 @@ export class LocationFujiEventService {
   }
 
   /**
-   * 地点と天文候補データのマッチング処理
+   * 地点と天文候補データの高精度マッチング処理
+   * Gemini理論計算 + 実測値統合 + 太陽視半径考慮
    */
   private async matchLocationWithCandidates(
     location: Location & {
@@ -197,67 +202,168 @@ export class LocationFujiEventService {
       fujiElevation: location.fujiElevation
     });
 
-    // celestial_orbit_dataから候補を取得
-    const candidates = await prisma.celestialOrbitData.findMany({
-      where: {
+    // 高精度検索用の条件設定（既存の物理的範囲）
+    const fujiApparentWidth = this.calculateFujiApparentWidth(location.fujiDistance);
+    const azimuthTolerance = Math.min(
+      (fujiApparentWidth / 2) + SUN_RADIUS,
+      5.0 // 最大5度までに制限
+    );
+    
+    // ダイヤモンド富士の物理的方位角範囲を適用
+    let validAzimuthRanges: Array<{min: number, max: number}> = [];
+    
+    // 朝のダイヤモンド富士範囲（70-110度）
+    const morningMin = Math.max(70, location.fujiAzimuth - azimuthTolerance);
+    const morningMax = Math.min(110, location.fujiAzimuth + azimuthTolerance);
+    if (morningMin <= morningMax && location.fujiAzimuth >= 70 && location.fujiAzimuth <= 110) {
+      validAzimuthRanges.push({min: morningMin, max: morningMax});
+    }
+    
+    // 夕のダイヤモンド富士範囲（250-280度）
+    const eveningMin = Math.max(250, location.fujiAzimuth - azimuthTolerance);
+    const eveningMax = Math.min(280, location.fujiAzimuth + azimuthTolerance);
+    if (eveningMin <= eveningMax && location.fujiAzimuth >= 250 && location.fujiAzimuth <= 280) {
+      validAzimuthRanges.push({min: eveningMin, max: eveningMax});
+    }
+    
+    // 有効な方位角範囲がない場合は処理終了
+    if (validAzimuthRanges.length === 0) {
+      this.logger.info('ダイヤモンド富士観測不可能な地点', {
+        locationId: location.id,
+        fujiAzimuth: location.fujiAzimuth
+      });
+      return [];
+    }
+    
+    // 検索範囲を物理的に意味のある範囲に限定
+    const elevationMargin = 2.0; // 安全マージン
+    const minElevation = location.fujiElevation - elevationMargin;
+    const maxElevation = location.fujiElevation + elevationMargin;
+
+    this.logger.info('高精度検索パラメータ', {
+      locationId: location.id,
+      fujiApparentWidth: fujiApparentWidth.toFixed(3),
+      azimuthTolerance: azimuthTolerance.toFixed(3),
+      validRanges: validAzimuthRanges.map(r => `${r.min.toFixed(1)}-${r.max.toFixed(1)}°`),
+      elevationRange: `${minElevation.toFixed(1)}-${maxElevation.toFixed(1)}°`
+    });
+
+    // 複数の方位角範囲でクエリを実行
+    let allCandidates: CelestialOrbitData[] = [];
+    
+    for (const range of validAzimuthRanges) {
+      const whereConditions: any = {
         date: {
           gte: startDate,
           lte: endDate
         },
         visible: true,
         elevation: {
-          gte: -5 // 地平線下まで含める（10月の低い太陽位置に対応）
+          gte: minElevation,
+          lte: maxElevation
+        },
+        azimuth: {
+          gte: range.min,
+          lte: range.max
         }
-      },
-      orderBy: [
-        { date: 'asc' },
-        { time: 'asc' }
-      ]
+      };
+
+      const rangeCandidates = await prisma.celestialOrbitData.findMany({
+        where: whereConditions,
+        orderBy: [
+          { date: 'asc' },
+          { time: 'asc' }
+        ]
+      });
+      
+      allCandidates.push(...rangeCandidates);
+    }
+    
+    // 時刻順でソート
+    const candidates = allCandidates.sort((a, b) => 
+      a.date.getTime() - b.date.getTime() || a.time.getTime() - b.time.getTime()
+    );
+
+    this.logger.info('高精度候補データ取得完了', {
+      locationId: location.id,
+      candidateCount: candidates.length
     });
 
     const matchedEvents: FujiEventCandidate[] = [];
 
+    // 日付ごとにグループ分けして高精度検出
+    const dataByDate = new Map<string, CelestialOrbitData[]>();
     for (const candidate of candidates) {
-      // ダイヤモンド富士の条件チェック
-      const isDiamondCandidate = this.isDiamondFujiCandidate(candidate, location);
-      if (!isDiamondCandidate && candidate.celestialType === 'sun') {
-        continue; // ダイヤモンド富士の条件を満たさない太陽データはスキップ
+      const dateKey = candidate.date.toISOString().split('T')[0];
+      if (!dataByDate.has(dateKey)) {
+        dataByDate.set(dateKey, []);
+      }
+      dataByDate.get(dateKey)!.push(candidate);
+    }
+
+    // 各日付で高精度ダイヤモンド富士検出
+    for (const [dateKey, dayData] of dataByDate) {
+      const sunData = dayData.filter(d => d.celestialType === 'sun');
+      const moonData = dayData.filter(d => d.celestialType === 'moon');
+
+      // ダイヤモンド富士検出（太陽）
+      if (sunData.length > 0) {
+        const diamondResult = this.findEnhancedDiamondFuji(sunData, location);
+        if (diamondResult) {
+          matchedEvents.push({
+            locationId: location.id,
+            eventDate: diamondResult.data.date,
+            eventTime: diamondResult.data.time,
+            eventType: diamondResult.eventType,
+            azimuth: diamondResult.data.azimuth,
+            altitude: diamondResult.data.elevation,
+            qualityScore: diamondResult.qualityScore,
+            accuracy: diamondResult.accuracy,
+            calculationYear: year
+          });
+
+          this.logger.debug('高精度ダイヤモンド富士検出', {
+            locationId: location.id,
+            date: dateKey,
+            eventType: diamondResult.eventType,
+            qualityScore: diamondResult.qualityScore.toFixed(3),
+            accuracy: diamondResult.accuracy,
+            offsetDiff: diamondResult.offsetDiff.toFixed(3)
+          });
+        }
       }
 
-      // 地点の富士山データと候補の天体位置を比較
-      const azimuthDiff = Math.abs(candidate.azimuth - location.fujiAzimuth);
-      const altitudeDiff = Math.abs(candidate.elevation - location.fujiElevation);
-      const totalDiff = Math.sqrt(azimuthDiff ** 2 + altitudeDiff ** 2);
+      // パール富士検出（月）- 従来ロジック継続
+      for (const candidate of moonData) {
+        const azimuthDiff = Math.abs(candidate.azimuth - location.fujiAzimuth);
+        const altitudeDiff = Math.abs(candidate.elevation - location.fujiElevation);
+        const totalDiff = Math.sqrt(azimuthDiff ** 2 + altitudeDiff ** 2);
 
-      // 許容範囲内かチェック
-      if (totalDiff <= this.FAIR_THRESHOLD) {
-        // マッチング精度を判定
-        const accuracy = this.determineMatchingAccuracy(totalDiff);
+        if (totalDiff <= 5.0) { // パール富士は条件を緩く
+          const accuracy = this.determineMatchingAccuracy(totalDiff);
+          const qualityScore = this.calculateLocationQualityScore(
+            azimuthDiff,
+            altitudeDiff,
+            'good',
+            location.fujiDistance / 1000
+          );
 
-        // 地点固有の品質スコアを計算
-        const qualityScore = this.calculateLocationQualityScore(
-          azimuthDiff,
-          altitudeDiff,
-          'good', // CelestialOrbitDataにはqualityフィールドがないため固定値
-          location.fujiDistance / 1000 // kmに変換
-        );
+          const eventType = this.determineEventTypeFromCelestialData(candidate);
 
-        // イベントタイプを決定（CelestialOrbitDataの構造に基づく）
-        const eventType = this.determineEventTypeFromCelestialData(candidate);
-
-        matchedEvents.push({
-          locationId: location.id,
-          eventDate: candidate.date,
-          eventTime: candidate.time, // CelestialOrbitDataのtimeフィールド
-          eventType,
-          azimuth: candidate.azimuth,
-          altitude: candidate.elevation,
-          qualityScore,
-          accuracy,
-          moonPhase: candidate.moonPhase || undefined,
-          moonIllumination: candidate.moonIllumination || undefined,
-          calculationYear: year
-        });
+          matchedEvents.push({
+            locationId: location.id,
+            eventDate: candidate.date,
+            eventTime: candidate.time,
+            eventType,
+            azimuth: candidate.azimuth,
+            altitude: candidate.elevation,
+            qualityScore,
+            accuracy,
+            moonPhase: candidate.moonPhase || undefined,
+            moonIllumination: candidate.moonIllumination || undefined,
+            calculationYear: year
+          });
+        }
       }
     }
 
@@ -374,7 +480,7 @@ export class LocationFujiEventService {
   }
 
   /**
-   * マッチング精度を判定
+   * マッチング精度を判定（高精度基準）
    */
   private determineMatchingAccuracy(totalDifference: number): Accuracy {
     if (totalDifference <= this.PERFECT_THRESHOLD) return 'perfect';
@@ -383,44 +489,6 @@ export class LocationFujiEventService {
     return 'fair';
   }
 
-  /**
-   * ダイヤモンド富士候補の条件判定
-   * docs/diamond-pearl-fuji-conditions.mdの条件を参考
-   */
-  private isDiamondFujiCandidate(celestialData: CelestialOrbitData, location: any): boolean {
-    if (celestialData.celestialType !== 'sun') {
-      return true; // 月（パール富士）は条件を緩く
-    }
-
-    const hour = celestialData.hour;
-    const azimuth = celestialData.azimuth;
-
-    // 時間帯チェック
-    const isValidTime = (hour >= 4 && hour < 10) || (hour >= 14 && hour < 20);
-    if (!isValidTime) {
-      return false;
-    }
-
-    // 方位角チェック（docs条件を参考）
-    if (hour >= 4 && hour < 10) {
-      // 日の出時: 70-110度付近（富士山の西側）
-      if (azimuth < 70 || azimuth > 110) {
-        return false;
-      }
-    } else if (hour >= 14 && hour < 20) {
-      // 日没時: 250-280度付近（富士山の東側）
-      if (azimuth < 250 || azimuth > 280) {
-        return false;
-      }
-    }
-
-    // 距離チェック（300km以内）
-    if (location.fujiDistance > 300000) { // メートル単位
-      return false;
-    }
-
-    return true;
-  }
 
   /**
    * CelestialOrbitDataからイベントタイプを決定
@@ -446,15 +514,102 @@ export class LocationFujiEventService {
     }
   }
 
+
   /**
-   * イベントタイプを決定（旧版 - 廃止予定）
+   * 富士山の見かけの角度幅を計算
    */
-  private determineEventType(pattern: string, timeOfDay: string): EventType {
-    if (pattern === 'diamond') {
-      return timeOfDay === 'morning' ? 'diamond_sunrise' : 'diamond_sunset';
-    } else {
-      return timeOfDay === 'morning' ? 'pearl_moonrise' : 'pearl_moonset';
+  private calculateFujiApparentWidth(distanceToFuji: number): number {
+    const angleRad = 2 * Math.atan(FUJI_SUMMIT_WIDTH / (2 * distanceToFuji));
+    return angleRad * 180 / Math.PI;
+  }
+
+  /**
+   * 高精度ダイヤモンド富士検出
+   * 実測値ベース + 太陽視半径考慮 + 理想オフセット適用
+   */
+  private findEnhancedDiamondFuji(
+    celestialData: CelestialOrbitData[],
+    location: Location & {
+      fujiAzimuth: number;
+      fujiElevation: number;
+      fujiDistance: number;
     }
+  ): {
+    data: CelestialOrbitData;
+    eventType: EventType;
+    qualityScore: number;
+    accuracy: Accuracy;
+    offsetDiff: number;
+    sunBottomElevation: number;
+    actualOffset: number;
+  } | null {
+    const fujiApparentWidth = this.calculateFujiApparentWidth(location.fujiDistance);
+    const azimuthTolerance = (fujiApparentWidth / 2) + SUN_RADIUS;
+
+    // 時刻順にソート
+    const sortedData = celestialData.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+    
+    let bestMatch: any = null;
+    let minOffsetDiff = Infinity;
+    
+    for (const data of sortedData) {
+      // 厳密な方位角チェック（-0.52度から+0.08度の非対称フィルタ）
+      const azimuthDiff = data.azimuth - location.fujiAzimuth;
+      const normalizedAzimuthDiff = azimuthDiff > 180 ? azimuthDiff - 360 : 
+                                   azimuthDiff < -180 ? azimuthDiff + 360 : azimuthDiff;
+      
+      // -0.52度から+0.08度の範囲に限定
+      if (normalizedAzimuthDiff < -0.52 || normalizedAzimuthDiff > 0.08) continue;
+      
+      // 太陽下端の仰角を計算
+      const sunBottomElevation = data.elevation - SUN_RADIUS;
+      const actualOffset = sunBottomElevation - location.fujiElevation;
+      const offsetDiff = Math.abs(actualOffset - IDEAL_OFFSET);
+      
+      // 理想オフセットとの比較
+      if (offsetDiff <= OFFSET_TOLERANCE && offsetDiff < minOffsetDiff) {
+        minOffsetDiff = offsetDiff;
+        
+        // 品質スコア計算（実測値ベース）
+        let qualityScore = 0.95; // 実測値ベースの高品質
+        
+        // オフセット精度による調整
+        if (offsetDiff <= this.PERFECT_THRESHOLD) qualityScore = 1.0; // 完璧
+        else if (offsetDiff <= this.EXCELLENT_THRESHOLD) qualityScore = 0.98; // 優秀
+        else if (offsetDiff <= this.GOOD_THRESHOLD) qualityScore = 0.95; // 良好
+        else qualityScore = 0.90; // 標準
+        
+        // 方位角精度による調整
+        if (normalizedAzimuthDiff <= azimuthTolerance * 0.5) {
+          qualityScore += 0.02; // 方位角ボーナス
+        }
+        
+        // スコア範囲制限
+        qualityScore = Math.max(0.5, Math.min(1.0, qualityScore));
+        
+        // 精度判定
+        const accuracy: Accuracy = 
+          offsetDiff <= this.PERFECT_THRESHOLD ? 'perfect' :
+          offsetDiff <= this.EXCELLENT_THRESHOLD ? 'excellent' :
+          offsetDiff <= this.GOOD_THRESHOLD ? 'good' : 'fair';
+
+        // イベントタイプ決定
+        const eventType: EventType = data.hour < 12 ? 'diamond_sunrise' : 'diamond_sunset';
+        
+        bestMatch = {
+          data,
+          eventType,
+          sunBottomElevation,
+          actualOffset,
+          offsetDiff,
+          azimuthDiff: normalizedAzimuthDiff,
+          qualityScore,
+          accuracy
+        };
+      }
+    }
+    
+    return bestMatch;
   }
 
   /**
@@ -509,7 +664,7 @@ export class LocationFujiEventService {
 
     // 各グループから最高品質のものを選択
     const uniqueEvents: FujiEventCandidate[] = [];
-    for (const [groupKey, groupEvents] of groupedEvents) {
+    for (const [, groupEvents] of groupedEvents) {
       // 品質スコア順でソート
       groupEvents.sort((a, b) => b.qualityScore - a.qualityScore);
 

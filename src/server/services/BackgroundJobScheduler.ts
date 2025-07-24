@@ -225,8 +225,8 @@ export class BackgroundJobScheduler {
       scheduledTime: new Date(Date.now() + fiveMinutesLater).toISOString()
     });
 
-    // 年次で天体データを再生成（毎年1月2日 午前3時）
-    this.scheduleYearly('celestial-yearly-generation', 1, 2, 3, 0, async () => {
+    // 年次で天体データを再生成（毎年12月1日 午前3時）
+    this.scheduleYearly('celestial-yearly-generation', 12, 1, 3, 0, async () => {
       try {
         const currentYear = new Date().getFullYear();
         this.logger.info('年次天体軌道データ生成ジョブ開始', { year: currentYear });

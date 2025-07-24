@@ -248,14 +248,14 @@
   color: #495057;
 }
 
-.mapButtons {
+.actionButtons {
   display: flex;
   gap: 0.5rem;
   margin-left: auto;
 }
 
-.mapButton {
-  background: #2c5aa0;
+.selectLocationButton {
+  background: #28a745;
   color: white;
   border: none;
   padding: 0.375rem 0.75rem;
@@ -265,8 +265,29 @@
   transition: background-color 0.2s;
 }
 
-.mapButton:hover {
-  background: #1e3d6f;
+.selectLocationButton:hover {
+  background: #1e7e34;
+}
+
+.selectLocationButton.selected {
+  background: #007bff;
+  animation: pulse-button 2s infinite;
+}
+
+.selectLocationButton.selected:hover {
+  background: #0056b3;
+}
+
+@keyframes pulse-button {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(0, 123, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 123, 255, 0);
+  }
 }
 
 .googleMapsButton {

@@ -184,7 +184,7 @@ const SimpleCalendar: React.FC<SimpleCalendarProps> = ({
             {day.events && day.events.events.length > 0 && (
               <div style={{ fontSize: '0.75rem', color: '#92400e' }}>
                 {day.events.events.some(e => e.type === 'diamond') && 
-                  `💎${day.events.events.filter(e => e.type === 'diamond').length}`}
+                  `☀️${day.events.events.filter(e => e.type === 'diamond').length}`}
                 {day.events.events.some(e => e.type === 'pearl') && 
                   `🌙${day.events.events.filter(e => e.type === 'pearl').length}`}
               </div>

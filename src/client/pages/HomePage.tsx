@@ -226,7 +226,7 @@ const HomePage: React.FC = () => {
                         marginBottom: '0.5rem'
                       }}>
                         <span style={{ fontSize: '1.25rem' }}>
-                          {event.type === 'diamond' ? '💎' : '🌙'}
+                          {event.type === 'diamond' ? '☀️' : '🌙'}
                         </span>
                         <h4 style={{ 
                           margin: 0,

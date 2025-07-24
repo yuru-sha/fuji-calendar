@@ -24,11 +24,11 @@ interface FujiEventCandidate {
 export class LocationFujiEventService {
   private logger: StructuredLogger;
 
-  // マッチング精度基準
-  private readonly PERFECT_THRESHOLD = 0.5;   // 完璧マッチ（0.5度以内）
-  private readonly EXCELLENT_THRESHOLD = 1.0; // 優秀マッチ（1.0度以内）
-  private readonly GOOD_THRESHOLD = 1.5;      // 良好マッチ（1.5度以内）
-  private readonly FAIR_THRESHOLD = 2.0;      // 許容マッチ（2.0度以内）
+  // マッチング精度基準（高精度化）
+  private readonly PERFECT_THRESHOLD = 0.3;   // 完璧マッチ（0.3度以内）- より厳密に
+  private readonly EXCELLENT_THRESHOLD = 0.7; // 優秀マッチ（0.7度以内）- より厳密に  
+  private readonly GOOD_THRESHOLD = 1.2;      // 良好マッチ（1.2度以内）- より厳密に
+  private readonly FAIR_THRESHOLD = 2.5;      // 許容マッチ（2.5度以内）- より厳密に
 
   constructor() {
     this.logger = getComponentLogger('location-fuji-event');
@@ -206,7 +206,7 @@ export class LocationFujiEventService {
         },
         visible: true,
         elevation: {
-          gte: -2 // 地平線近辺まで含める
+          gte: -5 // 地平線下まで含める（10月の低い太陽位置に対応）
         }
       },
       orderBy: [
@@ -218,6 +218,12 @@ export class LocationFujiEventService {
     const matchedEvents: FujiEventCandidate[] = [];
 
     for (const candidate of candidates) {
+      // ダイヤモンド富士の条件チェック
+      const isDiamondCandidate = this.isDiamondFujiCandidate(candidate, location);
+      if (!isDiamondCandidate && candidate.celestialType === 'sun') {
+        continue; // ダイヤモンド富士の条件を満たさない太陽データはスキップ
+      }
+
       // 地点の富士山データと候補の天体位置を比較
       const azimuthDiff = Math.abs(candidate.azimuth - location.fujiAzimuth);
       const altitudeDiff = Math.abs(candidate.elevation - location.fujiElevation);
@@ -378,15 +384,65 @@ export class LocationFujiEventService {
   }
 
   /**
+   * ダイヤモンド富士候補の条件判定
+   * docs/diamond-pearl-fuji-conditions.mdの条件を参考
+   */
+  private isDiamondFujiCandidate(celestialData: CelestialOrbitData, location: any): boolean {
+    if (celestialData.celestialType !== 'sun') {
+      return true; // 月（パール富士）は条件を緩く
+    }
+
+    const hour = celestialData.hour;
+    const azimuth = celestialData.azimuth;
+
+    // 時間帯チェック
+    const isValidTime = (hour >= 4 && hour < 10) || (hour >= 14 && hour < 20);
+    if (!isValidTime) {
+      return false;
+    }
+
+    // 方位角チェック（docs条件を参考）
+    if (hour >= 4 && hour < 10) {
+      // 日の出時: 70-110度付近（富士山の西側）
+      if (azimuth < 70 || azimuth > 110) {
+        return false;
+      }
+    } else if (hour >= 14 && hour < 20) {
+      // 日没時: 250-280度付近（富士山の東側）
+      if (azimuth < 250 || azimuth > 280) {
+        return false;
+      }
+    }
+
+    // 距離チェック（300km以内）
+    if (location.fujiDistance > 300000) { // メートル単位
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
    * CelestialOrbitDataからイベントタイプを決定
+   * docs/diamond-pearl-fuji-conditions.mdの条件を考慮
    */
   private determineEventTypeFromCelestialData(celestialData: CelestialOrbitData): EventType {
-    const isMorning = celestialData.hour < 12;
-    
     if (celestialData.celestialType === 'sun') {
-      return isMorning ? 'diamond_sunrise' : 'diamond_sunset';
+      // ダイヤモンド富士の時間帯条件
+      // 昇るダイヤモンド富士: 4:00〜9:59
+      // 沈むダイヤモンド富士: 14:00〜19:59
+      const hour = celestialData.hour;
+      if (hour >= 4 && hour < 10) {
+        return 'diamond_sunrise';
+      } else if (hour >= 14 && hour < 20) {
+        return 'diamond_sunset';
+      } else {
+        // 時間帯外は適当に判定
+        return hour < 12 ? 'diamond_sunrise' : 'diamond_sunset';
+      }
     } else {
-      return isMorning ? 'pearl_moonrise' : 'pearl_moonset';
+      // パール富士は時間帯の制限が緩い
+      return celestialData.hour < 12 ? 'pearl_moonrise' : 'pearl_moonset';
     }
   }
 

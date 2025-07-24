@@ -3,6 +3,7 @@ import { getComponentLogger, StructuredLogger } from '../../shared/utils/logger'
 import { BatchCalculationService } from './BatchCalculationService';
 import { queueService } from './QueueService';
 import { fujiCalculationOrchestrator } from './FujiCalculationOrchestrator';
+import { celestialOrbitDataService } from './CelestialOrbitDataService';
 
 import { EventsCacheModel } from '../models/EventsCache';
 import { LocationModel } from '../models/Location';
@@ -42,6 +43,7 @@ export class BackgroundJobScheduler {
     this.scheduleStatisticsUpdate();
     this.scheduleYearlyMaintenance();
     this.scheduleMonthlyMaintenance();
+    this.scheduleCelestialDataGeneration();
   }
 
   stop(): void {
@@ -183,6 +185,66 @@ export class BackgroundJobScheduler {
         this.logger.info('年次アーカイブジョブ完了');
       } catch (error) {
         this.logger.error('年次アーカイブジョブエラー', error);
+      }
+    });
+  }
+
+  /**
+   * 天体軌道データ生成のスケジュール
+   */
+  private scheduleCelestialDataGeneration(): void {
+    // サーバー起動5分後に今年の天体データ生成を開始
+    const fiveMinutesLater = 5 * 60 * 1000; // 5分 = 300,000ms
+    
+    const timeoutId = this.safeSetTimeout(async () => {
+      try {
+        const currentYear = new Date().getFullYear();
+        this.logger.info('天体軌道データ生成ジョブ開始（起動時）', { year: currentYear });
+        
+        const result = await celestialOrbitDataService.generateYearlyData(currentYear);
+        
+        if (result.success) {
+          this.logger.info('天体軌道データ生成ジョブ完了', {
+            year: currentYear,
+            totalDataPoints: result.totalDataPoints,
+            timeMs: result.timeMs
+          });
+        } else {
+          this.logger.error('天体軌道データ生成ジョブ失敗', null, { year: currentYear });
+        }
+        
+      } catch (error) {
+        this.logger.error('天体軌道データ生成ジョブエラー', error);
+      }
+    }, fiveMinutesLater);
+    
+    this.scheduledJobs.set('celestial-data-generation', timeoutId);
+    
+    this.logger.info('天体軌道データ生成スケジュール', {
+      delayMinutes: 5,
+      scheduledTime: new Date(Date.now() + fiveMinutesLater).toISOString()
+    });
+
+    // 年次で天体データを再生成（毎年1月2日 午前3時）
+    this.scheduleYearly('celestial-yearly-generation', 1, 2, 3, 0, async () => {
+      try {
+        const currentYear = new Date().getFullYear();
+        this.logger.info('年次天体軌道データ生成ジョブ開始', { year: currentYear });
+        
+        const result = await celestialOrbitDataService.generateYearlyData(currentYear);
+        
+        if (result.success) {
+          this.logger.info('年次天体軌道データ生成ジョブ完了', {
+            year: currentYear,
+            totalDataPoints: result.totalDataPoints,
+            timeMs: result.timeMs
+          });
+        } else {
+          this.logger.error('年次天体軌道データ生成ジョブ失敗', null, { year: currentYear });
+        }
+        
+      } catch (error) {
+        this.logger.error('年次天体軌道データ生成ジョブエラー', error);
       }
     });
   }
@@ -440,6 +502,38 @@ export class BackgroundJobScheduler {
     } catch (error) {
       this.logger.error('手動年間富士現象計算エラー', error, { year });
       return { success: false, error: error as Error };
+    }
+  }
+
+  /**
+   * 手動での天体軌道データ生成実行
+   */
+  async triggerCelestialDataGeneration(year: number): Promise<{
+    success: boolean;
+    totalDataPoints: number;
+    timeMs: number;
+  }> {
+    this.logger.info('手動天体軌道データ生成開始', { year });
+    
+    try {
+      const result = await celestialOrbitDataService.generateYearlyData(year);
+      
+      this.logger.info('手動天体軌道データ生成完了', {
+        year,
+        success: result.success,
+        totalDataPoints: result.totalDataPoints,
+        timeMs: result.timeMs
+      });
+
+      return result;
+      
+    } catch (error) {
+      this.logger.error('手動天体軌道データ生成エラー', error, { year });
+      return {
+        success: false,
+        totalDataPoints: 0,
+        timeMs: 0
+      };
     }
   }
 

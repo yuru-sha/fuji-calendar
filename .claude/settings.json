@@ -1,6 +1,7 @@
 {
   "env": {
-    "CLAUDE_CACHE": "./.ccache"
+    "CLAUDE_CACHE": "./.ccache",
+    "NODE_OPTIONS": "--max-old-space-size=8192"
   },
   "permissions": {
     "allow": [

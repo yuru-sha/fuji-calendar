@@ -133,6 +133,8 @@ export function useCalendar(): CalendarState & UseCalendarActions {
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       setError(`カレンダーデータの読み込みに失敗しました: ${errorMessage}`);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -146,6 +148,8 @@ export function useCalendar(): CalendarState & UseCalendarActions {
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       setError(`イベントデータの読み込みに失敗しました: ${errorMessage}`);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -158,9 +162,12 @@ export function useCalendar(): CalendarState & UseCalendarActions {
     try {
       const response = await apiClient.getUpcomingEvents(limit);
       dispatch({ type: 'SET_UPCOMING_EVENTS', payload: response.events });
+      dispatch({ type: 'SET_UPCOMING_EVENTS_LOADED', payload: true });
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       setError(`今後のイベント読み込みに失敗しました: ${errorMessage}`);
+    } finally {
+      setLoading(false);
     }
   }, [state.upcomingEventsLoaded]);
 
@@ -174,6 +181,8 @@ export function useCalendar(): CalendarState & UseCalendarActions {
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       setError(`ベストショット日の読み込みに失敗しました: ${errorMessage}`);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -189,6 +198,8 @@ export function useCalendar(): CalendarState & UseCalendarActions {
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       setError(`地点データの読み込みに失敗しました: ${errorMessage}`);
+    } finally {
+      setLoading(false);
     }
   }, [state.locations.length]);
 

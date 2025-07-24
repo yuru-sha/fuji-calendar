@@ -43,8 +43,7 @@ export class CelestialOrbitDataService {
     this.logger.info('年間天体軌道データ生成開始', { year });
 
     try {
-      // 既存データを削除
-      await this.clearYearData(year);
+      this.logger.info('天体軌道データ生成開始（upsert方式、重複データ上書き）', { year });
 
       // 2週間ごとに処理してスクリプトの安定性を向上（途中で落ちても復旧しやすく）
       const startDate = new Date(year, 0, 1); // 年始
@@ -93,22 +92,23 @@ export class CelestialOrbitDataService {
             }
             
           } catch (dayError) {
+            const errorMessage = dayError instanceof Error ? dayError.message : String(dayError);
             this.logger.error('日次データ生成エラー', {
               year,
-              period: periodCount,
+              period: periodCount,  
               date: currentDate.toISOString().split('T')[0],
-              error: dayError.message
+              error: errorMessage
             });
-            console.warn(`⚠️  ${currentDate.toISOString().split('T')[0]} のデータ生成をスキップ: ${dayError.message}`);
+            console.warn(`⚠️  ${currentDate.toISOString().split('T')[0]} のデータ生成をスキップ: ${errorMessage}`);
           }
           
           currentDate.setDate(currentDate.getDate() + 1);
         }
         
-        // 2週間分のデータを一括保存（バッチ処理で動作を安定化）
+        // 2週間分のデータを一括保存（upsert方式で重複データを上書き）
         if (periodDataPoints.length > 0) {
           try {
-            const batchSize = 200; // さらに小さなバッチサイズで最大限の安定性を確保
+            const batchSize = 50; // upsert処理用に小さなバッチサイズ
             const totalBatches = Math.ceil(periodDataPoints.length / batchSize);
             
             console.log(`  💾 第${periodCount}期間データ保存中: ${periodDataPoints.length}件 (${totalBatches}バッチ)`);
@@ -140,11 +140,12 @@ export class CelestialOrbitDataService {
             });
             
           } catch (periodError) {
+            const errorMessage = periodError instanceof Error ? periodError.message : String(periodError);
             this.logger.error('期間別データ保存エラー', {
               year,
               period: periodCount,
               dataPointsCount: periodDataPoints.length,
-              error: periodError.message
+              error: errorMessage
             });
             throw periodError;
           }
@@ -220,10 +221,14 @@ export class CelestialOrbitDataService {
 
         // 太陽データ（標準的な観測地点として富士山を使用）
         const fujiLocation = { 
+          id: 0,
           latitude: FUJI_COORDINATES.latitude, 
           longitude: FUJI_COORDINATES.longitude, 
           elevation: FUJI_COORDINATES.elevation, 
-          name: '富士山' 
+          name: '富士山',
+          prefecture: '静岡県',
+          createdAt: new Date(),
+          updatedAt: new Date()
         };
         const sunPosition = await astronomicalCalculator.calculateSunPositionPrecise(utcTime, fujiLocation);
         const sunVisible = sunPosition.elevation > -6; // 薄明を考慮
@@ -271,37 +276,63 @@ export class CelestialOrbitDataService {
   }
 
   /**
-   * データポイントをバッチ挿入
+   * データポイントをバッチ挿入（重複上書き方式）
+   * 既存データがある場合は上書き、ない場合は挿入
    */
   private async insertDataPointsBatch(dataPoints: CelestialDataPoint[]): Promise<void> {
     if (dataPoints.length === 0) return;
 
     try {
-      await prisma.celestialOrbitData.createMany({
-        data: dataPoints.map(point => ({
-          date: point.date,
-          time: point.time,
-          hour: point.hour,
-          minute: point.minute,
-          celestialType: point.celestialType,
-          azimuth: point.azimuth,
-          elevation: point.elevation,
-          visible: point.visible,
-          moonPhase: point.moonPhase,
-          moonIllumination: point.moonIllumination,
-          season: point.season,
-          timeOfDay: point.timeOfDay
-        })),
-        skipDuplicates: true
-      });
+      // Prismaのupsertを使用して重複データを上書き
+      await Promise.all(
+        dataPoints.map(point => 
+          prisma.celestialOrbitData.upsert({
+            where: {
+              // 複合ユニークキー（日付+時分+天体種別）で重複判定
+              date_hour_minute_celestialType: {
+                date: point.date,
+                hour: point.hour,
+                minute: point.minute,
+                celestialType: point.celestialType
+              }
+            },
+            update: {
+              // 既存データがある場合は更新
+              azimuth: point.azimuth,
+              elevation: point.elevation,
+              visible: point.visible,
+              moonPhase: point.moonPhase,
+              moonIllumination: point.moonIllumination,
+              season: point.season,
+              timeOfDay: point.timeOfDay,
+              updatedAt: new Date()
+            },
+            create: {
+              // 新規データの場合は挿入
+              date: point.date,
+              time: point.time,
+              hour: point.hour,
+              minute: point.minute,
+              celestialType: point.celestialType,
+              azimuth: point.azimuth,
+              elevation: point.elevation,
+              visible: point.visible,
+              moonPhase: point.moonPhase,
+              moonIllumination: point.moonIllumination,
+              season: point.season,
+              timeOfDay: point.timeOfDay
+            }
+          })
+        )
+      );
 
-      this.logger.debug('天体データバッチ挿入完了', {
+      this.logger.debug('天体データバッチupsert完了', {
         batchSize: dataPoints.length,
         dateRange: `${dataPoints[0].date.toISOString().split('T')[0]} - ${dataPoints[dataPoints.length - 1].date.toISOString().split('T')[0]}`
       });
 
     } catch (error) {
-      this.logger.error('天体データバッチ挿入エラー', error, {
+      this.logger.error('天体データバッチupsertエラー', error, {
         batchSize: dataPoints.length
       });
       throw error;

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import Calendar from '../components/Calendar';
 import EventDetail from '../components/EventDetail';
 import MapView from '../components/MapView';
@@ -19,7 +19,10 @@ const HomePage: React.FC = () => {
     loading,
     upcomingEventsLoaded,
     error,
+    loadMonthlyCalendar,
     loadDayEvents,
+    loadUpcomingEvents,
+    loadLocations,
     clearError,
     setCurrentDate
   } = useCalendar();
@@ -38,6 +41,26 @@ const HomePage: React.FC = () => {
   const currentYear = calendarData?.year || currentDate.getFullYear();
   const currentMonth = calendarData?.month || (currentDate.getMonth() + 1);
 
+  // 初期データの読み込み
+  useEffect(() => {
+    const initializeData = async () => {
+      // 現在の年月のカレンダーデータを読み込み
+      await loadMonthlyCalendar(currentYear, currentMonth);
+      
+      // 今後のイベントを読み込み
+      if (!upcomingEventsLoaded) {
+        await loadUpcomingEvents(30);
+      }
+      
+      // 地点データを読み込み
+      if (locations.length === 0) {
+        await loadLocations();
+      }
+    };
+
+    initializeData();
+  }, []); // 初回マウント時のみ実行
+
   const handleDateClick = useCallback(async (date: Date) => {
     setSelectedDate(date);
     const dateString = timeUtils.formatDateString(date);
@@ -55,10 +78,12 @@ const HomePage: React.FC = () => {
     }, 100);
   }, [loadDayEvents]);
 
-  const handleMonthChange = useCallback((year: number, month: number) => {
+  const handleMonthChange = useCallback(async (year: number, month: number) => {
     setCurrentDate(year, month);
     setSelectedDate(null);
-  }, [setCurrentDate]);
+    // 新しい月のカレンダーデータを読み込み
+    await loadMonthlyCalendar(year, month);
+  }, [setCurrentDate, loadMonthlyCalendar]);
 
   const handleMapClick = useCallback((event: FujiEvent) => {
     setSelectedEvent(event);
@@ -79,8 +104,9 @@ const HomePage: React.FC = () => {
     const month = eventDate.getMonth() + 1;
     
     if (calendarData?.year !== year || calendarData?.month !== month) {
-      // 別の月なら月を変更
+      // 別の月なら月を変更してデータを読み込み
       setCurrentDate(year, month);
+      await loadMonthlyCalendar(year, month);
     }
     
     // 日付を選択して詳細を表示
@@ -108,9 +134,11 @@ const HomePage: React.FC = () => {
     const year = eventDate.getFullYear();
     const month = eventDate.getMonth() + 1;
     
+    
     if (calendarData?.year !== year || calendarData?.month !== month) {
-      // 別の月なら月を変更
+      // 別の月なら月を変更してデータを読み込み
       setCurrentDate(year, month);
+      await loadMonthlyCalendar(year, month);
     }
     
     // 日付を選択して詳細を表示

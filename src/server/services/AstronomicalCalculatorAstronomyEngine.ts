@@ -76,34 +76,30 @@ export class AstronomicalCalculatorAstronomyEngine {
    * 撮影地点から剣ヶ峰の高さ（標高3776m地点）への仰角を計算
    * ダイヤモンド富士：太陽の中心がこの仰角と一致する現象
    * 
-   * Gemini提供の高精度計算式: 地球曲率と大気屈折を考慮
+   * 修正版: 地球の曲率のみを考慮し、大気差補正はAstronomy Engineに委ねる
    */
   calculateElevationToFuji(fromLocation: Location): number {
-    // 定数
-    const observerEyeLevel = 1.7; // メートル（観測者の目の高さ）
-    const earthRadius = 6371000; // 地球の平均半径 (メートル)
-    const refractionCoefficient = 0.13; // 大気屈折率 (k値)
-
-    // 距離計算（メートル単位）
     const distanceKm = this.calculateDistanceToFuji(fromLocation);
     const distanceM = distanceKm * 1000;
+    const heightDifference = FUJI_COORDINATES.elevation - fromLocation.elevation;
 
-    // 高精度仰角計算を実行
-    const elevationAngle = this.calculateElevationAngle(
-      FUJI_COORDINATES.elevation,  // 富士山山頂の標高
-      fromLocation.elevation,      // 観測地点の標高
-      observerEyeLevel,           // 観測者の目の高さ
-      distanceM,                  // 直線距離（メートル）
-      earthRadius,                // 地球の平均半径
-      refractionCoefficient       // 大気屈折率
-    );
+    // 地球の曲率による見かけの低下を計算
+    const earthRadius = 6371000; // 地球の平均半径 (メートル)
+    const curvatureDrop = Math.pow(distanceM, 2) / (2 * earthRadius);
 
-    this.logger.astronomical('debug', '富士山仰角計算（高精度）', {
+    // 最終的な見かけの垂直距離
+    const apparentVerticalDistance = heightDifference - curvatureDrop;
+
+    // 幾何学的な仰角を計算 (ラジアン)
+    const angleRad = Math.atan2(apparentVerticalDistance, distanceM);
+
+    const elevationAngle = this.toDegrees(angleRad);
+
+    this.logger.astronomical('debug', '富士山仰角計算（幾何学的）', {
       location: fromLocation.name,
       distanceKm: distanceKm.toFixed(1),
       fujiElevation: FUJI_COORDINATES.elevation,
       observerElevation: fromLocation.elevation,
-      observerEyeLevel,
       calculatedElevation: elevationAngle.toFixed(6)
     });
 

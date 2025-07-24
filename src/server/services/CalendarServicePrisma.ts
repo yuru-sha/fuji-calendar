@@ -1,4 +1,5 @@
 import { CalendarEvent, CalendarResponse, EventsResponse, FujiEvent, WeatherInfo, Location } from '../../shared/types';
+import { weatherService } from './WeatherService';
 import { PrismaClientManager } from '../database/prisma';
 import { locationFujiEventService } from './LocationFujiEventService';
 import { fujiSystemOrchestrator } from './FujiSystemOrchestrator';
@@ -135,7 +136,7 @@ export class CalendarServicePrisma {
       // 時刻順にソート
       allEvents.sort((a, b) => a.time.getTime() - b.time.getTime());
       
-      // 天気情報を取得（模擬実装）
+      // 天気情報を取得（OpenMeteo API使用）
       const weather = await this.getWeatherInfo(date);
       
       const responseTime = Date.now() - startTime;
@@ -360,9 +361,9 @@ export class CalendarServicePrisma {
       azimuth: event.azimuth,
       elevation: event.altitude,
       qualityScore: event.qualityScore,
-      accuracy: event.accuracy,
-      moonPhase: event.moonPhase,
-      moonIllumination: event.moonIllumination
+      accuracy: event.accuracy || undefined,
+      moonPhase: event.moonPhase || undefined,
+      moonIllumination: event.moonIllumination || undefined
     };
   }
 
@@ -466,38 +467,14 @@ export class CalendarServicePrisma {
   }
 
   /**
-   * 天気情報を取得（模擬実装）
+   * 天気情報を取得（OpenMeteo API使用）
    */
   private async getWeatherInfo(date: Date): Promise<WeatherInfo | undefined> {
-    const now = timeUtils.getCurrentJst();
-    const diffDays = Math.floor((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    // 海ほたるPAの座標を使用（将来的には地点ごとに取得可能）
+    const latitude = 35.464815;
+    const longitude = 139.872861;
     
-    // 未来の日付の場合のみ天気予報を返す
-    if (diffDays >= 0 && diffDays <= 7) {
-      const conditions = ['晴れ', '曇り', '雨', '雪'];
-      const condition = conditions[Math.floor(Math.random() * conditions.length)];
-      const cloudCover = Math.floor(Math.random() * 100);
-      
-      let recommendation: 'excellent' | 'good' | 'fair' | 'poor';
-      if (condition === '晴れ' && cloudCover < 30) {
-        recommendation = 'excellent';
-      } else if (condition === '晴れ' || (condition === '曇り' && cloudCover < 50)) {
-        recommendation = 'good';
-      } else if (condition === '曇り') {
-        recommendation = 'fair';
-      } else {
-        recommendation = 'poor';
-      }
-
-      return {
-        condition,
-        cloudCover,
-        visibility: Math.floor(Math.random() * 20) + 5,
-        recommendation
-      };
-    }
-
-    return undefined;
+    return await weatherService.getWeatherInfo(latitude, longitude, date);
   }
 
   /**

@@ -579,11 +579,11 @@ async function startServer() {
     }
     serverLogger.info('Prisma データベース接続完了');
     
-    // バックグラウンドスケジューラー開始
+    // バックグラウンドスケジューラー開始（一時的に無効化）
     // backgroundScheduler.start(); // 一時的に無効化
-    backgroundSchedulerPrisma.start();
-    serverLogger.info('バックグラウンドジョブスケジューラー開始', {
-      prismaScheduler: backgroundSchedulerPrisma.getStatus()
+    // backgroundSchedulerPrisma.start();
+    serverLogger.info('バックグラウンドジョブスケジューラー一時無効化', {
+      // prismaScheduler: backgroundSchedulerPrisma.getStatus()
     });
     
     app.listen(PORT, () => {
@@ -593,7 +593,7 @@ async function startServer() {
         endpoint: `http://localhost:${PORT}/api`,
         logLevel: process.env.LOG_LEVEL || 'info',
         fileLogging: process.env.ENABLE_FILE_LOGGING === 'true',
-        backgroundJobs: backgroundSchedulerPrisma.getStatus()
+        // backgroundJobs: backgroundSchedulerPrisma.getStatus()
       });
     });
   } catch (error) {

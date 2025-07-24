@@ -1,162 +1,195 @@
-# ダイヤモンド富士・パール富士カレンダー Makefile
+# 富士カレンダー Makefile
+# 開発、ビルド、データ生成用のコマンド集
 
-.PHONY: help install dev build test clean setup admin deploy lint typecheck
+.PHONY: help dev build start test lint typecheck clean setup-data generate-celestial match-events check-data
 
-# デフォルトターゲット
+# デフォルトターゲット（ヘルプ表示）
 help:
-	@echo "🗻 ダイヤモンド富士・パール富士カレンダー"
+	@echo "富士カレンダー 利用可能なコマンド:"
 	@echo ""
-	@echo "利用可能なコマンド:"
-	@echo "  setup       - 初期セットアップ（依存関係インストール、DB初期化、管理者作成）"
-	@echo "  install     - 依存関係をインストール"
-	@echo "  dev         - 開発サーバーを起動"
-	@echo "  build       - プロダクションビルド"
-	@echo "  test        - テストを実行"
-	@echo "  lint        - ESLintでコードチェック"
-	@echo "  typecheck   - TypeScriptの型チェック"
-	@echo "  admin       - デフォルト管理者アカウントを作成"
-	@echo "  clean       - ビルド成果物とキャッシュを削除"
-	@echo "  reset-db    - データベースをリセット"
-	@echo "  backup-db   - データベースをバックアップ"
-	@echo "  deploy      - 本番環境へデプロイ"
+	@echo "🚀 開発・実行:"
+	@echo "  make dev          - 開発サーバー起動（フロントエンド + バックエンド）"
+	@echo "  make dev-server   - バックエンドのみ起動（ポート3000）"
+	@echo "  make dev-client   - フロントエンドのみ起動（ポート3001）"
+	@echo "  make build        - プロダクションビルド"
+	@echo "  make start        - プロダクション実行"
 	@echo ""
+	@echo "🧪 品質チェック:"
+	@echo "  make test         - テスト実行"
+	@echo "  make lint         - ESLintチェック"
+	@echo "  make lint-fix     - ESLint自動修正"
+	@echo "  make typecheck    - TypeScript型チェック"
+	@echo "  make check-all    - 全品質チェック（lint + typecheck + test）"
+	@echo ""
+	@echo "🌟 データ生成・管理:"
+	@echo "  make setup-data [YEAR=2025]      - 初期データ完全セットアップ（初回インストール時）"
+	@echo "  make generate-celestial [YEAR=2025] - 天体軌道データ生成のみ（1分刻み、upsert方式）"
+	@echo "  make match-events [YEAR=2025]    - イベントマッチング実行のみ"
+	@echo "  make check-data                  - データベース状況確認"
+	@echo "  make test-diamond                - 10月ダイヤモンド富士検出テスト"
+	@echo ""
+	@echo "🛠️  メンテナンス:"
+	@echo "  make clean        - 一時ファイル・ビルド成果物削除"
+	@echo "  make clean-data   - データベース初期化（注意：全データ削除）"
+	@echo ""
+	@echo "例:"
+	@echo "  make setup-data YEAR=2025       # 2025年の初期データをセットアップ"
+	@echo "  make generate-celestial          # 現在年の天体データを生成"
+	@echo "  make generate-celestial YEAR=2024 # 2024年の天体データを生成"
+	@echo "  make match-events YEAR=2024      # 2024年のイベントマッチング実行"
 
-# 初期セットアップ
-setup: install reset-db admin
-	@echo "🎉 セットアップが完了しました！"
-	@echo ""
-	@echo "開発サーバーを起動するには:"
-	@echo "  make dev"
-	@echo ""
-	@echo "管理画面ログイン情報:"
-	@echo "  URL: http://localhost:3001/admin/login"
-	@echo "  ユーザー名: admin"
-	@echo "  パスワード: FujiAdmin2024!"
-	@echo ""
+# 年パラメータのデフォルト値
+YEAR ?= $(shell date +%Y)
 
-# 依存関係のインストール
-install:
-	@echo "📦 依存関係をインストール中..."
-	npm install
-	npx playwright install
+# Node.jsスクリプトの共通設定
+NODE_OPTIONS = --max-old-space-size=8192
+SCRIPTS_DIR = scripts
 
-# 開発サーバー起動
+# 開発・実行コマンド
 dev:
-	@echo "🚀 開発サーバーを起動中..."
+	@echo "🚀 開発サーバー起動中..."
 	npm run dev
 
-# プロダクションビルド
+dev-server:
+	@echo "⚙️  バックエンドサーバー起動中（ポート3000）..."
+	npm run dev:server
+
+dev-client:
+	@echo "🎨 フロントエンドサーバー起動中（ポート3001）..."
+	npm run dev:client
+
 build:
 	@echo "🏗️  プロダクションビルド中..."
 	npm run build
 
-# テスト実行
+start:
+	@echo "🚀 プロダクション実行中..."
+	npm start
+
+# 品質チェックコマンド
 test:
-	@echo "🧪 テストを実行中..."
+	@echo "🧪 テスト実行中..."
 	npm test
 
-# ESLint実行
 lint:
-	@echo "🔍 ESLintでコードチェック中..."
+	@echo "🔍 ESLintチェック中..."
 	npm run lint
 
-# TypeScript型チェック
+lint-fix:
+	@echo "🔧 ESLint自動修正中..."
+	npm run lint:fix
+
 typecheck:
-	@echo "🔍 TypeScriptの型チェック中..."
+	@echo "📝 TypeScript型チェック中..."
 	npm run typecheck
 
-# データベースリセット
-reset-db:
-	@echo "🗄️  データベースを初期化中..."
-	mkdir -p data
-	sqlite3 data/fuji-calendar.db < src/server/database/schema.sql
-	@echo "✅ データベースが初期化されました"
+check-all: lint typecheck test
+	@echo "✅ 全品質チェック完了！"
 
-# 管理者アカウント作成
-admin:
-	@echo "👤 管理者アカウントを作成中..."
-	sqlite3 data/fuji-calendar.db "ALTER TABLE admins ADD COLUMN email TEXT" 2>/dev/null || true
-	sqlite3 data/fuji-calendar.db < scripts/create-admin.sql
-	@echo "✅ 管理者アカウントが作成されました"
-	@echo ""
-	@echo "ログイン情報:"
-	@echo "  ユーザー名: admin"
-	@echo "  パスワード: FujiAdmin2024!"
-	@echo "  URL: http://localhost:3001/admin/login"
+# データ生成・管理コマンド
+setup-data:
+	@echo "🚀 富士カレンダー初期データセットアップ開始（$(YEAR)年）..."
+	@echo "⚠️  このコマンドは初回インストール時または完全リセット時にのみ実行してください"
+	@read -p "続行しますか？ [y/N]: " confirm && [ "$$confirm" = "y" ] || exit 1
+	NODE_OPTIONS="$(NODE_OPTIONS)" node $(SCRIPTS_DIR)/setup-initial-data.js $(YEAR)
 
-# データベースバックアップ
-backup-db:
-	@echo "💾 データベースをバックアップ中..."
-	mkdir -p backups
-	cp data/fuji-calendar.db backups/fuji_calendar_$(shell date +%Y%m%d_%H%M%S).db
-	@echo "✅ バックアップが完了しました: backups/"
+generate-celestial:
+	@echo "🌟 天体軌道データ生成開始（$(YEAR)年）..."
+	@echo "💡 1分刻み精度・upsert方式で既存データを安全に更新します"
+	@echo "💡 年を指定する場合: make generate-celestial YEAR=2024"
+	NODE_OPTIONS="$(NODE_OPTIONS)" node $(SCRIPTS_DIR)/generate-celestial-data.js $(YEAR)
 
-# クリーンアップ
+match-events:
+	@echo "🎯 LocationFujiEventマッチング実行中（$(YEAR)年）..."
+	@echo "💡 年を指定する場合: make match-events YEAR=2024"
+	NODE_OPTIONS="$(NODE_OPTIONS)" node -e " \
+		const { locationFujiEventService } = require('./dist/server/services/LocationFujiEventService'); \
+		locationFujiEventService.matchAllLocations($(YEAR)).then(result => { \
+			if (result.success) { \
+				console.log('✅ マッチング完了: ' + result.totalEvents + '件'); \
+				console.log('💎 ダイヤモンド富士: ' + result.diamondEvents + '件'); \
+				console.log('🌙 パール富士: ' + result.pearlEvents + '件'); \
+			} else { \
+				console.error('❌ マッチング失敗'); \
+				process.exit(1); \
+			} \
+		}).catch(err => { console.error('❌ エラー:', err.message); process.exit(1); }); \
+	"
+
+check-data:
+	@echo "📊 データベース状況確認中..."
+	NODE_OPTIONS="$(NODE_OPTIONS)" node check-celestial-data.js
+
+test-diamond:
+	@echo "💎 10月ダイヤモンド富士検出テスト実行中..."
+	NODE_OPTIONS="$(NODE_OPTIONS)" node test-december-diamond.js
+
+# メンテナンスコマンド
 clean:
-	@echo "🧹 クリーンアップ中..."
+	@echo "🧹 一時ファイル削除中..."
 	rm -rf dist/
 	rm -rf node_modules/.cache/
-	rm -rf .next/
-	npm cache clean --force
-	@echo "✅ クリーンアップが完了しました"
+	rm -f *.log
+	rm -f debug-*.js
+	rm -f check-*.js
+	rm -f test-*.js
+	rm -f fix-*.js
+	@echo "✅ クリーンアップ完了"
 
-# 本番デプロイ
-deploy: build
-	@echo "🚀 本番環境へデプロイ中..."
-	@echo "⚠️  本番デプロイの設定が必要です"
-	# TODO: 実際のデプロイコマンドを追加
+clean-data:
+	@echo "⚠️  データベース初期化（全データ削除）"
+	@echo "⚠️  この操作は取り消せません！"
+	@read -p "本当に全データを削除しますか？ [y/N]: " confirm && [ "$$confirm" = "y" ] || exit 1
+	NODE_OPTIONS="$(NODE_OPTIONS)" node -e " \
+		const { PrismaClient } = require('@prisma/client'); \
+		const prisma = new PrismaClient(); \
+		Promise.all([ \
+			prisma.locationFujiEvent.deleteMany(), \
+			prisma.celestialOrbitData.deleteMany() \
+		]).then(() => { \
+			console.log('✅ データベース初期化完了'); \
+			return prisma.\$disconnect(); \
+		}).catch(err => { console.error('❌ エラー:', err); process.exit(1); }); \
+	"
 
-# 開発環境の状態確認
-status:
-	@echo "📊 開発環境の状態:"
-	@echo "  Node.js: $(shell node --version 2>/dev/null || echo '❌ 未インストール')"
-	@echo "  npm: $(shell npm --version 2>/dev/null || echo '❌ 未インストール')"
-	@echo "  SQLite: $(shell sqlite3 --version 2>/dev/null | cut -d' ' -f1 || echo '❌ 未インストール')"
-	@echo "  データベース: $(shell [ -f data/fuji-calendar.db ] && echo '✅ 存在' || echo '❌ 未作成')"
-	@echo "  依存関係: $(shell [ -d node_modules ] && echo '✅ インストール済み' || echo '❌ 未インストール')"
+# 実行前の依存関係チェック
+check-deps:
+	@echo "📦 依存関係チェック中..."
+	@npm list --depth=0 > /dev/null 2>&1 || (echo "❌ npm installを実行してください" && exit 1)
+	@[ -f "dist/server/services/CelestialOrbitDataService.js" ] || (echo "❌ npm run buildを実行してください" && exit 1)
+	@echo "✅ 依存関係OK"
 
-# サーバープロセス管理
-start:
-	@echo "🚀 サーバーをバックグラウンドで起動..."
-	nohup npm run dev > dev.log 2>&1 &
-	@echo "✅ サーバーが起動しました（ログ: dev.log）"
+# デバッグ用の便利コマンド
+debug-celestial:
+	@echo "🔍 天体データデバッグ情報表示..."
+	NODE_OPTIONS="$(NODE_OPTIONS)" node -e " \
+		const { celestialOrbitDataService } = require('./dist/server/services/CelestialOrbitDataService'); \
+		celestialOrbitDataService.getStatistics().then(stats => { \
+			console.log('📊 天体データ統計:'); \
+			console.log('  総レコード数:', stats.totalRecords.toLocaleString()); \
+			console.log('  年範囲:', stats.yearRange.min + '-' + stats.yearRange.max); \
+			console.log('  太陽データ:', stats.celestialTypeDistribution.sun.toLocaleString()); \
+			console.log('  月データ:', stats.celestialTypeDistribution.moon.toLocaleString()); \
+			console.log('  視認率:', (stats.visibilityRate * 100).toFixed(1) + '%'); \
+		}).catch(err => console.error('❌ エラー:', err.message)); \
+	"
 
-stop:
-	@echo "🛑 サーバーを停止中..."
-	pkill -f "node.*ts-node.*src/server/index.ts" || true
-	pkill -f "vite" || true
-	@echo "✅ サーバーが停止しました"
+debug-events:
+	@echo "🔍 富士イベント統計表示..."
+	NODE_OPTIONS="$(NODE_OPTIONS)" node -e " \
+		const { locationFujiEventService } = require('./dist/server/services/LocationFujiEventService'); \
+		locationFujiEventService.getStatistics($(YEAR)).then(stats => { \
+			console.log('📊 富士イベント統計 ($(YEAR)年):'); \
+			console.log('  総イベント数:', stats.totalEvents.toLocaleString()); \
+			console.log('  対象地点数:', stats.locationCount); \
+			console.log('  ダイヤモンド富士（日の出）:', stats.eventTypeDistribution.diamond_sunrise); \
+			console.log('  ダイヤモンド富士（日没）:', stats.eventTypeDistribution.diamond_sunset); \
+			console.log('  パール富士（月の出）:', stats.eventTypeDistribution.pearl_moonrise); \
+			console.log('  パール富士（月没）:', stats.eventTypeDistribution.pearl_moonset); \
+		}).catch(err => console.error('❌ エラー:', err.message)); \
+	"
 
-restart: stop start
-	@echo "🔄 サーバーを再起動しました"
-
-# ログ確認
-logs:
-	@echo "📋 サーバーログ:"
-	tail -f dev.log 2>/dev/null || echo "❌ ログファイルが見つかりません"
-
-# データベース情報表示
-db-info:
-	@echo "🗄️  データベース情報:"
-	@echo "  撮影地点数: $(shell sqlite3 data/fuji-calendar.db 'SELECT COUNT(*) FROM locations' 2>/dev/null || echo '❌ DB未作成')"
-	@echo "  管理者数: $(shell sqlite3 data/fuji-calendar.db 'SELECT COUNT(*) FROM admins' 2>/dev/null || echo '❌ DB未作成')"
-
-# セキュリティチェック
-security:
-	@echo "🔒 セキュリティチェック中..."
-	npm audit
-	@echo "✅ セキュリティチェックが完了しました"
-
-# パフォーマンステスト
-perf:
-	@echo "⚡ パフォーマンステスト中..."
-	@echo "TODO: Lighthouseやk6などのパフォーマンステストを実装"
-
-# ドキュメント生成
-docs:
-	@echo "📚 ドキュメント生成中..."
-	@echo "TODO: TypeDocやJSDocでAPIドキュメントを生成"
-
-# 全体チェック（CI用）
-ci: install lint typecheck test build
-	@echo "✅ CI チェックが完了しました"
+# データ生成コマンドには依存関係チェックを追加
+setup-data: check-deps
+generate-celestial: check-deps  
+match-events: check-deps

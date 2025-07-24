@@ -71,7 +71,6 @@ export class CalendarController {
           }))
         },
         meta: {
-          cacheHit,
           responseTimeMs: responseTime
         },
         timestamp: timeUtils.getCurrentJst()
@@ -142,7 +141,6 @@ export class CalendarController {
           weather: eventsData.weather
         },
         meta: {
-          cacheHit,
           responseTimeMs: responseTime
         },
         timestamp: timeUtils.getCurrentJst()

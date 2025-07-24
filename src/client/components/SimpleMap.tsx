@@ -35,8 +35,8 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
 
     const map = L.map(mapRef.current).setView([35.3606, 138.7274], 9);
     
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors'
+    L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
+      attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">国土地理院</a>'
     }).addTo(map);
 
     mapInstanceRef.current = map;

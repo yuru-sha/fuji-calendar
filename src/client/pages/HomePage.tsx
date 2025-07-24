@@ -151,17 +151,23 @@ const HomePage: React.FC = () => {
         </div>
 
         {/* 右カラム: サイドバー */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        <div style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: '1.5rem',
+          position: 'sticky',
+          top: '1rem',
+          alignSelf: 'flex-start',
+          maxHeight: 'calc(100vh - 2rem)',
+          overflowY: 'auto'
+        }}>
           {/* 使い方ガイド */}
           <div style={{
-            position: 'sticky',
-            top: '1rem',
             backgroundColor: 'white',
             borderRadius: '12px',
             padding: '1.5rem',
             boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            border: '1px solid #e5e7eb',
-            marginBottom: '1rem'
+            border: '1px solid #e5e7eb'
           }}>
             <div style={{
               display: 'flex',

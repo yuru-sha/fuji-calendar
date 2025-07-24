@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import * as Astronomy from 'astronomy-engine';
 import { Location, FujiEvent, FUJI_COORDINATES } from '../../shared/types';
 import { CameraSettings } from './CameraPanel';
 
@@ -66,6 +67,29 @@ const getPointAtDistance = (lat: number, lng: number, bearing: number, distance:
   );
   
   return [newLatRad * (180 / Math.PI), newLngRad * (180 / Math.PI)];
+};
+
+// Astronomy Engineを使用した高精度な天体位置計算
+const calculateSunPosition = (date: Date, latitude: number, longitude: number, elevation: number = 0): { azimuth: number; elevation: number } => {
+  const observer = new Astronomy.Observer(latitude, longitude, elevation);
+  const sunEquatorial = Astronomy.Equator(Astronomy.Body.Sun, date, observer, true, true);
+  const sunHorizontal = Astronomy.Horizon(date, observer, sunEquatorial.ra, sunEquatorial.dec, 'normal');
+  
+  return {
+    azimuth: sunHorizontal.azimuth,
+    elevation: sunHorizontal.altitude
+  };
+};
+
+const calculateMoonPosition = (date: Date, latitude: number, longitude: number, elevation: number = 0): { azimuth: number; elevation: number } => {
+  const observer = new Astronomy.Observer(latitude, longitude, elevation);
+  const moonEquatorial = Astronomy.Equator(Astronomy.Body.Moon, date, observer, true, true);
+  const moonHorizontal = Astronomy.Horizon(date, observer, moonEquatorial.ra, moonEquatorial.dec, 'normal');
+  
+  return {
+    azimuth: moonHorizontal.azimuth,
+    elevation: moonHorizontal.altitude
+  };
 };
 
 interface SimpleMapProps {
@@ -220,17 +244,8 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
         });
       }
 
-      // 選択された地点から富士山への線を描画
+      // 選択された地点の方位角ラインのみ表示
       if (isSelected && hasEvents) {
-        const line = L.polyline([
-          [location.latitude, location.longitude],
-          [FUJI_COORDINATES.latitude, FUJI_COORDINATES.longitude]
-        ], {
-          color: '#ef4444',
-          weight: 4,
-          opacity: 1.0,
-          dashArray: '5, 10'
-        }).addTo(map);
 
         // 選択されたイベントIDがある場合はそのイベントのみ、なければ最初のイベント
         const targetEvent = selectedEventId 
@@ -242,24 +257,54 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
           const locationToFujiAzimuth = location.fujiAzimuth || 0; // 撮影地点から富士山への方位角
           const observerToSunMoonAzimuth = event.azimuth; // 撮影地点から見た太陽・月の方位角（イベントデータから取得）
           
+          // Astronomy Engineを使用したリアルタイム天体位置計算（高精度）
+          const calculatedSun = calculateSunPosition(event.time, location.latitude, location.longitude, location.elevation);
+          const calculatedMoon = calculateMoonPosition(event.time, location.latitude, location.longitude, location.elevation);
+          const calculatedCelestial = event.type === 'diamond' ? calculatedSun : calculatedMoon;
+          
+          // デバッグ用ログ（Astronomy Engine高精度計算）
+          console.log(`[DEBUG] Location: ${location.name} (標高: ${location.elevation}m)`);
+          console.log(`[DEBUG] Event ID: ${event.id}, Type: ${event.type}, Time: ${event.time}`);
+          console.log(`[DEBUG] 撮影地点→富士山の方位角: ${locationToFujiAzimuth.toFixed(2)}度`);
+          console.log(`[DEBUG] イベントデータのazimuth: ${observerToSunMoonAzimuth.toFixed(2)}度`);
+          console.log(`[DEBUG] Astronomy Engine計算${event.type === 'diamond' ? '太陽' : '月'}の方位角: ${calculatedCelestial.azimuth.toFixed(2)}度`);
+          console.log(`[DEBUG] Astronomy Engine計算${event.type === 'diamond' ? '太陽' : '月'}の高度: ${calculatedCelestial.elevation.toFixed(2)}度`);
+          console.log(`[DEBUG] location.fujiAzimuth vs event.azimuth の差: ${Math.abs(locationToFujiAzimuth - observerToSunMoonAzimuth).toFixed(2)}度`);
+          console.log(`[DEBUG] location.fujiAzimuth vs Astronomy Engine計算値 の差: ${Math.abs(locationToFujiAzimuth - calculatedCelestial.azimuth).toFixed(2)}度`);
+          
           const lineDistance = 700000; // 700km in meters
           
           // イベントタイプによる色分け
           const lineColor = event.type === 'diamond' ? '#fbbf24' : '#a855f7'; // 金色（太陽）、紫（月）
           const lineOpacity = event.type === 'diamond' ? 0.8 : 0.6;
           
-          // 撮影地点から太陽・月方向への線
-          const sunMoonSidePoint = getPointAtDistance(
-            location.latitude,
-            location.longitude,
-            observerToSunMoonAzimuth,
-            lineDistance // 700km（撮影地点から）
-          );
+          // 2本の線
           
-          // 撮影地点から太陽・月への方位角ライン
+          // 1. 撮影地→富士山の線（赤色）
           L.polyline([
             [location.latitude, location.longitude],
-            sunMoonSidePoint
+            [FUJI_COORDINATES.latitude, FUJI_COORDINATES.longitude]
+          ], {
+            color: '#ef4444', // 赤色
+            weight: 3,
+            opacity: 0.8,
+            dashArray: '5, 10'
+          }).addTo(map);
+          
+          // 2. 富士山→太陽・月の180度反転方向の線（金色/紫）
+          const fujiToSunMoonAzimuth = event.azimuth; // 富士山→太陽・月の方位角
+          const reverseSunMoonAzimuth = (fujiToSunMoonAzimuth + 180) % 360; // 180度反転
+          
+          const reverseSunMoonPoint = getPointAtDistance(
+            FUJI_COORDINATES.latitude,
+            FUJI_COORDINATES.longitude,
+            reverseSunMoonAzimuth,
+            350000 // 富士山から太陽・月の逆方向に350km
+          );
+          
+          L.polyline([
+            [FUJI_COORDINATES.latitude, FUJI_COORDINATES.longitude],
+            reverseSunMoonPoint
           ], {
             color: lineColor,
             weight: 3,
@@ -267,44 +312,6 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
             dashArray: event.type === 'diamond' ? '8, 4' : '4, 8'
           }).addTo(map);
           
-          // 太陽・月の方位角ラベル（撮影地点から太陽・月方向に、富士山の少し先）
-          const labelDistance = (location.fujiDistance || 50) * 1000 + 50000; // 富士山の50km先
-          const sunMoonLabelPoint = getPointAtDistance(
-            location.latitude,
-            location.longitude,
-            observerToSunMoonAzimuth,
-            labelDistance
-          );
-          
-          const eventTypeIcon = event.type === 'diamond' ? '☀️' : '🌙';
-          const eventTime = event.time.toLocaleTimeString('ja-JP', { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-          });
-          
-          // 方位角の差を計算してラベルに含める（ダイヤモンド富士の精度を示す）
-          const azimuthDifference = Math.abs(observerToSunMoonAzimuth - locationToFujiAzimuth);
-          const normalizedDifference = azimuthDifference > 180 ? 360 - azimuthDifference : azimuthDifference;
-          
-          L.marker(sunMoonLabelPoint, {
-            icon: L.divIcon({
-              html: `<div style="
-                background: rgba(255,255,255,0.95);
-                padding: 4px 8px;
-                border-radius: 4px;
-                font-size: 11px;
-                font-weight: bold;
-                color: #1f2937;
-                border: 2px solid ${lineColor};
-                white-space: nowrap;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-              ">${eventTypeIcon} ${observerToSunMoonAzimuth.toFixed(0)}° ${eventTime}<br/>
-              <span style="font-size: 9px; color: #6b7280;">富士山方位との差: ${normalizedDifference.toFixed(1)}°</span></div>`,
-              className: '',
-              iconSize: [100, 30],
-              iconAnchor: [50, 15]
-            })
-          }).addTo(map);
         }
 
         // 画角表示

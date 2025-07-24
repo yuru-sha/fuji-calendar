@@ -261,7 +261,7 @@ const HomePage: React.FC = () => {
           top: '1rem',
           alignSelf: 'flex-start',
           maxHeight: 'calc(100vh - 2rem)',
-          overflowY: 'auto'
+          overflowY: 'hidden'
         }}>
           {/* 使い方ガイド */}
           <div style={{

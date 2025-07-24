@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 // よく使われる焦点距離
 export const COMMON_FOCAL_LENGTHS = [
@@ -31,6 +31,8 @@ const CameraPanel: React.FC<CameraPanelProps> = ({
   cameraSettings,
   onCameraSettingsChange
 }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
   const updateSettings = (updates: Partial<CameraSettings>) => {
     onCameraSettingsChange({ ...cameraSettings, ...updates });
   };
@@ -43,57 +45,57 @@ const CameraPanel: React.FC<CameraPanelProps> = ({
   return (
     <div style={{
       backgroundColor: 'white',
-      borderRadius: '8px',
-      padding: '1rem',
-      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+      borderRadius: '6px',
+      padding: '0.75rem',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
       border: '1px solid #e5e7eb'
     }}>
-      <h3 style={{
-        margin: '0 0 1rem 0',
-        fontSize: '1rem',
-        fontWeight: '600',
-        color: '#1f2937',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.5rem'
-      }}>
-        <span>📷</span>
-        撮影設定
-      </h3>
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          width: '100%',
+          background: 'none',
+          border: 'none',
+          padding: 0,
+          cursor: 'pointer',
+          fontSize: '0.875rem',
+          fontWeight: '600',
+          color: '#1f2937'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span>📷</span>
+          撮影設定
+        </div>
+        <span style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
+          ▼
+        </span>
+      </button>
 
-      {/* 画角表示切り替え */}
+      {/* 画角表示切り替え - 常に表示 */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '0.75rem',
-        backgroundColor: '#f9fafb',
-        borderRadius: '6px',
-        border: '1px solid #e5e7eb',
-        marginBottom: '1rem'
+        padding: '0.5rem 0',
+        marginTop: '0.5rem'
       }}>
-        <div>
-          <div style={{
-            fontSize: '0.875rem',
-            fontWeight: '500',
-            color: '#374151',
-            marginBottom: '0.25rem'
-          }}>
-            📐 画角表示
-          </div>
-          <div style={{
-            fontSize: '0.75rem',
-            color: '#6b7280'
-          }}>
-            レンズの撮影範囲を表示
-          </div>
+        <div style={{
+          fontSize: '0.75rem',
+          fontWeight: '500',
+          color: '#374151'
+        }}>
+          📐 画角表示
         </div>
         
         <label style={{
           position: 'relative',
           display: 'inline-block',
-          width: '44px',
-          height: '24px',
+          width: '36px',
+          height: '20px',
           cursor: 'pointer'
         }}>
           <input
@@ -113,179 +115,163 @@ const CameraPanel: React.FC<CameraPanelProps> = ({
             right: 0,
             bottom: 0,
             backgroundColor: cameraSettings.showAngles ? '#3b82f6' : '#d1d5db',
-            borderRadius: '12px',
+            borderRadius: '10px',
             transition: 'background-color 0.2s',
             cursor: 'pointer'
           }}>
             <span style={{
               position: 'absolute',
               content: '',
-              height: '18px',
-              width: '18px',
-              left: cameraSettings.showAngles ? '23px' : '3px',
+              height: '14px',
+              width: '14px',
+              left: cameraSettings.showAngles ? '19px' : '3px',
               bottom: '3px',
               backgroundColor: 'white',
               borderRadius: '50%',
               transition: 'left 0.2s',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+              boxShadow: '0 1px 2px rgba(0,0,0,0.2)'
             }} />
           </span>
         </label>
       </div>
 
       {/* カメラ設定 */}
-      {cameraSettings.showAngles && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {/* センサーサイズ選択 */}
-          <div>
-            <label style={{
-              display: 'block',
-              fontSize: '0.75rem',
-              fontWeight: '500',
-              color: '#374151',
-              marginBottom: '0.5rem'
-            }}>
-              📱 センサーサイズ
-            </label>
-            <select
-              value={cameraSettings.sensorType}
-              onChange={(e) => updateSettings({ sensorType: e.target.value as any })}
-              style={{
-                width: '100%',
-                padding: '0.5rem',
-                fontSize: '0.875rem',
-                border: '1px solid #d1d5db',
-                borderRadius: '6px',
-                backgroundColor: 'white',
-                color: '#374151'
-              }}
-            >
-              <option value="fullframe">フルサイズ</option>
-              <option value="apsc">APS-C</option>
-              <option value="micro43">マイクロフォーサーズ</option>
-            </select>
+      {isExpanded && cameraSettings.showAngles && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.75rem' }}>
+          {/* コンパクトな設定項目 */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+            <div>
+              <label style={{ fontSize: '0.7rem', color: '#6b7280', marginBottom: '0.25rem', display: 'block' }}>
+                センサー
+              </label>
+              <select
+                value={cameraSettings.sensorType}
+                onChange={(e) => updateSettings({ sensorType: e.target.value as any })}
+                style={{
+                  width: '100%',
+                  padding: '0.375rem',
+                  fontSize: '0.75rem',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '4px',
+                  backgroundColor: 'white'
+                }}
+              >
+                <option value="fullframe">FF</option>
+                <option value="apsc">APS-C</option>
+                <option value="micro43">m43</option>
+              </select>
+            </div>
+            
+            <div>
+              <label style={{ fontSize: '0.7rem', color: '#6b7280', marginBottom: '0.25rem', display: 'block' }}>
+                縦横比
+              </label>
+              <select
+                value={cameraSettings.aspectRatio}
+                onChange={(e) => updateSettings({ aspectRatio: e.target.value as any })}
+                style={{
+                  width: '100%',
+                  padding: '0.375rem',
+                  fontSize: '0.75rem',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '4px',
+                  backgroundColor: 'white'
+                }}
+              >
+                <option value="3:2">3:2</option>
+                <option value="4:3">4:3</option>
+                <option value="16:9">16:9</option>
+                <option value="1:1">1:1</option>
+              </select>
+            </div>
           </div>
 
-          {/* 縦横比選択 */}
+          {/* 撮影向き */}
           <div>
-            <label style={{
-              display: 'block',
-              fontSize: '0.75rem',
-              fontWeight: '500',
-              color: '#374151',
-              marginBottom: '0.5rem'
-            }}>
-              📐 縦横比
+            <label style={{ fontSize: '0.7rem', color: '#6b7280', marginBottom: '0.25rem', display: 'block' }}>
+              向き
             </label>
-            <select
-              value={cameraSettings.aspectRatio}
-              onChange={(e) => updateSettings({ aspectRatio: e.target.value as any })}
-              style={{
-                width: '100%',
-                padding: '0.5rem',
-                fontSize: '0.875rem',
-                border: '1px solid #d1d5db',
-                borderRadius: '6px',
-                backgroundColor: 'white',
-                color: '#374151'
-              }}
-            >
-              <option value="3:2">3:2 (一般的なカメラ)</option>
-              <option value="4:3">4:3 (マイクロフォーサーズ)</option>
-              <option value="16:9">16:9 (ワイド)</option>
-              <option value="1:1">1:1 (スクエア)</option>
-            </select>
-          </div>
-
-          {/* 撮影向き選択 */}
-          <div>
-            <label style={{
-              display: 'block',
-              fontSize: '0.75rem',
-              fontWeight: '500',
-              color: '#374151',
-              marginBottom: '0.5rem'
-            }}>
-              📱 撮影向き
-            </label>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '0.5rem'
-            }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.25rem' }}>
               <button
                 onClick={() => updateSettings({ orientation: 'landscape' })}
                 style={{
-                  padding: '0.5rem',
-                  fontSize: '0.75rem',
+                  padding: '0.375rem',
+                  fontSize: '0.7rem',
                   border: '1px solid #d1d5db',
-                  borderRadius: '6px',
+                  borderRadius: '4px',
                   backgroundColor: cameraSettings.orientation === 'landscape' ? '#3b82f6' : 'white',
                   color: cameraSettings.orientation === 'landscape' ? 'white' : '#374151',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.25rem'
+                  cursor: 'pointer'
                 }}
               >
-                <span>📷</span>
-                <span>横</span>
+                横
               </button>
               <button
                 onClick={() => updateSettings({ orientation: 'portrait' })}
                 style={{
-                  padding: '0.5rem',
-                  fontSize: '0.75rem',
+                  padding: '0.375rem',
+                  fontSize: '0.7rem',
                   border: '1px solid #d1d5db',
-                  borderRadius: '6px',
+                  borderRadius: '4px',
                   backgroundColor: cameraSettings.orientation === 'portrait' ? '#3b82f6' : 'white',
                   color: cameraSettings.orientation === 'portrait' ? 'white' : '#374151',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.25rem'
+                  cursor: 'pointer'
                 }}
               >
-                <span>📱</span>
-                <span>縦</span>
+                縦
               </button>
             </div>
           </div>
 
           {/* 焦点距離選択 */}
           <div>
-            <label style={{
-              display: 'block',
-              fontSize: '0.75rem',
-              fontWeight: '500',
-              color: '#374151',
-              marginBottom: '0.5rem'
-            }}>
-              🔍 焦点距離
+            <label style={{ fontSize: '0.7rem', color: '#6b7280', marginBottom: '0.25rem', display: 'block' }}>
+              焦点距離
             </label>
             
-            {/* よく使われる焦点距離のボタン */}
+            {/* よく使われる焦点距離のボタン（2行表示） */}
             <div style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(5, 1fr)',
-              gap: '0.25rem',
-              marginBottom: '0.5rem'
+              gap: '0.125rem',
+              marginBottom: '0.25rem'
             }}>
-              {COMMON_FOCAL_LENGTHS.map(fl => (
+              {COMMON_FOCAL_LENGTHS.slice(0, 5).map(fl => (
                 <button
                   key={fl.value}
                   onClick={() => updateSettings({ focalLength: fl.value })}
                   style={{
-                    padding: '0.25rem',
-                    fontSize: '0.75rem',
+                    padding: '0.125rem',
+                    fontSize: '0.65rem',
                     border: '1px solid #d1d5db',
-                    borderRadius: '4px',
+                    borderRadius: '3px',
                     backgroundColor: cameraSettings.focalLength === fl.value ? '#3b82f6' : 'white',
                     color: cameraSettings.focalLength === fl.value ? 'white' : '#374151',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
+                    cursor: 'pointer'
+                  }}
+                >
+                  {fl.value}
+                </button>
+              ))}
+            </div>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(5, 1fr)',
+              gap: '0.125rem',
+              marginBottom: '0.375rem'
+            }}>
+              {COMMON_FOCAL_LENGTHS.slice(5, 10).map(fl => (
+                <button
+                  key={fl.value}
+                  onClick={() => updateSettings({ focalLength: fl.value })}
+                  style={{
+                    padding: '0.125rem',
+                    fontSize: '0.65rem',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '3px',
+                    backgroundColor: cameraSettings.focalLength === fl.value ? '#3b82f6' : 'white',
+                    color: cameraSettings.focalLength === fl.value ? 'white' : '#374151',
+                    cursor: 'pointer'
                   }}
                 >
                   {fl.value}
@@ -294,7 +280,7 @@ const CameraPanel: React.FC<CameraPanelProps> = ({
             </div>
             
             {/* 直接入力フィールド */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
               <input
                 type="number"
                 value={cameraSettings.focalLength}
@@ -304,59 +290,26 @@ const CameraPanel: React.FC<CameraPanelProps> = ({
                 max="2000"
                 style={{
                   flex: 1,
-                  padding: '0.5rem',
-                  fontSize: '0.875rem',
+                  padding: '0.25rem',
+                  fontSize: '0.75rem',
                   border: '1px solid #d1d5db',
-                  borderRadius: '6px',
-                  backgroundColor: 'white',
-                  color: '#374151'
+                  borderRadius: '4px',
+                  backgroundColor: 'white'
                 }}
               />
-              <span style={{
-                fontSize: '0.875rem',
-                color: '#6b7280',
-                fontWeight: '500'
-              }}>
-                mm
-              </span>
+              <span style={{ fontSize: '0.7rem', color: '#6b7280' }}>mm</span>
             </div>
           </div>
 
-          {/* 現在の画角情報 */}
+          {/* 現在の画角情報 - コンパクト */}
           <div style={{
-            padding: '0.75rem',
-            backgroundColor: '#e0f2fe',
-            borderRadius: '6px',
-            border: '1px solid #b3e5fc'
+            padding: '0.5rem',
+            backgroundColor: '#f1f5f9',
+            borderRadius: '4px',
+            fontSize: '0.65rem',
+            color: '#475569'
           }}>
-            <div style={{
-              fontSize: '0.75rem',
-              color: '#0277bd',
-              fontWeight: '500'
-            }}>
-              📊 計算結果: {cameraSettings.focalLength}mm ({getSensorName(cameraSettings.sensorType)})
-            </div>
-            <div style={{
-              fontSize: '0.7rem',
-              color: '#0288d1',
-              marginTop: '0.25rem'
-            }}>
-              水平画角: {calculateFieldOfView(cameraSettings.focalLength, cameraSettings.sensorType, cameraSettings.aspectRatio, cameraSettings.orientation).horizontal.toFixed(1)}°
-            </div>
-            <div style={{
-              fontSize: '0.7rem',
-              color: '#0288d1',
-              marginTop: '0.25rem'
-            }}>
-              垂直画角: {calculateFieldOfView(cameraSettings.focalLength, cameraSettings.sensorType, cameraSettings.aspectRatio, cameraSettings.orientation).vertical.toFixed(1)}°
-            </div>
-            <div style={{
-              fontSize: '0.7rem',
-              color: '#0288d1',
-              marginTop: '0.25rem'
-            }}>
-              設定: {cameraSettings.aspectRatio} {cameraSettings.orientation === 'portrait' ? '縦' : '横'}
-            </div>
+            画角: {calculateFieldOfView(cameraSettings.focalLength, cameraSettings.sensorType, cameraSettings.aspectRatio, cameraSettings.orientation).horizontal.toFixed(1)}° × {calculateFieldOfView(cameraSettings.focalLength, cameraSettings.sensorType, cameraSettings.aspectRatio, cameraSettings.orientation).vertical.toFixed(1)}°
           </div>
         </div>
       )}

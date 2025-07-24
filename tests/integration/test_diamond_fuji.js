@@ -11,12 +11,8 @@ const maihamaLocation = {
   elevation: 3
 };
 
-// 富士山の座標
-const FUJI_COORDINATES = {
-  latitude: 35.3606,
-  longitude: 138.7274,
-  elevation: 3776
-};
+// 共通定数をインポート
+const { FUJI_COORDINATES } = require('../../src/shared/types');
 
 // 度をラジアンに変換
 function toRadians(degrees) {

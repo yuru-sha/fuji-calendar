@@ -1,12 +1,13 @@
-import { Database, getDatabase } from '../database/connection';
+// import { Database, getDatabase } from '../database/connection'; // PostgreSQL移行により無効化
 import { Location, CreateLocationRequest } from '../../shared/types';
 import { astronomicalCalculator } from '../services/AstronomicalCalculatorAstronomyEngine';
 
 export class LocationModel {
-  private db: Database;
+  // private db: Database; // PostgreSQL移行により無効化
 
   constructor() {
-    this.db = getDatabase();
+    // this.db = getDatabase(); // PostgreSQL移行により無効化
+    throw new Error('LocationModel は PostgreSQL 移行により現在使用できません。Prisma を使用してください。');
   }
 
   // 全ての撮影地点を取得
@@ -21,7 +22,7 @@ export class LocationModel {
       FROM locations 
       ORDER BY prefecture, name
     `;
-    
+
     const rows = await this.db.all<any>(sql);
     return rows.map(this.mapRowToLocation);
   }
@@ -38,7 +39,7 @@ export class LocationModel {
       FROM locations 
       WHERE id = ?
     `;
-    
+
     const row = await this.db.get<any>(sql, [id]);
     return row ? this.mapRowToLocation(row) : null;
   }
@@ -56,14 +57,14 @@ export class LocationModel {
       WHERE prefecture = ?
       ORDER BY name
     `;
-    
+
     const rows = await this.db.all<any>(sql, [prefecture]);
     return rows.map(this.mapRowToLocation);
   }
 
   // 座標範囲内の撮影地点を検索
   async findByCoordinateRange(
-    minLat: number, maxLat: number, 
+    minLat: number, maxLat: number,
     minLng: number, maxLng: number
   ): Promise<Location[]> {
     const sql = `
@@ -78,7 +79,7 @@ export class LocationModel {
         AND longitude BETWEEN ? AND ?
       ORDER BY prefecture, name
     `;
-    
+
     const rows = await this.db.all<any>(sql, [minLat, maxLat, minLng, maxLng]);
     return rows.map(this.mapRowToLocation);
   }
@@ -92,11 +93,11 @@ export class LocationModel {
       createdAt: new Date(),
       updatedAt: new Date()
     };
-    
+
     const fujiAzimuth = astronomicalCalculator.calculateBearingToFuji(tempLocation);
     const fujiElevation = astronomicalCalculator.calculateElevationToFuji(tempLocation);
     const fujiDistance = astronomicalCalculator.calculateDistanceToFuji(tempLocation);
-    
+
     const sql = `
       INSERT INTO locations (
         name, prefecture, latitude, longitude, elevation,
@@ -108,7 +109,7 @@ export class LocationModel {
         datetime('now', '+9 hours')
       )
     `;
-    
+
     const result = await this.db.run(sql, [
       locationData.name,
       locationData.prefecture,
@@ -201,7 +202,7 @@ export class LocationModel {
   // 県名一覧を取得
   async getPrefectures(): Promise<string[]> {
     const sql = 'SELECT DISTINCT prefecture FROM locations ORDER BY prefecture';
-    const rows = await this.db.all<{prefecture: string}>(sql);
+    const rows = await this.db.all<{ prefecture: string }>(sql);
     return rows.map(row => row.prefecture);
   }
 
@@ -211,18 +212,18 @@ export class LocationModel {
     if (!location) {
       return null;
     }
-    
+
     const fujiAzimuth = astronomicalCalculator.calculateBearingToFuji(location);
     const fujiElevation = astronomicalCalculator.calculateElevationToFuji(location);
     const fujiDistance = astronomicalCalculator.calculateDistanceToFuji(location);
-    
+
     const sql = `
       UPDATE locations 
       SET fuji_azimuth = ?, fuji_elevation = ?, fuji_distance = ?,
           updated_at = datetime('now', '+9 hours')
       WHERE id = ?
     `;
-    
+
     await this.db.run(sql, [fujiAzimuth, fujiElevation, fujiDistance, id]);
     return await this.findById(id);
   }
@@ -240,7 +241,7 @@ export class LocationModel {
       WHERE fuji_azimuth IS NULL OR fuji_elevation IS NULL OR fuji_distance IS NULL
       ORDER BY prefecture, name
     `;
-    
+
     const rows = await this.db.all<any>(sql);
     return rows.map(this.mapRowToLocation);
   }
@@ -249,7 +250,7 @@ export class LocationModel {
   async recalculateAllPreCalculatedValues(): Promise<number> {
     const locations = await this.findAll();
     let updatedCount = 0;
-    
+
     for (const location of locations) {
       try {
         await this.updatePreCalculatedValues(location.id);
@@ -258,7 +259,7 @@ export class LocationModel {
         console.error(`Error updating location ${location.id}:`, error);
       }
     }
-    
+
     return updatedCount;
   }
 
@@ -269,7 +270,7 @@ export class LocationModel {
       name: row.name,
       prefecture: row.prefecture,
       latitude: Number(row.latitude),
-      longitude: Number(row.longitude), 
+      longitude: Number(row.longitude),
       elevation: Number(row.elevation),
       description: row.description || undefined,
       accessInfo: row.accessInfo || undefined,

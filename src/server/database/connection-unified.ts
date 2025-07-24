@@ -14,18 +14,12 @@ class UnifiedDatabase implements DatabaseInterface {
       return;
     }
 
-    const dbType = process.env.DB_TYPE || 'sqlite';
-    console.log(`初期化中: データベースタイプ = ${dbType}`);
+    // PostgreSQLのみを使用
+    console.log('初期化中: データベースタイプ = postgres');
     
-    if (dbType === 'postgres') {
-      const { PostgreSQLDatabase } = await import('./connection-postgres');
-      this.db = new PostgreSQLDatabase();
-      console.log('PostgreSQLデータベース接続を初期化');
-    } else {
-      const { Database: SQLiteDatabase } = await import('./connection');
-      this.db = new SQLiteDatabase() as any;
-      console.log('SQLiteデータベース接続を初期化');
-    }
+    const { PostgreSQLDatabase } = await import('./connection-postgres');
+    this.db = new PostgreSQLDatabase();
+    console.log('PostgreSQLデータベース接続を初期化');
     
     this.initialized = true;
   }

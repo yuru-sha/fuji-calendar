@@ -244,9 +244,9 @@ export class AstronomicalDataService {
     const startDate = new Date(year, 0, 1);
     const endDate = new Date(year + 1, 0, 1);
 
-    const deleteResult = await prisma.astronomicalData.deleteMany({
+    const deleteResult = await prisma.locationFujiEvent.deleteMany({
       where: {
-        date: {
+        eventDate: {
           gte: startDate,
           lt: endDate
         }

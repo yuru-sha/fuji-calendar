@@ -24,16 +24,18 @@ export interface QueryResult<T = any> {
 // データベースファクトリー
 export class DatabaseFactory {
   static async create(): Promise<DatabaseInterface> {
-    const dbType = process.env.DB_TYPE || 'sqlite';
-    
+    const dbType = process.env.DB_TYPE || 'postgres'; // PostgreSQLをデフォルトに変更
+
     switch (dbType) {
       case 'postgres':
         const { PostgreSQLDatabase } = await import('./connection-postgres');
         return new PostgreSQLDatabase();
       case 'sqlite':
       default:
-        const { Database: SQLiteDatabase } = await import('./connection');
-        return new SQLiteDatabase() as any; // 既存のSQLiteクラスを適応
+        // SQLite使用は廃止されました（PostgreSQL移行により）
+        throw new Error('SQLite support has been deprecated. Please use PostgreSQL.');
+        // const { Database: SQLiteDatabase } = await import('./connection');
+        // return new SQLiteDatabase() as any; // 既存のSQLiteクラスを適応
     }
   }
 }
@@ -42,10 +44,10 @@ export class DatabaseFactory {
 export interface DatabaseConfig {
   // 共通設定
   DB_TYPE?: 'sqlite' | 'postgres';
-  
+
   // SQLite設定
   DB_PATH?: string;
-  
+
   // PostgreSQL設定
   DB_HOST?: string;
   DB_PORT?: string;

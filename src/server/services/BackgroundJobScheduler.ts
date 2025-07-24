@@ -9,6 +9,9 @@ import { LocationModel } from '../models/Location';
 import { HistoricalEventsModel } from '../models/HistoricalEvents';
 
 export class BackgroundJobScheduler {
+  // setTimeout最大値（JavaScriptの32ビット制限: 約24.8日）
+  private static readonly MAX_TIMEOUT_MS = 2147483647; // 2^31 - 1
+  
   public readonly batchService: BatchCalculationService;
   private cacheModel: EventsCacheModel;
   private locationModel: LocationModel;
@@ -51,6 +54,23 @@ export class BackgroundJobScheduler {
     
     this.scheduledJobs.clear();
     this.isRunning = false;
+  }
+
+  /**
+   * 安全なsetTimeoutラッパー（32ビット制限対応）
+   */
+  private safeSetTimeout(callback: () => void, delay: number): NodeJS.Timeout {
+    if (delay > BackgroundJobScheduler.MAX_TIMEOUT_MS) {
+      this.logger.warn('タイムアウト値が制限を超えています。上限値を使用します', {
+        requestedDelay: delay,
+        maxDelay: BackgroundJobScheduler.MAX_TIMEOUT_MS,
+        requestedDays: Math.round(delay / (24 * 60 * 60 * 1000)),
+        maxDays: Math.round(BackgroundJobScheduler.MAX_TIMEOUT_MS / (24 * 60 * 60 * 1000))
+      });
+      delay = BackgroundJobScheduler.MAX_TIMEOUT_MS;
+    }
+    
+    return setTimeout(callback, delay);
   }
 
   /**
@@ -214,7 +234,7 @@ export class BackgroundJobScheduler {
 
     const timeUntilExecution = scheduledTime.getTime() - now.getTime();
 
-    const timeoutId = setTimeout(() => {
+    const timeoutId = this.safeSetTimeout(() => {
       job().finally(() => {
         // 次の実行をスケジュール（24時間後）
         this.scheduleDaily(jobName, hour, minute, job);
@@ -249,7 +269,7 @@ export class BackgroundJobScheduler {
 
     const timeUntilExecution = scheduledTime.getTime() - now.getTime();
 
-    const timeoutId = setTimeout(() => {
+    const timeoutId = this.safeSetTimeout(() => {
       job().finally(() => {
         // 次の実行をスケジュール（1時間後）
         this.scheduleHourly(jobName, minute, job);
@@ -280,13 +300,13 @@ export class BackgroundJobScheduler {
         this.logger.error('インターバルジョブエラー', error, { jobName });
       } finally {
         // 次の実行をスケジュール
-        const timeoutId = setTimeout(execute, intervalMs);
+        const timeoutId = this.safeSetTimeout(execute, intervalMs);
         this.scheduledJobs.set(jobName, timeoutId);
       }
     };
 
     // 初回実行は少し遅らせる（起動直後の負荷軽減）
-    const timeoutId = setTimeout(execute, 30000); // 30秒後に初回実行
+    const timeoutId = this.safeSetTimeout(execute, 30000); // 30秒後に初回実行
     this.scheduledJobs.set(jobName, timeoutId);
 
     this.logger.info('インターバルジョブスケジュール', {
@@ -320,7 +340,7 @@ export class BackgroundJobScheduler {
 
     const timeUntilExecution = scheduledTime.getTime() - now.getTime();
 
-    const timeoutId = setTimeout(() => {
+    const timeoutId = this.safeSetTimeout(() => {
       job().finally(() => {
         // 次の実行をスケジュール（1年後）
         this.scheduleYearly(jobName, month, day, hour, minute, job);
@@ -360,7 +380,7 @@ export class BackgroundJobScheduler {
 
     const timeUntilExecution = scheduledTime.getTime() - now.getTime();
 
-    const timeoutId = setTimeout(() => {
+    const timeoutId = this.safeSetTimeout(() => {
       job().finally(() => {
         // 次の実行をスケジュール（1ヶ月後）
         this.scheduleMonthly(jobName, day, hour, minute, job);

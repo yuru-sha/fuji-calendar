@@ -10,14 +10,14 @@ import {
 } from '../../shared/types';
 import { getComponentLogger, StructuredLogger } from '../../shared/utils/logger';
 
-import { getDatabase } from '../database/connection';
+// import { getDatabase } from '../database/connection'; // PostgreSQL移行により無効化
 
 export class HistoricalEventsModel {
-  private db: Database;
+  // private db: Database; // PostgreSQL移行により無効化
   private logger: StructuredLogger;
 
   constructor() {
-    this.db = getDatabase().getRawDb();
+    // this.db = getDatabase().getRawDb(); // PostgreSQL移行により無効化
     this.logger = getComponentLogger('historical-events');
   }
 

@@ -2,8 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 
-import { initializeDatabase } from './database/connection';
-import { initializeUnifiedDatabase } from './database/connection-unified';
+// import { initializeDatabase } from './database/connection'; // SQLite削除により不要
+// import { initializeUnifiedDatabase } from './database/connection-unified'; // 一時的に無効化
 import { securityHeaders, apiRateLimit, adminApiRateLimit, authRateLimit, sanitizeInput, detectSQLInjection } from './middleware/security';
 import { authenticateAdmin } from './middleware/auth';
 import { 
@@ -20,14 +20,15 @@ import { getComponentLogger } from '../shared/utils/logger';
 import CalendarController from './controllers/CalendarController';
 import AdminController from './controllers/AdminController';
 import AuthController from './controllers/AuthController';
-import HistoricalController from './controllers/HistoricalController';
+// import HistoricalController from './controllers/HistoricalController'; // 一時的に無効化
 import PrismaAdminController from './controllers/PrismaAdminController';
 
-import { LocationModel } from './models/Location';
-import BackgroundJobScheduler from './services/BackgroundJobScheduler';
+// import { LocationModel } from './models/Location'; // 一時的に無効化
+// import BackgroundJobScheduler from './services/BackgroundJobScheduler'; // 一時的に無効化
 import BackgroundJobSchedulerPrisma from './services/BackgroundJobSchedulerPrisma';
-import { queueService } from './services/QueueService';
+// import { queueService } from './services/QueueService'; // 一時的に無効化
 import { calendarServicePrisma } from './services/CalendarServicePrisma';
+// import { queueService } from './services/QueueService'; // 一時的に無効化
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -62,21 +63,19 @@ app.use(express.urlencoded({ extended: true }));
 app.use(sanitizeInput);
 app.use(detectSQLInjection);
 
-// 静的ファイル配信（本番環境）
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../client')));
-}
+// 静的ファイル配信（開発・本番共通）
+app.use(express.static(path.join(__dirname, '../../dist/client')));
 
 // コントローラーのインスタンス化
 const calendarController = new CalendarController();
 const adminController = new AdminController();
 const authController = new AuthController();
-const historicalController = new HistoricalController();
+// const historicalController = new HistoricalController(); // 一時的に無効化
 const prismaAdminController = new PrismaAdminController();
-const locationModel = new LocationModel();
+// const locationModel = new LocationModel(); // 一時的に無効化
 
 // バックグラウンドジョブスケジューラー
-const backgroundScheduler = new BackgroundJobScheduler();
+// const backgroundScheduler = new BackgroundJobScheduler(); // 一時的に無効化
 const backgroundSchedulerPrisma = new BackgroundJobSchedulerPrisma();
 
 // ヘルスチェックエンドポイント
@@ -102,7 +101,8 @@ app.post('/api/admin/login', authRateLimit, authController.login.bind(authContro
 app.post('/api/admin/logout', authRateLimit, authController.logout.bind(authController));
 app.get('/api/admin/verify', authRateLimit, authController.verifyToken.bind(authController));
 
-// 過去データAPI（パブリック）
+// 過去データAPI（パブリック）- 一時的に無効化
+/*
 app.get('/api/historical/search', historicalController.searchEvents.bind(historicalController));
 app.get('/api/historical/stats/yearly', historicalController.getYearlyStats.bind(historicalController));
 app.get('/api/historical/monthly/:locationId', historicalController.getMonthlyHistory.bind(historicalController));
@@ -110,6 +110,7 @@ app.get('/api/historical/overview', historicalController.getDataOverview.bind(hi
 
 // 過去データ投稿API（認証不要、ただし将来的には認証を検討）
 app.post('/api/historical/report-success', historicalController.reportPhotoSuccess.bind(historicalController));
+*/
 
 // 管理者用API（管理者レート制限 + 認証）
 app.get('/api/admin/locations', adminApiRateLimit, authenticateAdmin, adminController.getLocations.bind(adminController));
@@ -119,8 +120,8 @@ app.delete('/api/admin/locations/:id', adminApiRateLimit, authenticateAdmin, adm
 app.post('/api/admin/reverse-geocode', adminApiRateLimit, authenticateAdmin, adminController.reverseGeocode.bind(adminController));
 app.put('/api/admin/password', adminApiRateLimit, authenticateAdmin, adminController.changePassword.bind(adminController));
 
-// 管理者用過去データAPI
-app.post('/api/admin/historical/add-observed', adminApiRateLimit, authenticateAdmin, historicalController.addObservedEvent.bind(historicalController));
+// 管理者用過去データAPI - 一時的に無効化
+// app.post('/api/admin/historical/add-observed', adminApiRateLimit, authenticateAdmin, historicalController.addObservedEvent.bind(historicalController));
 
 // Prismaベース管理者API
 app.get('/api/admin/prisma/health/:year?', adminApiRateLimit, authenticateAdmin, prismaAdminController.getSystemHealth.bind(prismaAdminController));
@@ -130,7 +131,8 @@ app.get('/api/admin/prisma/stats', adminApiRateLimit, authenticateAdmin, prismaA
 app.get('/api/admin/prisma/stats/:year', adminApiRateLimit, authenticateAdmin, prismaAdminController.getYearStats.bind(prismaAdminController));
 app.post('/api/admin/prisma/maintenance', adminApiRateLimit, authenticateAdmin, prismaAdminController.performMaintenance.bind(prismaAdminController));
 
-// キャッシュ管理API（管理者用）
+// キャッシュ管理API（管理者用）- 一時的に無効化
+/*
 app.get('/api/admin/cache/stats', adminApiRateLimit, authenticateAdmin, async (req, res) => {
   try {
     const stats = await backgroundScheduler.batchService.getCacheStatistics();
@@ -149,7 +151,10 @@ app.get('/api/admin/cache/stats', adminApiRateLimit, authenticateAdmin, async (r
     });
   }
 });
+*/
 
+// 一時的に無効化
+/*
 app.post('/api/admin/cache/precompute', authenticateAdmin, async (req, res) => {
   try {
     const { monthsAhead = 2 } = req.body;
@@ -178,8 +183,10 @@ app.get('/api/admin/background/status', authenticateAdmin, (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+*/
 
-// 年次メンテナンス手動実行
+// 年次メンテナンス手動実行 - 一時的に無効化
+/*
 app.post('/api/admin/background/yearly-maintenance', authenticateAdmin, async (req, res) => {
   try {
     const { type } = req.body; // 'preparation', 'verification', 'archive'
@@ -265,8 +272,10 @@ app.post('/api/admin/background/monthly-maintenance', authenticateAdmin, async (
     });
   }
 });
+*/
 
-// キューシステムの状態確認
+// キューシステムの状態確認 - 一時的に無効化
+/*
 app.get('/api/admin/queue/stats', authenticateAdmin, async (req, res) => {
   try {
     const stats = await queueService.getQueueStats();
@@ -285,8 +294,10 @@ app.get('/api/admin/queue/stats', authenticateAdmin, async (req, res) => {
     });
   }
 });
+*/
 
-// 特定ジョブの進捗確認
+// 特定ジョブの進捗確認 - 一時的に無効化
+/*
 app.get('/api/admin/queue/job/:jobId/:queueType', authenticateAdmin, async (req, res) => {
   try {
     const { jobId, queueType } = req.params;
@@ -324,8 +335,10 @@ app.get('/api/admin/queue/job/:jobId/:queueType', authenticateAdmin, async (req,
     });
   }
 });
+*/
 
-// 手動でのバッチ計算起動
+// 手動でのバッチ計算起動 - 一時的に無効化
+/*
 app.post('/api/admin/queue/calculate', authenticateAdmin, async (req, res) => {
   try {
     const { locationId, year, month, day, priority = 'medium' } = req.body;
@@ -386,8 +399,10 @@ app.post('/api/admin/queue/calculate', authenticateAdmin, async (req, res) => {
     });
   }
 });
+*/
 
-// 過去データ計算起動
+// 過去データ計算起動 - 一時的に無効化
+/*
 app.post('/api/admin/queue/calculate-historical', authenticateAdmin, async (req, res) => {
   try {
     const { locationId, startYear, endYear, priority = 'low' } = req.body;
@@ -451,11 +466,15 @@ app.post('/api/admin/queue/calculate-historical', authenticateAdmin, async (req,
     });
   }
 });
+*/
 
-// 撮影地点API
+// 撮影地点API（Prismaベース）
 app.get('/api/locations', async (req, res) => {
   try {
-    const locations = await locationModel.findAll();
+    const { PrismaClientManager } = await import('./database/prisma');
+    const prisma = PrismaClientManager.getInstance();
+    const locations = await prisma.location.findMany();
+    
     serverLogger.info('撮影地点一覧取得成功', {
       locationCount: locations.length,
       requestId: req.requestId
@@ -486,7 +505,12 @@ app.get('/api/locations/:id', async (req, res) => {
       });
     }
 
-    const location = await locationModel.findById(id);
+    const { PrismaClientManager } = await import('./database/prisma');
+    const prisma = PrismaClientManager.getInstance();
+    const location = await prisma.location.findUnique({
+      where: { id }
+    });
+    
     if (!location) {
       return res.status(404).json({
         error: 'Location not found',
@@ -511,12 +535,10 @@ app.get('/api/locations/:id', async (req, res) => {
   }
 });
 
-// 本番環境でのフロントエンド配信
-if (process.env.NODE_ENV === 'production') {
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../client/index.html'));
-  });
-}
+// フロントエンド配信（開発・本番共通）
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../../dist/client/index.html'));
+});
 
 // エラーハンドリング
 app.use(errorLoggingMiddleware);
@@ -549,22 +571,18 @@ async function startServer() {
   try {
     serverLogger.info('データベース初期化開始');
     
-    // 環境変数でデータベースタイプを切り替え
-    const dbType = process.env.DB_TYPE || 'sqlite';
-    
-    if (dbType === 'postgres') {
-      await initializeUnifiedDatabase();
-      serverLogger.info('PostgreSQL データベース初期化完了');
-    } else {
-      await initializeDatabase();
-      serverLogger.info('SQLite データベース初期化完了');
+    // Prismaベースのデータベース接続テスト
+    const { PrismaClientManager } = await import('./database/prisma');
+    const isConnected = await PrismaClientManager.testConnection();
+    if (!isConnected) {
+      throw new Error('Prisma database connection failed');
     }
+    serverLogger.info('Prisma データベース接続完了');
     
     // バックグラウンドスケジューラー開始
-    backgroundScheduler.start();
+    // backgroundScheduler.start(); // 一時的に無効化
     backgroundSchedulerPrisma.start();
     serverLogger.info('バックグラウンドジョブスケジューラー開始', {
-      legacyScheduler: backgroundScheduler.getStatus(),
       prismaScheduler: backgroundSchedulerPrisma.getStatus()
     });
     
@@ -575,7 +593,7 @@ async function startServer() {
         endpoint: `http://localhost:${PORT}/api`,
         logLevel: process.env.LOG_LEVEL || 'info',
         fileLogging: process.env.ENABLE_FILE_LOGGING === 'true',
-        backgroundJobs: backgroundScheduler.getStatus()
+        backgroundJobs: backgroundSchedulerPrisma.getStatus()
       });
     });
   } catch (error) {
@@ -587,17 +605,13 @@ async function startServer() {
 // グレースフルシャットダウン
 process.on('SIGTERM', async () => {
   serverLogger.info('SIGTERM受信 - グレースフルシャットダウン開始');
-  backgroundScheduler.stop();
   backgroundSchedulerPrisma.stop();
-  await queueService.shutdown();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   serverLogger.info('SIGINT受信 - グレースフルシャットダウン開始');
-  backgroundScheduler.stop();
   backgroundSchedulerPrisma.stop();
-  await queueService.shutdown();
   process.exit(0);
 });
 

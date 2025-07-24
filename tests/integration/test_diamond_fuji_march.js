@@ -12,12 +12,8 @@ const testLocation = {
   fujiDistance: 70
 };
 
-// 富士山座標
-const FUJI_COORDINATES = {
-  latitude: 35.3606,
-  longitude: 138.7274,
-  elevation: 3776
-};
+// 共通定数をインポート
+const { FUJI_COORDINATES } = require('../../src/shared/types');
 
 /**
  * 修正されたダイヤモンド富士シーズン判定

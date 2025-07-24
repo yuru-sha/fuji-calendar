@@ -13,6 +13,10 @@ interface LocationFormData {
   description: string;
   accessInfo: string;
   warnings: string;
+  parkingInfo: string;
+  fujiAzimuth: number | '';
+  fujiElevation: number | '';
+  fujiDistance: number | '';
 }
 
 const AdminPage: React.FC = () => {
@@ -31,7 +35,11 @@ const AdminPage: React.FC = () => {
     elevation: '',
     description: '',
     accessInfo: '',
-    warnings: ''
+    warnings: '',
+    parkingInfo: '',
+    fujiAzimuth: '',
+    fujiElevation: '',
+    fujiDistance: ''
   });
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -174,7 +182,11 @@ const AdminPage: React.FC = () => {
       elevation: '',
       description: '',
       accessInfo: '',
-      warnings: ''
+      warnings: '',
+      parkingInfo: '',
+      fujiAzimuth: '',
+      fujiElevation: '',
+      fujiDistance: ''
     });
     setEditingLocation(null);
   };
@@ -202,7 +214,12 @@ const AdminPage: React.FC = () => {
         elevation: Number(formData.elevation),
         description: formData.description || undefined,
         accessInfo: formData.accessInfo || undefined,
-        warnings: formData.warnings || undefined
+        parkingInfo: formData.parkingInfo || undefined,
+        warnings: formData.warnings || undefined,
+        // 富士山事前計算項目（手動入力された場合のみ送信）
+        fujiAzimuth: formData.fujiAzimuth !== '' ? Number(formData.fujiAzimuth) : undefined,
+        fujiElevation: formData.fujiElevation !== '' ? Number(formData.fujiElevation) : undefined,
+        fujiDistance: formData.fujiDistance !== '' ? Number(formData.fujiDistance) : undefined
       };
 
       const url = editingLocation 
@@ -279,7 +296,11 @@ const AdminPage: React.FC = () => {
       elevation: location.elevation,
       description: location.description || '',
       accessInfo: location.accessInfo || '',
-      warnings: location.warnings || ''
+      warnings: location.warnings || '',
+      parkingInfo: location.parkingInfo || '',
+      fujiAzimuth: location.fujiAzimuth || '',
+      fujiElevation: location.fujiElevation || '',
+      fujiDistance: location.fujiDistance || ''
     });
   };
 
@@ -706,6 +727,17 @@ const AdminPage: React.FC = () => {
             </div>
 
             <div className={styles.formGroup}>
+              <label htmlFor="parkingInfo">駐車場情報</label>
+              <textarea
+                id="parkingInfo"
+                value={formData.parkingInfo}
+                onChange={(e) => setFormData(prev => ({ ...prev, parkingInfo: e.target.value }))}
+                placeholder="駐車場の有無、料金、台数など"
+                rows={3}
+              />
+            </div>
+
+            <div className={styles.formGroup}>
               <label htmlFor="warnings">注意事項</label>
               <textarea
                 id="warnings"
@@ -809,6 +841,9 @@ const AdminPage: React.FC = () => {
                   <p><strong>座標:</strong> {location.latitude}, {location.longitude}</p>
                   <p><strong>標高:</strong> {location.elevation.toFixed(1)}m</p>
                   {location.description && <p><strong>説明:</strong> {location.description}</p>}
+                  {location.accessInfo && <p><strong>アクセス:</strong> {location.accessInfo}</p>}
+                  {location.parkingInfo && <p><strong>駐車場:</strong> {location.parkingInfo}</p>}
+                  {location.warnings && <p><strong>注意事項:</strong> {location.warnings}</p>}
                 </div>
                 
                 <div className={styles.locationActions}>

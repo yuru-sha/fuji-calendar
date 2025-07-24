@@ -10,6 +10,7 @@ export interface Location {
   description?: string;
   accessInfo?: string;
   warnings?: string;
+  parkingInfo?: string;    // 駐車場情報
   // 富士山への事前計算値（高速化のため）
   fujiAzimuth?: number;    // 富士山への方位角（度）
   fujiElevation?: number;  // 富士山頂への仰角（度）
@@ -259,9 +260,9 @@ export interface MoonPosition {
 }
 
 // 富士山の座標定数（剣ヶ峰）
-// 国土地理院公式データ: 35°21'39" N, 138°43'39" E
+// 国土地理院公式データ: 35°21'38" N, 138°43'39" E
 export const FUJI_COORDINATES = {
-  latitude: 35.3608333,   // 35°21'39" = 35.3608333°
+  latitude: 35.3605556,   // 35°21'38" = 35.3605556°
   longitude: 138.7275,    // 138°43'39" = 138.7275°
   elevation: 3776         // 剣ヶ峰の標高（最高地点）
 } as const;

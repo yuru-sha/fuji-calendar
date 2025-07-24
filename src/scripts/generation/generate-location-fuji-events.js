@@ -1,34 +1,36 @@
-import sqlite3 from 'sqlite3';
-import { promisify } from 'util';
-import path from 'path';
-import { fileURLToPath } from 'url';
+#!/usr/bin/env node
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+/**
+ * 地点別富士現象イベント生成スクリプト（PostgreSQL + Prisma版）
+ * celestial_orbit_dataとlocationsからlocation_fuji_eventsを生成
+ */
 
-// データベース接続
-const dbPath = path.join(__dirname, '../data/fuji-calendar.db');
-const db = new sqlite3.Database(dbPath);
+const path = require('path');
+require('ts-node').register({
+  project: path.join(__dirname, '../../../tsconfig.server.json')
+});
 
-// Promisify database methods
-const dbRun = promisify(db.run.bind(db));
-const dbAll = promisify(db.all.bind(db));
-const dbGet = promisify(db.get.bind(db));
+// プロセス終了時のクリーンアップ
+process.on('SIGINT', async () => {
+  console.log('\n⚠️  処理を中断しています...');
+  try {
+    const { PrismaClientManager } = require('../../server/database/prisma');
+    await PrismaClientManager.disconnect();
+    console.log('✅ データベース接続をクリーンアップしました');
+  } catch (error) {
+    console.error('❌ クリーンアップエラー:', error.message);
+  }
+  process.exit(0);
+});
 
-// 富士山の座標
-const FUJI_COORDS = {
-  latitude: 35.3606,
-  longitude: 138.7274,
-  elevation: 3776
-};
+const { prisma } = require('../../server/database/prisma');
+const { astronomicalCalculator } = require('../../server/services/AstronomicalCalculatorAstronomyEngine');
+
+// 共通定数をインポート
+const { FUJI_COORDINATES } = require('../../shared/types');
 
 /**
  * 2点間の方位角を計算（球面三角法）
- * @param {number} lat1 始点の緯度（度）
- * @param {number} lon1 始点の経度（度）
- * @param {number} lat2 終点の緯度（度）
- * @param {number} lon2 終点の経度（度）
- * @returns {number} 方位角（度、北を0度として時計回り）
  */
 function calculateAzimuth(lat1, lon1, lat2, lon2) {
   const toRad = (deg) => deg * Math.PI / 180;
@@ -47,208 +49,302 @@ function calculateAzimuth(lat1, lon1, lat2, lon2) {
 }
 
 /**
- * ダイヤモンド富士の判定
- * @param {Object} celestialData 天体データ
- * @param {number} fujiAzimuth 富士山への方位角
- * @returns {boolean} ダイヤモンド富士の条件を満たすか
+ * 2点間の距離を計算（Haversine formula）
  */
-function isDiamondFuji(celestialData, fujiAzimuth) {
-  if (celestialData.celestial_type !== 'sun') return false;
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371; // 地球の半径（km）
+  const toRad = (deg) => deg * Math.PI / 180;
   
-  // 時間帯の確認（ドキュメントより）
-  const hour = celestialData.hour;
-  const isMorning = (hour >= 4 && hour < 10); // 4:00-9:59
-  const isAfternoon = (hour >= 14 && hour < 20); // 14:00-19:59
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   
-  if (!isMorning && !isAfternoon) return false;
-  
-  // 方位角の差を計算（±1.5度以内）
-  const azimuthDiff = Math.abs(celestialData.azimuth - fujiAzimuth);
-  const normalizedDiff = Math.min(azimuthDiff, 360 - azimuthDiff);
-  
-  // 高度が水平線近く（-2度〜10度）かつ方位角が近い
-  return celestialData.elevation >= -2 && 
-         celestialData.elevation <= 10 && 
-         normalizedDiff <= 1.5;
+  return R * c;
 }
 
 /**
- * パール富士の判定
- * @param {Object} celestialData 天体データ
- * @param {number} fujiAzimuth 富士山への方位角
- * @returns {boolean} パール富士の条件を満たすか
+ * 地点に富士山データを設定（高精度版）
  */
-function isPearlFuji(celestialData, fujiAzimuth) {
-  if (celestialData.celestial_type !== 'moon') return false;
+async function setupLocationFujiData() {
+  console.log('🗻 地点に富士山データを設定中（高精度計算）...');
   
-  // 方位角の差を計算（±1.5度以内）
+  const locations = await prisma.location.findMany({
+    where: {
+      OR: [
+        { fujiAzimuth: null },
+        { fujiElevation: null },
+        { fujiDistance: null }
+      ]
+    }
+  });
+  
+  for (const location of locations) {
+    // AstronomicalCalculatorAstronomyEngineの高精度計算を使用
+    const fujiAzimuth = astronomicalCalculator.calculateBearingToFuji(location);
+    const fujiElevation = astronomicalCalculator.calculateElevationToFuji(location);
+    const fujiDistance = astronomicalCalculator.calculateDistanceToFuji(location);
+    
+    await prisma.location.update({
+      where: { id: location.id },
+      data: {
+        fujiAzimuth: Math.round(fujiAzimuth * 1000) / 1000,
+        fujiElevation: Math.round(fujiElevation * 1000) / 1000,
+        fujiDistance: Math.round(fujiDistance * 100) / 100
+      }
+    });
+    
+    console.log(`  ✅ ${location.name}: 方位角${fujiAzimuth.toFixed(3)}°, 仰角${fujiElevation.toFixed(6)}°, 距離${fujiDistance.toFixed(1)}km`);
+  }
+}
+
+/**
+ * ダイヤモンド富士の判定（高精度版）
+ */
+function isDiamondFuji(celestialData, fujiAzimuth, fujiElevation, fujiDistance) {
+  if (celestialData.celestialType !== 'sun') return false;
+  
+  // 時間帯の確認（朝：4-10時、夕：14-20時）
+  const hour = celestialData.hour;
+  const isMorning = (hour >= 4 && hour < 10);
+  const isEvening = (hour >= 14 && hour < 20);
+  
+  if (!isMorning && !isEvening) return false;
+  
+  // 距離に応じた方位角許容範囲（高精度版と同じ）
+  let azimuthTolerance;
+  if (fujiDistance <= 50) azimuthTolerance = 0.25;
+  else if (fujiDistance <= 100) azimuthTolerance = 0.4;
+  else azimuthTolerance = 0.6;
+  
+  // 方位角の差を計算
   const azimuthDiff = Math.abs(celestialData.azimuth - fujiAzimuth);
-  const normalizedDiff = Math.min(azimuthDiff, 360 - azimuthDiff);
+  const normalizedAzimuthDiff = Math.min(azimuthDiff, 360 - azimuthDiff);
   
-  // 高度が水平線近く（-2度〜10度）かつ方位角が近い
-  // 満月に近い（照明度50%以上）ほど良い
-  return celestialData.elevation >= -2 && 
-         celestialData.elevation <= 10 && 
-         normalizedDiff <= 1.5 &&
-         celestialData.moon_illumination >= 0.3; // 30%以上の明るさ
+  // 仰角の差を計算（±0.25度以内）
+  const elevationDiff = Math.abs(celestialData.elevation - fujiElevation);
+  
+  return normalizedAzimuthDiff <= azimuthTolerance && elevationDiff <= 0.25;
+}
+
+/**
+ * パール富士の判定（高精度版）
+ */
+function isPearlFuji(celestialData, fujiAzimuth, fujiElevation, fujiDistance) {
+  if (celestialData.celestialType !== 'moon') return false;
+  
+  // 距離に応じたパール富士用方位角許容範囲（ダイヤモンド富士の3-4倍）
+  let azimuthTolerance;
+  if (fujiDistance <= 50) azimuthTolerance = 1.0;
+  else if (fujiDistance <= 100) azimuthTolerance = 2.0;
+  else azimuthTolerance = 3.0;
+  
+  // 方位角の差を計算
+  const azimuthDiff = Math.abs(celestialData.azimuth - fujiAzimuth);
+  const normalizedAzimuthDiff = Math.min(azimuthDiff, 360 - azimuthDiff);
+  
+  // 仰角の差を計算（±4.0度以内）
+  const elevationDiff = Math.abs(celestialData.elevation - fujiElevation);
+  
+  // 満月に近い（照明度70%以上）ほど良い
+  return normalizedAzimuthDiff <= azimuthTolerance && 
+         elevationDiff <= 4.0 &&
+         celestialData.moonIllumination >= 0.7;
 }
 
 /**
  * 品質評価
- * @param {Object} celestialData 天体データ
- * @param {number} azimuthDiff 方位角の差
- * @returns {string} 品質評価（excellent/good/fair/poor）
  */
-function evaluateQuality(celestialData, azimuthDiff) {
-  if (celestialData.celestial_type === 'sun') {
-    if (azimuthDiff <= 0.5 && celestialData.elevation >= 0) return 'excellent';
-    if (azimuthDiff <= 1.0 && celestialData.elevation >= -1) return 'good';
-    if (azimuthDiff <= 1.5) return 'fair';
-  } else {
-    // 月の場合は照明度も考慮
-    const illumination = celestialData.moon_illumination || 0;
-    if (azimuthDiff <= 0.5 && illumination >= 0.8) return 'excellent';
-    if (azimuthDiff <= 1.0 && illumination >= 0.6) return 'good';
-    if (azimuthDiff <= 1.5 && illumination >= 0.3) return 'fair';
+function evaluateQuality(azimuthDiff, elevationDiff, celestialType) {
+  const totalDiff = Math.sqrt(azimuthDiff ** 2 + elevationDiff ** 2);
+  
+  if (celestialType === 'sun') {
+    if (totalDiff <= 0.5) return 'perfect';
+    if (totalDiff <= 1.0) return 'excellent';
+    if (totalDiff <= 1.5) return 'good';
+    return 'fair';
+  } else { // moon
+    if (totalDiff <= 1.0) return 'perfect';
+    if (totalDiff <= 2.0) return 'excellent';
+    if (totalDiff <= 3.0) return 'good';
+    return 'fair';
   }
-  return 'poor';
 }
 
-// メイン処理
-async function generateLocationFujiEvents() {
-  console.log('location_fuji_eventsテーブルの生成を開始します...');
+async function main() {
+  console.log('🚀 地点別富士現象イベント生成開始 - 2025年データ');
+  console.log('📊 celestial_orbit_dataとlocationsからlocation_fuji_eventsを生成');
+  console.log('⏰ 処理時間: 10-15分程度かかります');
+  console.log('');
   
-  // 既存データをクリア
-  await dbRun('DELETE FROM location_fuji_events');
+  const startTime = Date.now();
+  const year = 2025;
   
-  // 全地点を取得
-  const locations = await dbAll('SELECT * FROM locations');
-  console.log(`${locations.length}地点のデータを処理します`);
-  
-  // 各地点について処理
-  for (const location of locations) {
-    console.log(`\n処理中: ${location.name} (ID: ${location.id})`);
+  try {
+    // データベース接続テスト
+    console.log('🔍 データベース接続をテスト中...');
+    const { PrismaClientManager } = require('../../server/database/prisma');
+    const isConnected = await PrismaClientManager.testConnection();
+    if (!isConnected) {
+      throw new Error('データベースに接続できません');
+    }
+    console.log('✅ データベース接続OK');
     
-    // 富士山への方位角を計算
-    const fujiAzimuth = calculateAzimuth(
-      location.latitude, 
-      location.longitude,
-      FUJI_COORDS.latitude, 
-      FUJI_COORDS.longitude
-    );
+    console.log(`⏰ ${new Date().toLocaleString('ja-JP')} - 計算開始`);
     
-    console.log(`  富士山への方位角: ${fujiAzimuth.toFixed(1)}度`);
+    // Step 1: 地点の富士山データを設定
+    await setupLocationFujiData();
     
-    // 年間の天体データを取得（2025年）
-    const celestialData = await dbAll(`
-      SELECT * FROM celestial_orbit_data 
-      WHERE date BETWEEN '2025-01-01' AND '2025-12-31'
-      AND visible = 1
-      ORDER BY date, time
-    `);
+    // Step 2: 既存の現象データをクリア
+    const startDate = new Date(year, 0, 1);
+    const endDate = new Date(year + 1, 0, 1);
     
-    const events = [];
-    const processedDates = new Set();
+    console.log('\n🗑️  既存データをクリア中...');
+    const deleteResult = await prisma.locationFujiEvent.deleteMany({
+      where: {
+        eventDate: {
+          gte: startDate,
+          lt: endDate
+        }
+      }
+    });
+    console.log(`✅ ${deleteResult.count}件の既存データを削除しました`);
     
-    // 各天体データをチェック
-    for (const data of celestialData) {
-      const dateKey = `${data.date}-${data.celestial_type}`;
+    // Step 3: 地点を取得
+    console.log('\n📍 撮影地点を取得中...');
+    const locations = await prisma.location.findMany({
+      where: {
+        fujiAzimuth: { not: null },
+        fujiElevation: { not: null },
+        fujiDistance: { not: null }
+      }
+    });
+    
+    console.log(`✅ ${locations.length}地点を取得しました`);
+    
+    let totalEvents = 0;
+    let diamondEvents = 0;
+    let pearlEvents = 0;
+    
+    // Step 4: 各地点で富士現象を計算
+    for (let i = 0; i < locations.length; i++) {
+      const location = locations[i];
+      console.log(`\n📍 地点 ${i + 1}/${locations.length}: ${location.name}`);
+      console.log(`   富士山 - 方位角: ${location.fujiAzimuth}°, 仰角: ${location.fujiElevation}°, 距離: ${location.fujiDistance}km`);
       
-      // 同じ日の同じ天体は1回だけ処理
-      if (processedDates.has(dateKey)) continue;
+      // 天体データを取得（方位角・仰角が近いもの）
+      const celestialData = await prisma.celestialOrbitData.findMany({
+        where: {
+          date: { gte: startDate, lt: endDate },
+          azimuth: {
+            gte: location.fujiAzimuth - 2.5,
+            lte: location.fujiAzimuth + 2.5
+          },
+          elevation: {
+            gte: location.fujiElevation - 2.0,
+            lte: location.fujiElevation + 2.0
+          },
+          visible: true
+        },
+        orderBy: [{ date: 'asc' }, { time: 'asc' }]
+      });
       
-      const azimuthDiff = Math.abs(data.azimuth - fujiAzimuth);
-      const normalizedDiff = Math.min(azimuthDiff, 360 - azimuthDiff);
+      console.log(`   天体データ候補: ${celestialData.length}件`);
       
-      // ダイヤモンド富士チェック
-      if (isDiamondFuji(data, fujiAzimuth)) {
-        processedDates.add(dateKey);
-        const timeOfDay = data.hour < 12 ? 'sunrise' : 'sunset';
+      let locationDiamondCount = 0;
+      let locationPearlCount = 0;
+      
+      // 各天体データをチェック
+      for (const data of celestialData) {
+        let eventType = null;
+        let isEvent = false;
         
-        events.push({
-          location_id: location.id,
-          event_date: data.date,
-          event_type: `diamond_${timeOfDay}`,
-          event_time: data.time,
-          celestial_azimuth: data.azimuth,
-          fuji_azimuth: fujiAzimuth,
-          azimuth_difference: normalizedDiff,
-          moon_phase: null,
-          moon_illumination: null,
-          quality: evaluateQuality(data, normalizedDiff),
-          observation_notes: `${timeOfDay === 'sunrise' ? '日の出' : '日没'}時のダイヤモンド富士`
-        });
+        // ダイヤモンド富士判定
+        if (isDiamondFuji(data, location.fujiAzimuth, location.fujiElevation, location.fujiDistance)) {
+          eventType = data.hour < 12 ? 'diamond_sunrise' : 'diamond_sunset';
+          isEvent = true;
+          locationDiamondCount++;
+          diamondEvents++;
+        }
+        // パール富士判定
+        else if (isPearlFuji(data, location.fujiAzimuth, location.fujiElevation, location.fujiDistance)) {
+          eventType = 'pearl_moonrise'; // 簡易実装
+          isEvent = true;
+          locationPearlCount++;
+          pearlEvents++;
+        }
+        
+        if (isEvent) {
+          const azimuthDiff = Math.abs(data.azimuth - location.fujiAzimuth);
+          const elevationDiff = Math.abs(data.elevation - location.fujiElevation);
+          const qualityScore = Math.max(0, 1.0 - (azimuthDiff * 0.3 + elevationDiff * 0.4));
+          const accuracy = evaluateQuality(azimuthDiff, elevationDiff, data.celestialType);
+          
+          await prisma.locationFujiEvent.create({
+            data: {
+              locationId: location.id,
+              eventDate: data.date,
+              eventTime: data.time,
+              eventType,
+              azimuth: data.azimuth,
+              altitude: data.elevation,
+              qualityScore,
+              accuracy,
+              moonPhase: data.moonPhase,
+              moonIllumination: data.moonIllumination,
+              calculationYear: year
+            }
+          });
+          
+          totalEvents++;
+        }
       }
       
-      // パール富士チェック
-      if (isPearlFuji(data, fujiAzimuth)) {
-        processedDates.add(dateKey);
-        const timeOfDay = data.hour < 12 ? 'moonrise' : 'moonset';
-        
-        events.push({
-          location_id: location.id,
-          event_date: data.date,
-          event_type: `pearl_${timeOfDay}`,
-          event_time: data.time,
-          celestial_azimuth: data.azimuth,
-          fuji_azimuth: fujiAzimuth,
-          azimuth_difference: normalizedDiff,
-          moon_phase: data.moon_phase,
-          moon_illumination: data.moon_illumination,
-          quality: evaluateQuality(data, normalizedDiff),
-          observation_notes: `${timeOfDay === 'moonrise' ? '月の出' : '月の入り'}時のパール富士（月相: ${(data.moon_phase * 100).toFixed(0)}%）`
-        });
-      }
+      console.log(`   ✅ ダイヤモンド富士: ${locationDiamondCount}件, パール富士: ${locationPearlCount}件`);
     }
     
-    // イベントを挿入
-    if (events.length > 0) {
-      for (const event of events) {
-        await dbRun(`
-          INSERT INTO location_fuji_events (
-            location_id, event_date, event_type, event_time,
-            celestial_azimuth, fuji_azimuth, azimuth_difference,
-            moon_phase, moon_illumination, quality,
-            observation_notes, created_at, updated_at
-          ) VALUES (
-            ?, ?, ?, ?,
-            ?, ?, ?,
-            ?, ?, ?,
-            ?, datetime('now', '+9 hours'), datetime('now', '+9 hours')
-          )
-        `, [
-          event.location_id, event.event_date, event.event_type, event.event_time,
-          event.celestial_azimuth, event.fuji_azimuth, event.azimuth_difference,
-          event.moon_phase, event.moon_illumination, event.quality,
-          event.observation_notes
-        ]);
-      }
-      console.log(`  → ${events.length}件のイベントを登録`);
-    } else {
-      console.log(`  → イベントなし`);
+    const totalTime = Date.now() - startTime;
+    const totalMinutes = Math.round(totalTime / 1000 / 60 * 10) / 10;
+    
+    console.log('\n🎉 地点別富士現象イベント生成完了！');
+    console.log('═══════════════════════════════════════');
+    console.log(`年度: ${year}`);
+    console.log(`総実行時間: ${totalMinutes}分`);
+    console.log(`対象地点数: ${locations.length}地点`);
+    console.log(`最終イベント数: ${totalEvents.toLocaleString()}件`);
+    console.log(`ダイヤモンド富士: ${diamondEvents.toLocaleString()}件`);
+    console.log(`パール富士: ${pearlEvents.toLocaleString()}件`);
+    console.log(`平均イベント数/地点: ${Math.round(totalEvents / locations.length)}件`);
+    console.log('\n✅ location_fuji_eventsテーブルの準備が完了しました！');
+    
+  } catch (error) {
+    const totalTime = Date.now() - startTime;
+    const totalMinutes = Math.round(totalTime / 1000 / 60 * 10) / 10;
+    
+    console.error('\n💥 地点別富士現象イベント生成中にエラーが発生しました');
+    console.error(`実行時間: ${totalMinutes}分`);
+    console.error('エラー詳細:', error.message);
+    console.error('スタックトレース:');
+    console.error(error.stack);
+    
+    process.exit(1);
+  } finally {
+    // 最終クリーンアップ
+    try {
+      const { PrismaClientManager } = require('../../server/database/prisma');
+      await PrismaClientManager.disconnect();
+    } catch (error) {
+      // 無視
     }
   }
-  
-  // 統計情報
-  const stats = await dbAll(`
-    SELECT 
-      event_type,
-      COUNT(*) as count
-    FROM location_fuji_events
-    GROUP BY event_type
-  `);
-  
-  console.log('\n=== 生成結果 ===');
-  stats.forEach(stat => {
-    console.log(`${stat.event_type}: ${stat.count}件`);
-  });
-  
-  const total = await dbGet('SELECT COUNT(*) as count FROM location_fuji_events');
-  console.log(`\n合計: ${total.count}件のイベントを生成しました`);
-  
-  // データベースを閉じる
-  await new Promise((resolve) => db.close(resolve));
 }
 
-// 実行
-generateLocationFujiEvents().catch(console.error);
+console.log('⚠️  注意: この処理は10-15分程度時間がかかります');
+console.log('📊 celestial_orbit_dataとlocationsからlocation_fuji_eventsを直接生成します');
+console.log('🗻 地点の富士山データも自動設定されます');
+console.log('🚀 自動開始...');
+console.log('');
+
+main();

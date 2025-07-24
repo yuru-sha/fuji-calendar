@@ -2,6 +2,7 @@ import { prisma } from '../database/prisma';
 import { CelestialOrbitData, Prisma } from '@prisma/client';
 import { getComponentLogger, StructuredLogger } from '../../shared/utils/logger';
 import { astronomicalCalculator } from './AstronomicalCalculatorAstronomyEngine';
+import { FUJI_COORDINATES } from '../../shared/types';
 
 interface CelestialDataPoint {
   date: Date;
@@ -47,7 +48,7 @@ export class CelestialOrbitDataService {
 
       // 2週間ごとに処理してスクリプトの安定性を向上（途中で落ちても復旧しやすく）
       const startDate = new Date(year, 0, 1); // 年始
-      const endDate = new Date(year + 1, 0, 0); // 年末
+      const endDate = new Date(year, 11, 31); // 年末（12/31）
       let currentPeriodStart = new Date(startDate);
       let periodCount = 0;
       
@@ -196,7 +197,7 @@ export class CelestialOrbitDataService {
   }
 
   /**
-   * 1日分の5分刻み天体データを生成
+   * 1日分の1分刻み天体データを生成
    */
   private async generateDailyData(date: Date): Promise<CelestialDataPoint[]> {
     const dataPoints: CelestialDataPoint[] = [];
@@ -209,16 +210,21 @@ export class CelestialOrbitDataService {
     // DATE型カラム用の日付（UTC基準で作成してタイムゾーンズレを防ぐ）
     const dateOnly = new Date(Date.UTC(year, month, dayOfMonth, 0, 0, 0, 0));
 
-    // 24時間 × 12回（5分刻み）= 288データポイント/日
+    // 24時間 × 60回（1分刻み）= 1440データポイント/日
     for (let hour = 0; hour < 24; hour++) {
-      for (let minute = 0; minute < 60; minute += 5) {
+      for (let minute = 0; minute < 60; minute += 1) {
         // UTC時刻を直接作成してastronomy-engineに渡す
         const utcTime = new Date(Date.UTC(year, month, dayOfMonth, hour - 9, minute, 0));
         // データベース保存用のJST時刻
         const jstTime = new Date(year, month, dayOfMonth, hour, minute, 0);
 
         // 太陽データ（標準的な観測地点として富士山を使用）
-        const fujiLocation = { latitude: 35.3606, longitude: 138.7274, elevation: 3776, name: '富士山' };
+        const fujiLocation = { 
+          latitude: FUJI_COORDINATES.latitude, 
+          longitude: FUJI_COORDINATES.longitude, 
+          elevation: FUJI_COORDINATES.elevation, 
+          name: '富士山' 
+        };
         const sunPosition = await astronomicalCalculator.calculateSunPositionPrecise(utcTime, fujiLocation);
         const sunVisible = sunPosition.elevation > -6; // 薄明を考慮
 

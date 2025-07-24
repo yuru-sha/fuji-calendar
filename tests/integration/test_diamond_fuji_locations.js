@@ -1,11 +1,7 @@
 const Astronomy = require('astronomy-engine');
 
-// 富士山座標
-const FUJI_COORDINATES = {
-  latitude: 35.3606,
-  longitude: 138.7274,
-  elevation: 3776
-};
+// 共通定数をインポート
+const { FUJI_COORDINATES } = require('../../src/shared/types');
 
 // 実際にダイヤモンド富士が見える可能性の高い地点
 const testLocations = [

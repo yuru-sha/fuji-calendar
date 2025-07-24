@@ -67,7 +67,6 @@ model CelestialOrbitData {
   @@map("celestial_orbit_data")
 }
 
-
 model LocationFujiEvent {
   id               BigInt    @id @default(autoincrement())
   locationId       Int       @map("location_id")
@@ -92,7 +91,6 @@ model LocationFujiEvent {
   @@index([qualityScore(sort: Desc)], map: "idx_quality_score")
   @@map("location_fuji_events")
 }
-
 
 enum EventType {
   diamond_sunrise

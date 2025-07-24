@@ -18,10 +18,10 @@ export default defineConfig({
   },
   server: {
     host: '0.0.0.0',
-    port: 3001, // 開発時のフロントエンド専用ポート
+    port: 3000, // フロントエンド用ポート
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:3001', // バックエンドポート
         changeOrigin: true,
       },
     },

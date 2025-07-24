@@ -63,9 +63,8 @@ export class EventsCacheModel {
       const sql = `
         INSERT OR REPLACE INTO events_cache (
           cache_key, year, month, location_id, 
-          date_str, event_type, events_data, 
-          created_at, expires_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
+          events_data, event_count, expires_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
       `;
 
       const dateStr = options.day 

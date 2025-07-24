@@ -59,19 +59,19 @@ function calculateSimpleElevation(fromLat, fromLon, fromElev, toLat, toLon, toEl
   // Haversine formula for distance
   const R = 6371000; // Earth radius in meters
   const toRad = (deg) => deg * Math.PI / 180;
-  
+
   const dLat = toRad(toLat - fromLat);
   const dLon = toRad(toLon - fromLon);
-  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-            Math.cos(toRad(fromLat)) * Math.cos(toRad(toLat)) *
-            Math.sin(dLon/2) * Math.sin(dLon/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(fromLat)) * Math.cos(toRad(toLat)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   const distance = R * c;
-  
+
   // Simple elevation calculation
   const heightDiff = toElev - fromElev;
   const elevation = Math.atan(heightDiff / distance) * 180 / Math.PI;
-  
+
   return { distance, elevation };
 }
 
@@ -83,18 +83,17 @@ const UMIHOTARU_NORTH_SHORE = {
   name: '東京湾アクアライン・海ほたるPA北岸付近'
 };
 
-// 富士山の座標
-const FUJI_COORDS = {
-  latitude: 35 + 21/60 + 38/3600,   // 35.360556度
-  longitude: 138 + 43/60 + 39/3600, // 138.727500度
-  elevation: 3776
+// 共通定数を定義（TypeScriptファイルから直接インポートできないため）
+const FUJI_COORDINATES = {
+  latitude: 35.3605556,   // 35°21'38" 北緯35度21分38秒
+  longitude: 138.7275,    // 138°43'39" 東経138度43分39秒
+  elevation: 3776         // 剣ヶ峰の標高（最高地点）
 };
 
 console.log('=== 海ほたるPAから富士山への仰角計算比較 ===');
 console.log('');
 
 // 1. Geminiさんの詳細計算式
-const FUJI_SUMMIT_ELEVATION = 3776; // メートル
 const PA_ELEVATION = 5; // メートル
 const OBSERVER_EYE_LEVEL = 1.7; // メートル
 const DISTANCE = 105000; // 105kmをメートルに（概算）
@@ -102,7 +101,7 @@ const EARTH_RADIUS = 6371000; // 地球の平均半径 (メートル)
 const REFRACTION_COEFFICIENT = 0.13; // 大気屈折率 (k値)
 
 const geminiElevation = calculateElevationAngle(
-  FUJI_SUMMIT_ELEVATION,
+  FUJI_COORDINATES.elevation,
   PA_ELEVATION,
   OBSERVER_EYE_LEVEL,
   DISTANCE,
@@ -112,11 +111,11 @@ const geminiElevation = calculateElevationAngle(
 
 console.log('1. Geminiさんの詳細計算式:');
 console.log(`   パラメータ:`);
-console.log(`     富士山標高: ${FUJI_SUMMIT_ELEVATION}m`);
+console.log(`     富士山標高: ${FUJI_COORDINATES.elevation}m`);
 console.log(`     PA標高: ${PA_ELEVATION}m`);
 console.log(`     アイレベル: ${OBSERVER_EYE_LEVEL}m`);
-console.log(`     距離: ${DISTANCE/1000}km`);
-console.log(`     地球半径: ${EARTH_RADIUS/1000}km`);
+console.log(`     距離: ${DISTANCE / 1000}km`);
+console.log(`     地球半径: ${EARTH_RADIUS / 1000}km`);
 console.log(`     大気屈折率k: ${REFRACTION_COEFFICIENT}`);
 console.log(`   結果: ${geminiElevation.toFixed(6)}度`);
 console.log('');
@@ -126,19 +125,19 @@ const simpleResult = calculateSimpleElevation(
   UMIHOTARU_NORTH_SHORE.latitude,
   UMIHOTARU_NORTH_SHORE.longitude,
   UMIHOTARU_NORTH_SHORE.elevation + OBSERVER_EYE_LEVEL, // アイレベル追加
-  FUJI_COORDS.latitude,
-  FUJI_COORDS.longitude,
-  FUJI_COORDS.elevation
+  FUJI_COORDINATES.latitude,
+  FUJI_COORDINATES.longitude,
+  FUJI_COORDINATES.elevation
 );
 
 console.log('2. 既存プロジェクトの簡易計算:');
-console.log(`   実際の距離: ${(simpleResult.distance/1000).toFixed(3)}km`);
+console.log(`   実際の距離: ${(simpleResult.distance / 1000).toFixed(3)}km`);
 console.log(`   結果: ${simpleResult.elevation.toFixed(6)}度`);
 console.log('');
 
 // 3. 正確な距離でGeminiの計算式を再実行
 const accurateGeminiElevation = calculateElevationAngle(
-  FUJI_SUMMIT_ELEVATION,
+  FUJI_COORDINATES.elevation,
   PA_ELEVATION,
   OBSERVER_EYE_LEVEL,
   simpleResult.distance, // 正確な距離を使用
@@ -147,14 +146,14 @@ const accurateGeminiElevation = calculateElevationAngle(
 );
 
 console.log('3. Gemini計算式（正確な距離使用）:');
-console.log(`   正確な距離: ${(simpleResult.distance/1000).toFixed(3)}km`);
+console.log(`   正確な距離: ${(simpleResult.distance / 1000).toFixed(3)}km`);
 console.log(`   結果: ${accurateGeminiElevation.toFixed(6)}度`);
 console.log('');
 
 // 4. 計算過程の詳細表示
 console.log('=== Gemini計算式の詳細過程 ===');
 const observerEffectiveHeight = PA_ELEVATION + OBSERVER_EYE_LEVEL;
-const heightDifference = FUJI_SUMMIT_ELEVATION - observerEffectiveHeight;
+const heightDifference = FUJI_COORDINATES.elevation - observerEffectiveHeight;
 const curvatureDrop = Math.pow(simpleResult.distance, 2) / (2 * EARTH_RADIUS);
 const refractionLift = REFRACTION_COEFFICIENT * curvatureDrop;
 const netApparentDrop = curvatureDrop - refractionLift;

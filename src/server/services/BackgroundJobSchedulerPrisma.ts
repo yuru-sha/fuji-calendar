@@ -1,20 +1,19 @@
 import { getComponentLogger, StructuredLogger } from '../../shared/utils/logger';
 import { fujiSystemOrchestrator } from './FujiSystemOrchestrator';
 import { calendarServicePrisma } from './CalendarServicePrisma';
-import { LocationModel } from '../models/Location';
+// import { LocationModel } from '../models/Location'; // PostgreSQL移行により無効化
+import { PrismaClientManager } from '../database/prisma';
 
 /**
  * Prismaベースのバックグラウンドジョブスケジューラー
  * 年間富士現象計算、システムメンテナンス、データ整合性チェックを自動実行
  */
 export class BackgroundJobSchedulerPrisma {
-  private locationModel: LocationModel;
   private logger: StructuredLogger;
   private scheduledJobs: Map<string, NodeJS.Timeout> = new Map();
   private isRunning: boolean = false;
 
   constructor() {
-    this.locationModel = new LocationModel();
     this.logger = getComponentLogger('background-scheduler-prisma');
   }
 

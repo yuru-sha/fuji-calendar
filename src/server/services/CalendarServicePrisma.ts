@@ -1,5 +1,5 @@
 import { CalendarEvent, CalendarResponse, EventsResponse, FujiEvent, WeatherInfo, Location } from '../../shared/types';
-import { LocationModel } from '../models/Location';
+import { PrismaClientManager } from '../database/prisma';
 import { locationFujiEventService } from './LocationFujiEventService';
 import { fujiSystemOrchestrator } from './FujiSystemOrchestrator';
 import { timeUtils } from '../../shared/utils/timeUtils';
@@ -11,11 +11,9 @@ import { LocationFujiEvent, EventType } from '@prisma/client';
  * 事前計算されたデータベースからイベントを取得し、リアルタイム計算を置き換える
  */
 export class CalendarServicePrisma {
-  private locationModel: LocationModel;
   private logger: StructuredLogger;
 
   constructor() {
-    this.locationModel = new LocationModel();
     this.logger = getComponentLogger('calendar-service-prisma');
   }
 
@@ -40,7 +38,8 @@ export class CalendarServicePrisma {
       calendarEndDate.setDate(calendarEndDate.getDate() + (6 - calendarEndDate.getDay()));
       
       // 全地点の富士現象イベントを取得
-      const locations = await this.locationModel.findAll();
+      const prisma = PrismaClientManager.getInstance();
+      const locations = await prisma.location.findMany();
       const allEvents: FujiEvent[] = [];
       
       this.logger.debug('カレンダー表示範囲でのイベント取得', { 
@@ -116,7 +115,8 @@ export class CalendarServicePrisma {
       endOfDay.setHours(23, 59, 59, 999);
       
       // 全地点の富士現象イベントを取得
-      const locations = await this.locationModel.findAll();
+      const prisma = PrismaClientManager.getInstance();
+      const locations = await prisma.location.findMany();
       const allEvents: FujiEvent[] = [];
       
       // 各地点からその日のイベントを取得
@@ -172,7 +172,8 @@ export class CalendarServicePrisma {
     endDate.setDate(endDate.getDate() + 30);
 
     try {
-      const locations = await this.locationModel.findAll();
+      const prisma = PrismaClientManager.getInstance();
+      const locations = await prisma.location.findMany();
       const allEvents: FujiEvent[] = [];
 
       // 各地点から今後のイベントを取得
@@ -207,7 +208,10 @@ export class CalendarServicePrisma {
    */
   async getLocationYearlyEvents(locationId: number, year: number): Promise<FujiEvent[]> {
     try {
-      const location = await this.locationModel.findById(locationId);
+      const prisma = PrismaClientManager.getInstance();
+      const location = await prisma.location.findUnique({
+        where: { id: locationId }
+      });
       if (!location) {
         throw new Error('Location not found');
       }
@@ -240,7 +244,8 @@ export class CalendarServicePrisma {
       const startDate = new Date(year, month - 1, 1);
       const endDate = new Date(year, month, 0);
       
-      const locations = await this.locationModel.findAll();
+      const prisma = PrismaClientManager.getInstance();
+      const locations = await prisma.location.findMany();
       const allEvents: FujiEvent[] = [];
 
       // 各地点からその月のイベントを取得
@@ -282,7 +287,8 @@ export class CalendarServicePrisma {
     preferredType?: 'diamond' | 'pearl'
   ): Promise<FujiEvent[]> {
     try {
-      const locations = await this.locationModel.findAll();
+      const prisma = PrismaClientManager.getInstance();
+      const locations = await prisma.location.findMany();
       const allEvents: FujiEvent[] = [];
 
       // 各地点から期間内のイベントを取得

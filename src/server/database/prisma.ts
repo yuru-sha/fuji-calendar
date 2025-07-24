@@ -12,62 +12,23 @@ class PrismaClientManager {
 
   static getInstance(): PrismaClient {
     if (!PrismaClientManager.instance) {
-      PrismaClientManager.instance = new PrismaClient({
-        log: [
-          {
-            emit: 'event',
-            level: 'query',
-          },
-          {
-            emit: 'event',
-            level: 'error',
-          },
-          {
-            emit: 'event',
-            level: 'info',
-          },
-          {
-            emit: 'event',
-            level: 'warn',
-          },
-        ] as any,
-      });
-
-      // ログイベントのハンドリング
-      PrismaClientManager.instance.$on('query', (e: any) => {
-        logger.debug('Prisma Query', {
-          query: e.query,
-          params: e.params,
-          duration: e.duration,
-          target: e.target,
+      try {
+        PrismaClientManager.instance = new PrismaClient({
+          log: ['query', 'error', 'info', 'warn'],
         });
-      });
+      } catch (error) {
+        logger.error('Prismaクライアント初期化エラー', error);
+        throw error;
+      }
 
-      PrismaClientManager.instance.$on('error', (e: any) => {
-        logger.error('Prisma Error', e, {
-          target: e.target,
-        });
-      });
-
-      PrismaClientManager.instance.$on('info', (e: any) => {
-        logger.info('Prisma Info', {
-          message: e.message,
-          target: e.target,
-        });
-      });
-
-      PrismaClientManager.instance.$on('warn', (e: any) => {
-        logger.warn('Prisma Warning', {
-          message: e.message,
-          target: e.target,
-        });
-      });
+      // ログイベントのハンドリングは簡略化
+      // 詳細なログが必要な場合は後で追加
 
       // タイムゾーンをJSTに設定
       PrismaClientManager.instance.$executeRaw`SET timezone = 'Asia/Tokyo'`.catch((error: any) => {
         logger.warn('PostgreSQLタイムゾーン設定に失敗しました', { error: error.message });
       });
-      
+
       logger.info('Prismaクライアント初期化完了');
     }
 
@@ -90,22 +51,22 @@ class PrismaClientManager {
   static async testConnection(): Promise<boolean> {
     try {
       const client = PrismaClientManager.getInstance();
-      
+
       // 基本的な接続テスト
       await client.$queryRaw`SELECT 1 as test`;
-      
+
       // タイムゾーン確認
       const timezoneResult = await client.$queryRaw`SHOW timezone` as any[];
       const currentTimezone = timezoneResult[0]?.TimeZone || 'unknown';
       logger.info('データベースタイムゾーン確認', { timezone: currentTimezone });
-      
+
       if (currentTimezone !== 'Asia/Tokyo') {
-        logger.warn('データベースタイムゾーンがJSTではありません', { 
-          expected: 'Asia/Tokyo', 
-          actual: currentTimezone 
+        logger.warn('データベースタイムゾーンがJSTではありません', {
+          expected: 'Asia/Tokyo',
+          actual: currentTimezone
         });
       }
-      
+
       logger.info('データベース接続テスト成功');
       return true;
     } catch (error) {
@@ -118,10 +79,10 @@ class PrismaClientManager {
    * トランザクション実行ヘルパー
    */
   static async transaction<T>(
-    callback: (prisma: PrismaClient) => Promise<T>
+    callback: (prisma: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>) => Promise<T>
   ): Promise<T> {
     const client = PrismaClientManager.getInstance();
-    return await client.$transaction(callback as any);
+    return await client.$transaction(callback);
   }
 }
 

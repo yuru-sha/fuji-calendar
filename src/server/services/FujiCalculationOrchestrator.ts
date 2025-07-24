@@ -1,4 +1,4 @@
-import { celestialPrecomputationService } from './CelestialPrecomputationService';
+// import { celestialPrecomputationService } from './CelestialPrecomputationService'; // テーブル削除により無効化
 import { fujiOptimizedFilterService } from './FujiOptimizedFilterService';
 import { locationFujiMatchingService } from './LocationFujiMatchingService';
 import { getComponentLogger, StructuredLogger } from '../../shared/utils/logger';
@@ -39,14 +39,14 @@ export class FujiCalculationOrchestrator {
     });
 
     try {
-      // Stage 1: 基本天体データの事前計算
-      this.logger.info('Stage 1: 基本天体データ計算開始', { year });
+      // Stage 1: 基本天体データの事前計算（スキップ）
+      this.logger.info('Stage 1: 基本天体データ計算スキップ（従来計算使用）', { year });
       const stage1Start = Date.now();
       
-      await celestialPrecomputationService.precomputeYearlyData(year);
+      // await celestialPrecomputationService.precomputeYearlyData(year); // 削除されたテーブルのため無効化
       
       const stage1Time = Date.now() - stage1Start;
-      this.logger.info('Stage 1: 基本天体データ計算完了', { 
+      this.logger.info('Stage 1: 基本天体データ計算完了（スキップ）', { 
         year, 
         timeMs: stage1Time 
       });
@@ -150,8 +150,8 @@ export class FujiCalculationOrchestrator {
     this.logger.info('新地点追加計算開始', { locationId, year });
 
     try {
-      // 新地点の富士山データを計算・更新
-      await celestialPrecomputationService.calculateLocationData(locationId, year);
+      // 新地点の富士山データを計算・更新（スキップ）
+      // await celestialPrecomputationService.calculateLocationData(locationId, year); // 削除されたテーブルのため無効化
       
       // 既存の中間テーブルデータとマッチング
       const phenomenaCount = await locationFujiMatchingService.matchSingleLocation(locationId, year);

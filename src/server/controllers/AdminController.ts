@@ -1,33 +1,39 @@
 import { Request, Response } from 'express';
-import { LocationModel } from '../models/Location';
-import { Location } from '../../shared/types';
-import { cacheService } from '../services/CacheService';
+import { FUJI_COORDINATES } from '../../shared/types';
 import { getComponentLogger } from '../../shared/utils/logger';
 import { AdminModel } from '../models/Admin';
-import { queueService } from '../services/QueueService';
-import { fujiCalculationOrchestrator } from '../services/FujiCalculationOrchestrator';
-import bcrypt from 'bcrypt';
+import { PrismaClientManager } from '../database/prisma';
+import { astronomicalCalculator } from '../services/AstronomicalCalculatorAstronomyEngine';
+import { LocationFujiEventService } from '../services/LocationFujiEventService';
+import * as bcrypt from 'bcrypt';
 
 export class AdminController {
-  private locationModel: LocationModel;
   private logger = getComponentLogger('admin-controller');
+  private locationFujiEventService: LocationFujiEventService;
 
   constructor() {
-    this.locationModel = new LocationModel();
+    // Prismaベースなのでコンストラクタは空
+    this.locationFujiEventService = new LocationFujiEventService();
   }
 
   // 撮影地点一覧取得
   // GET /api/admin/locations
   async getLocations(req: Request, res: Response) {
     try {
-      const locations = await this.locationModel.findAll();
+      const prisma = PrismaClientManager.getInstance();
+      const locations = await prisma.location.findMany({
+        orderBy: [
+          { prefecture: 'asc' },
+          { name: 'asc' }
+        ]
+      });
       
       res.json({
         success: true,
         data: locations
       });
     } catch (error) {
-      console.error('Error fetching locations:', error);
+      this.logger.error('撮影地点一覧取得エラー', error);
       res.status(500).json({
         error: 'Internal server error',
         message: '撮影地点の取得に失敗しました。'
@@ -39,7 +45,7 @@ export class AdminController {
   // POST /api/admin/locations
   async createLocation(req: Request, res: Response) {
     try {
-      const locationData: Omit<Location, 'id' | 'createdAt' | 'updatedAt'> = req.body;
+      const locationData = req.body;
 
       // バリデーション
       if (!locationData.name || !locationData.prefecture || 
@@ -67,58 +73,84 @@ export class AdminController {
         });
       }
 
-      const newLocation = await this.locationModel.create(locationData);
+      // 富士山への事前計算値を自動計算
+      const tempLocation = {
+        id: 0, // 仮ID
+        name: locationData.name,
+        prefecture: locationData.prefecture,
+        latitude: locationData.latitude,
+        longitude: locationData.longitude,
+        elevation: locationData.elevation,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
       
-      // キャッシュを無効化（新しい地点追加のため）
-      await cacheService.invalidateLocationCache();
-      this.logger.info('Cache invalidated after location creation', {
-        locationId: newLocation.id,
-        locationName: newLocation.name
+      let fujiAzimuth: number, fujiElevation: number, fujiDistance: number;
+      
+      try {
+        fujiAzimuth = astronomicalCalculator.calculateBearingToFuji(tempLocation);
+        fujiElevation = astronomicalCalculator.calculateElevationToFuji(tempLocation);
+        fujiDistance = astronomicalCalculator.calculateDistanceToFuji(tempLocation);
+        
+        this.logger.info('富士山への事前計算完了', {
+          locationName: locationData.name,
+          fujiAzimuth: fujiAzimuth.toFixed(3),
+          fujiElevation: fujiElevation.toFixed(6),
+          fujiDistance: fujiDistance.toFixed(2)
+        });
+      } catch (calculationError) {
+        this.logger.error('富士山への事前計算エラー', {
+          locationName: locationData.name,
+          coordinates: { lat: locationData.latitude, lng: locationData.longitude, elev: locationData.elevation },
+          error: calculationError instanceof Error ? calculationError.message : 'Unknown calculation error'
+        });
+        
+        // 計算エラーの場合はnullを設定
+        fujiAzimuth = 0;
+        fujiElevation = 0;
+        fujiDistance = 0;
+      }
+
+      const prisma = PrismaClientManager.getInstance();
+      const newLocation = await prisma.location.create({
+        data: {
+          name: locationData.name,
+          prefecture: locationData.prefecture,
+          latitude: locationData.latitude,
+          longitude: locationData.longitude,
+          elevation: locationData.elevation,
+          description: locationData.description || null,
+          accessInfo: locationData.accessInfo || null,
+          parkingInfo: locationData.parkingInfo || null,
+          fujiAzimuth: Math.round(fujiAzimuth * 1000) / 1000,      // 自動計算（小数点3桁）
+          fujiElevation: Math.round(fujiElevation * 1000000) / 1000000, // 自動計算（小数点6桁）
+          fujiDistance: Math.round(fujiDistance * 100) / 100        // 自動計算（小数点2桁）
+        }
       });
       
-      // キューシステムで事前計算を開始（非同期）
-      try {
-        const currentYear = new Date().getFullYear();
-        const jobId = await queueService.scheduleLocationCalculation(
-          newLocation.id!,
-          currentYear,
-          currentYear + 2, // 3年分の計算（当年+2年先）
-          'high',
-          req.requestId
-        );
-        
-        this.logger.info('地点作成と事前計算開始', {
-          locationId: newLocation.id,
-          locationName: newLocation.name,
-          jobId,
-          yearRange: `${currentYear}-${currentYear + 2}`,
-          requestId: req.requestId
-        });
-        
-        res.status(201).json({
-          success: true,
-          data: { 
-            ...newLocation, 
-            calculationJobId: jobId 
-          },
-          message: '撮影地点が正常に作成されました。3年分の天体計算を開始します。'
-        });
-      } catch (queueError) {
-        // キュー追加に失敗しても地点作成は成功として扱う
-        this.logger.error('キューへの追加に失敗しましたが地点は作成されました', queueError, {
-          locationId: newLocation.id,
-          requestId: req.requestId
-        });
-        
-        res.status(201).json({
-          success: true,
-          data: newLocation,
-          message: '撮影地点が正常に作成されました。天体計算は手動で開始してください。'
-        });
+      this.logger.info('撮影地点作成完了', {
+        locationId: newLocation.id,
+        locationName: newLocation.name,
+        fujiAzimuth: newLocation.fujiAzimuth,
+        fujiElevation: newLocation.fujiElevation,
+        fujiDistance: newLocation.fujiDistance
+      });
+
+      // 富士現象イベントの初期計算（バックグラウンドで実行）
+      const currentYear = new Date().getFullYear();
+      // 現在年と前後2年分を計算（合計5年分）
+      for (let year = currentYear - 2; year <= currentYear + 2; year++) {
+        this.recalculateLocationEvents(newLocation.id, year, 'create');
       }
+      
+      res.status(201).json({
+        success: true,
+        data: newLocation,
+        message: '撮影地点が正常に作成されました。'
+      });
     } catch (error) {
       this.logger.error('地点作成エラー', error, {
-        requestId: req.requestId
+        requestId: (req as any).requestId
       });
       res.status(500).json({
         error: 'Internal server error',
@@ -132,7 +164,7 @@ export class AdminController {
   async updateLocation(req: Request, res: Response) {
     try {
       const id = parseInt(req.params.id);
-      const locationData: Partial<Location> = req.body;
+      const locationData = req.body;
 
       if (isNaN(id)) {
         return res.status(400).json({
@@ -141,8 +173,13 @@ export class AdminController {
         });
       }
 
+      const prisma = PrismaClientManager.getInstance();
+      
       // 既存の撮影地点をチェック
-      const existingLocation = await this.locationModel.findById(id);
+      const existingLocation = await prisma.location.findUnique({
+        where: { id }
+      });
+      
       if (!existingLocation) {
         return res.status(404).json({
           error: 'Location not found',
@@ -165,15 +202,123 @@ export class AdminController {
         });
       }
 
-      const updatedLocation = await this.locationModel.update(id, locationData);
+      // 更新データを準備
+      const updateData: any = {};
+      if (locationData.name !== undefined) updateData.name = locationData.name;
+      if (locationData.prefecture !== undefined) updateData.prefecture = locationData.prefecture;
+      if (locationData.latitude !== undefined) updateData.latitude = locationData.latitude;
+      if (locationData.longitude !== undefined) updateData.longitude = locationData.longitude;
+      if (locationData.elevation !== undefined) updateData.elevation = locationData.elevation;
+      if (locationData.description !== undefined) updateData.description = locationData.description;
+      if (locationData.accessInfo !== undefined) updateData.accessInfo = locationData.accessInfo;
+      if (locationData.parkingInfo !== undefined) updateData.parkingInfo = locationData.parkingInfo;
       
-      // キャッシュを無効化（特定地点のキャッシュのみ）
-      if (updatedLocation) {
-        await cacheService.invalidateLocationCache(id);
-        this.logger.info('Cache invalidated after location update', {
-          locationId: id,
-          locationName: updatedLocation.name
-        });
+      // 座標が変更された場合は富士山データを再計算
+      const coordinatesChanged = locationData.latitude !== undefined || 
+                                locationData.longitude !== undefined || 
+                                locationData.elevation !== undefined;
+      
+      if (coordinatesChanged) {
+        const tempLocation = {
+          id: existingLocation.id,
+          name: locationData.name || existingLocation.name,
+          prefecture: locationData.prefecture || existingLocation.prefecture,
+          latitude: locationData.latitude !== undefined ? locationData.latitude : existingLocation.latitude,
+          longitude: locationData.longitude !== undefined ? locationData.longitude : existingLocation.longitude,
+          elevation: locationData.elevation !== undefined ? locationData.elevation : existingLocation.elevation,
+          createdAt: existingLocation.createdAt,
+          updatedAt: new Date()
+        };
+        
+        try {
+          const fujiAzimuth = astronomicalCalculator.calculateBearingToFuji(tempLocation);
+          const fujiElevation = astronomicalCalculator.calculateElevationToFuji(tempLocation);
+          const fujiDistance = astronomicalCalculator.calculateDistanceToFuji(tempLocation);
+          
+          updateData.fujiAzimuth = Math.round(fujiAzimuth * 1000) / 1000;
+          updateData.fujiElevation = Math.round(fujiElevation * 1000000) / 1000000;
+          updateData.fujiDistance = Math.round(fujiDistance * 100) / 100;
+          
+          this.logger.info('座標変更により富士山データを再計算', {
+            locationId: id,
+            locationName: tempLocation.name,
+            oldCoordinates: {
+              lat: existingLocation.latitude,
+              lng: existingLocation.longitude,
+              elev: existingLocation.elevation
+            },
+            newCoordinates: {
+              lat: tempLocation.latitude,
+              lng: tempLocation.longitude,
+              elev: tempLocation.elevation
+            },
+            fujiAzimuth: updateData.fujiAzimuth,
+            fujiElevation: updateData.fujiElevation,
+            fujiDistance: updateData.fujiDistance
+          });
+        } catch (calculationError) {
+          this.logger.error('富士山データ再計算エラー', {
+            locationId: id,
+            locationName: tempLocation.name,
+            coordinates: { lat: tempLocation.latitude, lng: tempLocation.longitude, elev: tempLocation.elevation },
+            error: calculationError instanceof Error ? calculationError.message : 'Unknown calculation error'
+          });
+          
+          // 計算エラーの場合は既存値を保持
+          this.logger.warn('計算エラーのため富士山データは既存値を保持します', {
+            locationId: id,
+            existingFujiAzimuth: existingLocation.fujiAzimuth,
+            existingFujiElevation: existingLocation.fujiElevation,
+            existingFujiDistance: existingLocation.fujiDistance
+          });
+        }
+      } else {
+        // 手動で富士山データが指定された場合はそれを使用
+        if (locationData.fujiAzimuth !== undefined) {
+          updateData.fujiAzimuth = locationData.fujiAzimuth;
+          this.logger.info('手動指定による富士山方位角更新', {
+            locationId: id,
+            newFujiAzimuth: locationData.fujiAzimuth
+          });
+        }
+        if (locationData.fujiElevation !== undefined) {
+          updateData.fujiElevation = locationData.fujiElevation;
+          this.logger.info('手動指定による富士山仰角更新', {
+            locationId: id,
+            newFujiElevation: locationData.fujiElevation
+          });
+        }
+        if (locationData.fujiDistance !== undefined) {
+          updateData.fujiDistance = locationData.fujiDistance;
+          this.logger.info('手動指定による富士山距離更新', {
+            locationId: id,
+            newFujiDistance: locationData.fujiDistance
+          });
+        }
+      }
+
+      const updatedLocation = await prisma.location.update({
+        where: { id },
+        data: updateData
+      });
+      
+      this.logger.info('撮影地点更新完了', {
+        locationId: id,
+        locationName: updatedLocation.name
+      });
+
+      // 座標または富士山データが変更された場合、富士現象イベントを再計算
+      const fujiDataChanged = coordinatesChanged || 
+                              locationData.fujiAzimuth !== undefined ||
+                              locationData.fujiElevation !== undefined ||
+                              locationData.fujiDistance !== undefined;
+      
+      if (fujiDataChanged) {
+        const currentYear = new Date().getFullYear();
+        // 現在年と前後2年分を再計算（合計5年分）
+        for (let year = currentYear - 2; year <= currentYear + 2; year++) {
+          this.recalculateLocationEvents(id, year, 'update');
+        }
       }
       
       res.json({
@@ -182,7 +327,11 @@ export class AdminController {
         message: '撮影地点が正常に更新されました。'
       });
     } catch (error) {
-      console.error('Error updating location:', error);
+      this.logger.error('撮影地点更新エラー', {
+        locationId: req.params.id,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        requestId: (req as any).requestId
+      });
       res.status(500).json({
         error: 'Internal server error',
         message: '撮影地点の更新に失敗しました。'
@@ -203,8 +352,13 @@ export class AdminController {
         });
       }
 
+      const prisma = PrismaClientManager.getInstance();
+      
       // 既存の撮影地点をチェック
-      const existingLocation = await this.locationModel.findById(id);
+      const existingLocation = await prisma.location.findUnique({
+        where: { id }
+      });
+      
       if (!existingLocation) {
         return res.status(404).json({
           error: 'Location not found',
@@ -212,11 +366,14 @@ export class AdminController {
         });
       }
 
-      await this.locationModel.delete(id);
+      await prisma.location.delete({
+        where: { id }
+      });
+
+      // 関連する富士現象イベントも削除（Cascade削除で自動削除されるが、ログ記録のため明示的に実行）
+      this.deleteLocationEvents(id, existingLocation.name);
       
-      // キャッシュを無効化（特定地点削除のため）
-      await cacheService.invalidateLocationCache(id);
-      this.logger.info('Cache invalidated after location deletion', {
+      this.logger.info('撮影地点削除完了', {
         locationId: id,
         locationName: existingLocation.name
       });
@@ -226,7 +383,11 @@ export class AdminController {
         message: '撮影地点が正常に削除されました。'
       });
     } catch (error) {
-      console.error('Error deleting location:', error);
+      this.logger.error('撮影地点削除エラー', {
+        locationId: req.params.id,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        requestId: (req as any).requestId
+      });
       res.status(500).json({
         error: 'Internal server error',
         message: '撮影地点の削除に失敗しました。'
@@ -248,7 +409,7 @@ export class AdminController {
       }
 
       // デバッグログ
-      console.log('Reverse geocoding request:', { lat, lng });
+      this.logger.debug('逆ジオコーディング要求', { lat, lng });
       
       // 国土地理院の逆ジオコーディングAPI
       const url = `https://mreversegeocoder.gsi.go.jp/reverse-geocoder/LonLatToAddress?lat=${lat}&lon=${lng}`;
@@ -262,18 +423,22 @@ export class AdminController {
       });
       
       if (!response.ok) {
-        console.error('GSI API error:', response.status, response.statusText);
+        this.logger.error('GSI API エラー', {
+          status: response.status,
+          statusText: response.statusText,
+          url
+        });
         throw new Error('Failed to fetch address');
       }
       
       const data = await response.json() as any;
-      console.log('GSI API response:', JSON.stringify(data, null, 2));
+      this.logger.debug('GSI API レスポンス', { data });
       
       // APIレスポンスから都道府県、市区町村、地名を抽出
       // 新しいレスポンス形式に対応
       const result = data.results || data;
       if (!result || (!result.muniCd && !result.munuCd)) {
-        console.log('No valid results found in GSI API response');
+        this.logger.warn('GSI API から有効な結果が見つかりません', { result });
         throw new Error('No valid address data');
       }
       
@@ -304,18 +469,18 @@ export class AdminController {
         address: districtName
       };
       
-      console.log('Parsed address data:', addressData);
+      this.logger.debug('住所データ解析結果', addressData);
       
       // 都道府県が取得できなかった場合、座標ベースの判定を使用
       if (!addressData.prefecture) {
         addressData.prefecture = this.getPrefectureByCoordinate(lat, lng);
-        console.log('Using coordinate-based prefecture:', addressData.prefecture);
+        this.logger.debug('座標ベース都道府県判定使用', { prefecture: addressData.prefecture });
       }
       
       // 市区町村名が取得できなかった場合、座標に基づいた地名の提案
       if (!addressData.city && addressData.prefecture) {
         addressData.city = this.getSuggestedLocationName(lat, lng, addressData.prefecture);
-        console.log('Using suggested location name:', addressData.city);
+        this.logger.debug('提案地名使用', { city: addressData.city });
       }
 
       res.json({
@@ -323,12 +488,16 @@ export class AdminController {
         data: addressData
       });
     } catch (error) {
-      console.error('Reverse geocoding error:', error);
+      this.logger.error('逆ジオコーディングエラー', {
+        lat: req.body.lat,
+        lng: req.body.lng,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
       
       // 国土地理院APIが失敗した場合、簡易的な座標ベースの判定を使用
       try {
         const simplePrefecture = this.getPrefectureByCoordinate(req.body.lat, req.body.lng);
-        console.log('Using simple prefecture detection:', simplePrefecture);
+        this.logger.info('簡易都道府県判定を使用', { prefecture: simplePrefecture });
         
         res.json({
           success: true,
@@ -382,9 +551,9 @@ export class AdminController {
       }
     }
 
-    // 富士山に最も近い場合のデフォルト
-    const fujiLat = 35.3606;
-    const fujiLng = 138.7274;
+    // 富士山に最も近い場合のデフォルト（剣ヶ峰座標）
+    const fujiLat = FUJI_COORDINATES.latitude;
+    const fujiLng = FUJI_COORDINATES.longitude;
     const distanceToFuji = Math.sqrt(
       Math.pow(lat - fujiLat, 2) + Math.pow(lng - fujiLng, 2)
     );
@@ -491,7 +660,8 @@ export class AdminController {
   // GET /api/admin/cache/stats
   async getCacheStats(req: Request, res: Response) {
     try {
-      const stats = await cacheService.getCacheStats();
+      // const stats = await cacheService.getCacheStats(); // 一時的に無効化
+      const stats = { message: 'キャッシュ機能は一時的に無効化されています' };
       
       res.json({
         success: true,
@@ -515,7 +685,7 @@ export class AdminController {
       
       if (pattern) {
         // 特定パターンのキャッシュを削除
-        await cacheService.deletePattern(pattern);
+        // await cacheService.deletePattern(pattern); // 一時的に無効化
         this.logger.info('Cache pattern cleared by admin', { pattern });
         
         res.json({
@@ -524,7 +694,7 @@ export class AdminController {
         });
       } else {
         // 全地点関連キャッシュを削除
-        await cacheService.invalidateLocationCache();
+        // await cacheService.invalidateLocationCache(); // 一時的に無効化
         this.logger.info('All cache cleared by admin');
         
         res.json({
@@ -562,7 +732,8 @@ export class AdminController {
       }
 
       // キャッシュに既に存在するかチェック
-      const existingCache = await cacheService.getMonthlyCalendar(year, month);
+      // const existingCache = await cacheService.getMonthlyCalendar(year, month); // 一時的に無効化
+      const existingCache = null;
       
       if (existingCache) {
         return res.json({
@@ -656,6 +827,108 @@ export class AdminController {
       res.status(500).json({
         error: 'Internal server error',
         message: 'パスワードの変更に失敗しました。'
+      });
+    }
+  }
+
+  /**
+   * 地点の富士現象イベントを非同期で再計算
+   * ユーザーレスポンスをブロックしないよう、バックグラウンドで実行
+   */
+  private recalculateLocationEvents(locationId: number, year: number, operation: 'create' | 'update'): void {
+    // バックグラウンドで非同期実行（awaitしない）
+    this.performEventRecalculation(locationId, year, operation).catch((error) => {
+      this.logger.error('富士現象イベント再計算エラー', {
+        locationId,
+        year,
+        operation,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    });
+  }
+
+  /**
+   * 実際の富士現象イベント再計算処理
+   */
+  private async performEventRecalculation(locationId: number, year: number, operation: 'create' | 'update'): Promise<void> {
+    this.logger.info('富士現象イベント再計算開始', {
+      locationId,
+      year,
+      operation
+    });
+
+    try {
+      const result = await this.locationFujiEventService.matchSingleLocation(locationId, year);
+      
+      this.logger.info('富士現象イベント再計算完了', {
+        locationId,
+        year,
+        operation,
+        eventCount: result.eventCount,
+        timeMs: result.timeMs,
+        success: result.success
+      });
+    } catch (error) {
+      this.logger.error('富士現象イベント再計算失敗', {
+        locationId,
+        year,
+        operation,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      
+      // 重要：エラーが発生してもスローしない（バックグラウンド処理のため）
+    }
+  }
+
+  /**
+   * 地点削除時に関連する富士現象イベントをログ記録付きで削除
+   */
+  private deleteLocationEvents(locationId: number, locationName: string): void {
+    // バックグラウンドで非同期実行
+    this.performEventDeletion(locationId, locationName).catch((error) => {
+      this.logger.error('富士現象イベント削除エラー', {
+        locationId,
+        locationName,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    });
+  }
+
+  /**
+   * 実際の富士現象イベント削除処理
+   */
+  private async performEventDeletion(locationId: number, locationName: string): Promise<void> {
+    try {
+      const prisma = PrismaClientManager.getInstance();
+      
+      // カウント取得（削除前）
+      const eventCount = await prisma.locationFujiEvent.count({
+        where: { locationId }
+      });
+
+      if (eventCount > 0) {
+        // イベント削除（Cascade削除で既に削除されている可能性があるが、明示的に実行）
+        const deleteResult = await prisma.locationFujiEvent.deleteMany({
+          where: { locationId }
+        });
+
+        this.logger.info('関連富士現象イベント削除完了', {
+          locationId,
+          locationName,
+          deletedCount: deleteResult.count,
+          expectedCount: eventCount
+        });
+      } else {
+        this.logger.debug('削除対象の富士現象イベントなし', {
+          locationId,
+          locationName
+        });
+      }
+    } catch (error) {
+      this.logger.error('富士現象イベント削除失敗', {
+        locationId,
+        locationName,
+        error: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   }

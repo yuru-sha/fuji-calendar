@@ -141,7 +141,7 @@ export function useCalendar(): CalendarState & UseCalendarActions {
     setError(null);
     
     try {
-      const response = await apiClient.getEventsForDay(date);
+      const response = await apiClient.getDayEvents(date);
       dispatch({ type: 'SET_DAY_EVENTS', payload: response });
     } catch (error) {
       const errorMessage = getErrorMessage(error);
@@ -170,7 +170,7 @@ export function useCalendar(): CalendarState & UseCalendarActions {
     
     try {
       const response = await apiClient.getBestShotDays(year, month);
-      dispatch({ type: 'SET_BEST_SHOT_DAYS', payload: response.events });
+      dispatch({ type: 'SET_BEST_SHOT_DAYS', payload: response.recommendations });
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       setError(`ベストショット日の読み込みに失敗しました: ${errorMessage}`);

@@ -79,15 +79,84 @@ export class AstronomicalCalculatorAstronomyEngine {
    * Gemini提供の高精度計算式: 地球曲率と大気屈折を考慮
    */
   calculateElevationToFuji(fromLocation: Location): number {
-    // アイレベル（観測者の目の高さ）を考慮
-    const observerEyeLevel = 1.7; // メートル
-    
-    return this.calculatePreciseElevationAngle(
-      FUJI_COORDINATES.elevation,  // 富士山標高
-      fromLocation.elevation,      // 観測地点標高
-      observerEyeLevel,           // アイレベル
-      fromLocation               // 観測地点（距離計算用）
+    // 定数
+    const observerEyeLevel = 1.7; // メートル（観測者の目の高さ）
+    const earthRadius = 6371000; // 地球の平均半径 (メートル)
+    const refractionCoefficient = 0.13; // 大気屈折率 (k値)
+
+    // 距離計算（メートル単位）
+    const distanceKm = this.calculateDistanceToFuji(fromLocation);
+    const distanceM = distanceKm * 1000;
+
+    // 高精度仰角計算を実行
+    const elevationAngle = this.calculateElevationAngle(
+      FUJI_COORDINATES.elevation,  // 富士山山頂の標高
+      fromLocation.elevation,      // 観測地点の標高
+      observerEyeLevel,           // 観測者の目の高さ
+      distanceM,                  // 直線距離（メートル）
+      earthRadius,                // 地球の平均半径
+      refractionCoefficient       // 大気屈折率
     );
+
+    this.logger.astronomical('debug', '富士山仰角計算（高精度）', {
+      location: fromLocation.name,
+      distanceKm: distanceKm.toFixed(1),
+      fujiElevation: FUJI_COORDINATES.elevation,
+      observerElevation: fromLocation.elevation,
+      observerEyeLevel,
+      calculatedElevation: elevationAngle.toFixed(6)
+    });
+
+    return elevationAngle;
+  }
+
+  /**
+   * 高精度仰角計算（Gemini提供の理論式）
+   * 地球の丸みと大気差を考慮した仰角計算
+   * 
+   * @param fujiSummitElevation 富士山山頂の標高 (メートル)
+   * @param paElevation 海ほたるPAの標高 (メートル)
+   * @param observerEyeLevel 観測者の目の高さ (メートル)
+   * @param distance 観測地点から富士山までの直線距離 (メートル)
+   * @param earthRadius 地球の平均半径 (メートル)
+   * @param refractionCoefficient 大気屈折率 (k値, 通常0.13)
+   * @returns 計算された仰角 (度数)
+   */
+  private calculateElevationAngle(
+    fujiSummitElevation: number,
+    paElevation: number,
+    observerEyeLevel: number,
+    distance: number,
+    earthRadius: number,
+    refractionCoefficient: number
+  ): number {
+    // 1. 観測者の実効的な高さ（地面からの目の高さ）
+    const observerEffectiveHeight = paElevation + observerEyeLevel;
+
+    // 2. 富士山山頂と観測者の目の高さの標高差
+    const heightDifference = fujiSummitElevation - observerEffectiveHeight;
+
+    // 3. 地球の丸みによる見かけの低下 (メートル)
+    // 直線距離Dと地球半径Reから計算
+    const curvatureDrop = Math.pow(distance, 2) / (2 * earthRadius);
+
+    // 4. 大気差による見かけの持ち上げ（低下の相殺） (メートル)
+    // 大気屈折率kと地球の丸みによる低下から計算
+    const refractionLift = refractionCoefficient * curvatureDrop;
+
+    // 5. 正味の見かけの低下 (メートル)
+    // 地球の丸みによる低下から大気差による持ち上げを差し引く
+    const netApparentDrop = curvatureDrop - refractionLift;
+
+    // 6. 最終的な見かけの垂直距離
+    // 標高差から正味の見かけの低下を差し引く
+    const apparentVerticalDistance = heightDifference - netApparentDrop;
+
+    // 7. 仰角の計算 (ラジアン)
+    const angleRad = Math.atan2(apparentVerticalDistance, distance);
+
+    // 8. 仰角を度数に変換して返す
+    return angleRad * (180 / Math.PI);
   }
 
   /**
@@ -107,41 +176,29 @@ export class AstronomicalCalculatorAstronomyEngine {
     // 距離計算（Haversine formula）
     const distance = this.calculateDistanceToFuji(observerLocation) * 1000; // kmをmに変換
 
-    // 1. 観測者の実効的な高さ（地面からの目の高さ）
-    const observerEffectiveHeight = observerElevation + observerEyeLevel;
+    // 新しい高精度計算式を使用
+    const elevationAngle = this.calculateElevationAngle(
+      targetElevation,
+      observerElevation,
+      observerEyeLevel,
+      distance,
+      earthRadius,
+      refractionCoefficient
+    );
 
-    // 2. 富士山山頂と観測者の目の高さの標高差
-    const heightDifference = targetElevation - observerEffectiveHeight;
-
-    // 3. 地球の丸みによる見かけの低下（メートル）
-    const curvatureDrop = Math.pow(distance, 2) / (2 * earthRadius);
-
-    // 4. 大気差による見かけの持ち上げ（低下の相殺）（メートル）
-    const refractionLift = refractionCoefficient * curvatureDrop;
-
-    // 5. 正味の見かけの低下（メートル）
-    const netApparentDrop = curvatureDrop - refractionLift;
-
-    // 6. 最終的な見かけの垂直距離
-    const apparentVerticalDistance = heightDifference - netApparentDrop;
-
-    // 7. 仰角の計算（ラジアン→度）
-    const angleRad = Math.atan2(apparentVerticalDistance, distance);
-    
     // デバッグログ（開発時）
     this.logger.astronomical('debug', '高精度仰角計算', {
       location: observerLocation.name,
       distance: distance / 1000, // km
-      observerEffectiveHeight,
-      heightDifference,
-      curvatureDrop: curvatureDrop.toFixed(3),
-      refractionLift: refractionLift.toFixed(3),
-      netApparentDrop: netApparentDrop.toFixed(3),
-      apparentVerticalDistance: apparentVerticalDistance.toFixed(3),
-      resultDegrees: (angleRad * 180 / Math.PI).toFixed(6)
+      observerEffectiveHeight: observerElevation + observerEyeLevel,
+      heightDifference: targetElevation - (observerElevation + observerEyeLevel),
+      curvatureDrop: (Math.pow(distance, 2) / (2 * earthRadius)).toFixed(3),
+      refractionLift: (refractionCoefficient * Math.pow(distance, 2) / (2 * earthRadius)).toFixed(3),
+      netApparentDrop: ((Math.pow(distance, 2) / (2 * earthRadius)) - (refractionCoefficient * Math.pow(distance, 2) / (2 * earthRadius))).toFixed(3),
+      resultDegrees: elevationAngle.toFixed(6)
     });
 
-    return angleRad * (180 / Math.PI);
+    return elevationAngle;
   }
 
   /**

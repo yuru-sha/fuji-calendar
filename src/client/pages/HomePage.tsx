@@ -58,8 +58,9 @@ const HomePage: React.FC = () => {
         setCurrentMonth(new Date(stateDate).getMonth() + 1);
       }
       
+      // 地点IDと イベントIDは locationsが読み込まれた後に処理
       if (stateLocationId) {
-        setSelectedLocationId(stateLocationId);
+        setSelectedLocationId(stateLocationId); // 一旦セット
       }
       
       if (stateEventId) {
@@ -123,6 +124,17 @@ const HomePage: React.FC = () => {
     loadLocations();
   }, []);
 
+  // locations読み込み後に、お気に入りから来た地点IDの存在確認
+  useEffect(() => {
+    if (locations.length > 0 && selectedLocationId) {
+      const locationExists = locations.find(loc => loc.id === selectedLocationId);
+      if (!locationExists) {
+        console.warn(`指定された地点ID ${selectedLocationId} は存在しません。選択をリセットします。`);
+        setSelectedLocationId(undefined);
+      }
+    }
+  }, [locations, selectedLocationId]);
+
   // URLパラメータで指定された日付のイベントを自動読み込み
   useEffect(() => {
     if (selectedDate && calendarData) {
@@ -152,6 +164,10 @@ const HomePage: React.FC = () => {
       // 最初の地点を自動選択（イベントがある場合）
       if (response.events && response.events.length > 0) {
         setSelectedLocationId(response.events[0].location.id);
+      } else {
+        // イベントが存在しない場合は地点選択をクリア
+        setSelectedLocationId(undefined);
+        console.warn(`選択された日付 ${timeUtils.formatDateString(date)} にはイベントが存在しません`);
       }
       
       // 天気情報を取得（7日間以内の未来日付のみ）
@@ -423,10 +439,10 @@ const HomePage: React.FC = () => {
                 }}>2</span>
                 <div>
                   <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#1e293b', marginBottom: '0.25rem' }}>
-                    撮影地詳細を確認
+                    地図で位置確認
                   </div>
                   <div style={{ fontSize: '0.75rem', color: '#64748b', lineHeight: '1.4' }}>
-                    下に表示される詳細情報をチェック
+                    地図上で撮影地点とルート確認
                   </div>
                 </div>
               </div>
@@ -455,10 +471,10 @@ const HomePage: React.FC = () => {
                 }}>3</span>
                 <div>
                   <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#1e293b', marginBottom: '0.25rem' }}>
-                    地図で位置確認
+                    撮影地詳細を確認
                   </div>
                   <div style={{ fontSize: '0.75rem', color: '#64748b', lineHeight: '1.4' }}>
-                    地図上で撮影地点とルート確認
+                    下に表示される詳細情報をチェック
                   </div>
                 </div>
               </div>

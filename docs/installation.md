@@ -23,20 +23,42 @@ git clone <repository-url>
 cd fuji-calendar
 ```
 
-### 2. 開発環境の起動
+### 2. 初期設定
+
+```bash
+# 環境変数ファイルをコピー
+cp .env.example .env
+
+# データベースマイグレーション実行
+docker-compose -f docker-compose.dev.yml up postgres -d
+sleep 10  # PostgreSQL起動待ち
+docker-compose -f docker-compose.dev.yml exec postgres psql -U fuji_user -d fuji_calendar -c "SELECT version();"
+npx prisma migrate deploy
+
+# 管理者アカウント作成
+node scripts/admin/create-admin.js
+
+# 初期データ生成
+node scripts/setup-initial-data.js
+```
+
+### 3. 開発環境の起動
 
 ```bash
 # 開発環境起動（初回は自動でビルド）
-./scripts/docker-dev.sh start
+docker-compose -f docker-compose.dev.yml up -d
+
+# または管理スクリプト使用
+bash scripts/config/docker-dev.sh start
 
 # ログの確認
-./scripts/docker-dev.sh logs
+docker-compose -f docker-compose.dev.yml logs -f
 
 # 停止
-./scripts/docker-dev.sh stop
+docker-compose -f docker-compose.dev.yml down
 ```
 
-### 3. アクセス確認
+### 4. アクセス確認
 
 - フロントエンド: http://localhost:3000
 - バックエンドAPI: http://localhost:8000
@@ -57,22 +79,46 @@ nano .env
 **必須設定項目:**
 ```bash
 NODE_ENV=production
+DATABASE_URL=postgresql://fuji_user:prod_password_change_me@postgres:5432/fuji_calendar
+DB_NAME=fuji_calendar
+DB_USER=fuji_user
+DB_PASSWORD=prod_password_change_me
 JWT_SECRET=your-very-secure-jwt-secret-here
 REFRESH_SECRET=your-very-secure-refresh-secret-here
 FRONTEND_URL=https://your-domain.com
 ```
 
-### 2. 本番環境のデプロイ
+### 2. 初期セットアップ
 
 ```bash
-# 本番環境をデプロイ
-./scripts/docker-prod.sh deploy
+# データベース起動
+docker-compose up postgres -d
+sleep 15  # PostgreSQL起動待ち
 
-# 起動確認
-./scripts/docker-prod.sh health
+# データベースマイグレーション
+npx prisma migrate deploy
+
+# 管理者アカウント作成
+node scripts/admin/create-admin.js
+
+# 初期データ生成（サンプル地点 + 天体データ）
+node scripts/setup-initial-data.js
 ```
 
-### 3. SSL証明書の設定（オプション）
+### 3. 本番環境のデプロイ
+
+```bash
+# 本番環境起動
+docker-compose up -d
+
+# または管理スクリプト使用
+bash scripts/config/docker-prod.sh deploy
+
+# 起動確認
+bash scripts/config/docker-prod.sh health
+```
+
+### 4. SSL証明書の設定（オプション）
 
 ```bash
 # Let's Encryptを使用する場合
@@ -126,6 +172,25 @@ npm run dev:server  # バックエンドのみ
 npm run dev:client  # フロントエンドのみ
 ```
 
+## スクリプト構成
+
+システムには以下のカテゴリに分類されたスクリプトが用意されています：
+
+```bash
+scripts/
+├── admin/           # 管理者アカウント作成
+├── analysis/        # 計算精度検証・分析
+├── config/          # Docker・インフラ設定
+├── data-generation/ # データ生成・修正
+├── debug/           # 天体計算デバッグ
+├── generation/      # イベントデータ生成
+├── migration/       # データベース初期化
+├── testing/         # システムテスト・チェック
+└── utilities/       # パフォーマンス・負荷テスト
+```
+
+詳細は `scripts/README.md` を参照してください。
+
 ## データベース初期設定
 
 ### サンプルデータの確認
@@ -143,10 +208,7 @@ npm run dev:client  # フロントエンドのみ
 
 ```bash
 # 管理者アカウントを作成（admin/admin123）
-node scripts/create-admin.js
-
-# または、直接Prismaで作成
-npx prisma db seed
+node scripts/admin/create-admin.js
 ```
 
 ## 設定ファイル
@@ -197,6 +259,9 @@ kill -9 <PID>
 # PostgreSQLの起動確認
 psql -h localhost -U postgres -d fuji_calendar -c "\l"
 
+# データベース接続テスト
+node scripts/testing/test-postgres-connection.js
+
 # Prismaマイグレーション状態確認
 npx prisma migrate status
 ```
@@ -213,8 +278,8 @@ redis-cli ping  # "PONG" が返ればOK
 
 ```bash
 # Dockerイメージの再構築
-./scripts/docker-dev.sh clean
-./scripts/docker-dev.sh start
+bash scripts/config/docker-dev.sh clean
+bash scripts/config/docker-dev.sh start
 
 # ボリュームの削除（データ消失注意）
 docker volume prune
@@ -224,20 +289,23 @@ docker volume prune
 
 ```bash
 # 開発環境
-./scripts/docker-dev.sh logs
+bash scripts/config/docker-dev.sh logs
 
 # 本番環境
-./scripts/docker-prod.sh logs
+bash scripts/config/docker-prod.sh logs
 
 # ローカル環境
 tail -f logs/app.log
+
+# データベース状態チェック
+node scripts/testing/check_db_status.js
 ```
 
 ### 再インストール
 
 ```bash
 # 開発環境の完全クリーンアップ
-./scripts/docker-dev.sh clean
+bash scripts/config/docker-dev.sh clean
 npm run clean
 rm -rf node_modules logs/*
 
@@ -262,7 +330,13 @@ npm run dev
 
 ```bash
 # システムリソースの監視
-./scripts/docker-prod.sh health
+bash scripts/config/docker-prod.sh health
+
+# データベース進捗チェック
+node scripts/testing/check-progress.js
+
+# パフォーマンス分析
+node scripts/utilities/performance-analysis.js
 
 # ログの監視
 tail -f logs/app.log | grep ERROR

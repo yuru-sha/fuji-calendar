@@ -13,32 +13,35 @@
 - 🏔️ **撮影地点情報**: 全国の撮影スポットの詳細情報とアクセス方法
 - ⏰ **高精度天体計算**: Astronomy Engineを使用した精密な天体位置計算
 - 🗺️ **地図表示**: Leafletを使用した撮影地点と富士山の位置関係表示
+- 🚗 **ルートナビゲーション**: Google Maps連携による現在地からの最適ルート案内
 - ⭐ **お気に入り機能**: 撮影地点・イベントの保存・管理・エクスポート機能
+- 🌤️ **天気予報連携**: 7日間天気予報と撮影条件レコメンデーション
 - 📊 **撮影推奨度**: 天体計算に基づく撮影条件の評価
 - 🔐 **管理機能**: 管理者による撮影地点の登録・管理
 - 🕐 **JST時刻対応**: 日本標準時での正確な時刻表示
 - 🎯 **パール富士精密検索**: 月の出入り時刻前後の詳細検索
-- 🚀 **高性能**: Pino構造化ログ・Redis キャッシュによる最適化
+- 🚀 **高性能**: Pino構造化ログ・Redisキャッシュによる最適化
 
 ## 技術スタック
 
 ### フロントエンド
 - React 18
-- TypeScript
+- TypeScript (strict mode)
+- Tailwind CSS v3.4.17 (utility-first styling)
+- CSS Modules (component-specific styles)
 - Leaflet (地図表示)
-- CSS Modules
 - LocalStorage API (お気に入り機能)
 
 ### バックエンド
 - Node.js
 - Express
-- TypeScript
-- SQLite3 (データベース)
-- Redis (キャッシュ・キューシステム)
+- TypeScript (strict mode)
+- PostgreSQL 15 + Prisma ORM (データベース)
+- Redis (キャッシュ・キューシステム with BullMQ)
 - Astronomy Engine (高精度天体計算)
-- Pino (構造化ログ)
+- Pino (構造化ログ with パフォーマンス最適化)
 - bcrypt (パスワードハッシュ化)
-- JWT (認証)
+- JWT (認証 with リフレッシュトークン)
 
 ### セキュリティ・インフラ
 - Helmet (セキュリティヘッダー)
@@ -50,30 +53,40 @@
 - Docker & Docker Compose
 - nginx (リバースプロキシ)
 
-## インストール・セットアップ
+## 🚀 クイックスタート
+
+**5分で動かす**: [QUICKSTART.md](QUICKSTART.md)
 
 ### 必要な環境
-- Docker & Docker Compose **推奨**
-- または Node.js 18以上 + Redis
+- Docker & Docker Compose v2 **推奨**
+- Node.js 18+ (初期設定のみ)
 
-## Docker環境（推奨）
+## インストール・セットアップ
 
-### 開発環境
+### Docker環境（推奨）
 
-1. リポジトリをクローン
 ```bash
+# 1. Clone & Setup
 git clone <repository-url>
 cd fuji-calendar
+cp .env.example .env
+
+# 2. Database Migration
+docker-compose -f docker-compose.dev.yml up postgres -d
+sleep 10
+npx prisma migrate deploy
+
+# 3. Initial Setup
+node scripts/admin/create-admin.js          # admin/admin123
+node scripts/setup-initial-data.js          # Sample locations
+
+# 4. Start Application
+docker-compose -f docker-compose.dev.yml up -d
 ```
 
-2. 開発環境を起動
-```bash
-./scripts/docker-dev.sh start
-```
-
-3. アクセス
-- フロントエンド: http://localhost:3000
-- バックエンドAPI: http://localhost:8000
+### アクセス
+- **フロントエンド**: http://localhost:3000
+- **管理者ログイン**: admin / admin123
 
 ### 本番環境
 
@@ -85,28 +98,32 @@ cp .env.example .env
 
 2. 本番環境をデプロイ
 ```bash
-./scripts/docker-prod.sh deploy
+# 本番環境起動
+docker-compose up -d
+
+# または管理スクリプト使用
+bash scripts/config/docker-prod.sh deploy
 ```
 
 3. アクセス
-- アプリケーション: http://localhost:8000
+- アプリケーション: http://localhost
 
 ### Docker管理コマンド
 
 ```bash
 # 開発環境
-./scripts/docker-dev.sh start      # 開発環境起動
-./scripts/docker-dev.sh stop       # 停止
-./scripts/docker-dev.sh logs       # ログ表示
-./scripts/docker-dev.sh status     # 状態確認
-./scripts/docker-dev.sh clean      # クリーンアップ
+bash scripts/config/docker-dev.sh start      # 開発環境起動
+bash scripts/config/docker-dev.sh stop       # 停止
+bash scripts/config/docker-dev.sh logs       # ログ表示
+bash scripts/config/docker-dev.sh status     # 状態確認
+bash scripts/config/docker-dev.sh clean      # クリーンアップ
 
 # 本番環境
-./scripts/docker-prod.sh deploy    # デプロイ
-./scripts/docker-prod.sh start     # 起動
-./scripts/docker-prod.sh stop      # 停止
-./scripts/docker-prod.sh backup    # データベースバックアップ
-./scripts/docker-prod.sh health    # ヘルスチェック
+bash scripts/config/docker-prod.sh deploy    # デプロイ
+bash scripts/config/docker-prod.sh start     # 起動
+bash scripts/config/docker-prod.sh stop      # 停止
+bash scripts/config/docker-prod.sh backup    # データベースバックアップ
+bash scripts/config/docker-prod.sh health    # ヘルスチェック
 ```
 
 ## ローカル環境（Dockerなし）
@@ -202,6 +219,7 @@ npm run test:watch
 
 - `GET /api/locations` - 撮影地点一覧
 - `GET /api/locations/:id` - 撮影地点詳細
+- `GET /api/locations/:id/yearly/:year` - 特定地点の年間イベント
 
 ### 管理者API
 
@@ -215,6 +233,7 @@ npm run test:watch
 ### システムAPI
 
 - `GET /api/health` - ヘルスチェック
+- 天気予報データ連携（模擬実装）
 
 ## ディレクトリ構造
 
@@ -248,7 +267,7 @@ fuji-calendar/
 |--------|------|-------------|
 | `PORT` | サーバーポート | 8000 |
 | `NODE_ENV` | 実行環境 | development |
-| `DB_PATH` | データベースファイルパス | ./data/fuji-calendar.db |
+| `DATABASE_URL` | PostgreSQL接続URL | postgresql://user:pass@localhost:5432/fuji_calendar |
 | `JWT_SECRET` | JWT署名シークレット ⚠️ **本番要変更** | デフォルト値 |
 | `REFRESH_SECRET` | リフレッシュトークンシークレット ⚠️ **本番要変更** | デフォルト値 |
 | `REDIS_HOST` | Redisホスト | localhost |
@@ -256,10 +275,46 @@ fuji-calendar/
 | `FRONTEND_URL` | フロントエンドURL（本番用） | - |
 | `LOG_LEVEL` | ログレベル | info (本番), debug (開発) |
 | `ENABLE_FILE_LOGGING` | ファイルログ出力 | false |
+| `LOG_DIR` | ログディレクトリパス | ./logs |
 
-## ライセンス
+## 機能詳細
 
-MIT License
+### ダイヤモンド富士撮影
+ダイヤモンド富士は太陽が富士山頂に重なってダイヤモンドのような効果を作る現象です。アプリケーションはこの現象を観測・撮影できる正確な時刻と場所を計算します。
+
+### パール富士撮影
+パール富士は月が富士山頂に重なる現象です。アプリケーションは月の出入り時刻と最適な観測地点の詳細な計算を提供します。
+
+### 高精度計算
+- Astronomy Engineによる正確な天体力学計算
+- 大気屈折補正
+- 地球楕円体モデル考慮
+- 最適観測期間の自動シーズン検出
+- ±1.5度以内の方位角精度
+- 最適タイミングの10秒間隔計算
+
+### 天気情報システム
+- 7日間天気予報連携（模擬実装）
+- 天気に基づく撮影条件レコメンデーション
+- 天気アイコンとカラーコード付きレコメンデーション
+- イベント詳細表示との統合
+
+### 管理機能
+- ページネーション・検索付き地点管理
+- 一括操作用JSON インポート・エクスポート
+- パスワード変更機能
+- 28箇所以上の有名観測地点を収録した包括的地点データベース
+- アカウントロック保護付きJWT認証
+- ブルートフォース攻撃防止
+
+### UI/UX改善
+- 1280px最大幅レイアウトのレスポンシブデザイン
+- 統一されたスタイリングのためのTailwind CSS統合
+- より良いイベントアイコンでカレンダー視認性向上
+- スムーズなアニメーションとホバー効果
+- アクセシブルなキーボードナビゲーション
+- 🗺️ アイコン統合による直感的ルートナビゲーション
+- 撮影地点へのワンクリックルートプランニング
 
 ## 貢献
 
@@ -268,3 +323,13 @@ MIT License
 ## サポート
 
 質問や問題がある場合は、GitHub Issues でお気軽にお尋ねください。
+
+## ライセンス
+
+MIT License
+
+## 謝辞
+
+- 精密な天体計算を提供するAstronomy Engine
+- 撮影地点データベースへの貢献者
+- 貴重なフィードバックと提案をいただいた写真コミュニティ

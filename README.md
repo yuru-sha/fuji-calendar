@@ -36,8 +36,8 @@ A calendar application that displays optimal dates and locations for Diamond Fuj
 - Node.js
 - Express
 - TypeScript (strict mode)
-- SQLite3 (Database)
-- Redis (Cache & Queue system)
+- PostgreSQL 15 + Prisma ORM (Database)
+- Redis (Cache & Queue system with BullMQ)
 - Astronomy Engine (High-precision astronomical calculations)
 - Pino (Structured logging with performance optimization)
 - bcrypt (Password hashing)
@@ -53,30 +53,40 @@ A calendar application that displays optimal dates and locations for Diamond Fuj
 - Docker & Docker Compose
 - nginx (Reverse proxy)
 
-## Installation & Setup
+## 🚀 Quick Start
+
+**5分で動かす**: [QUICKSTART.md](QUICKSTART.md)
 
 ### Requirements
-- Docker & Docker Compose **Recommended**
-- OR Node.js 18+ + Redis
+- Docker & Docker Compose v2 **Recommended**
+- Node.js 18+ (初期設定のみ)
 
-## Docker Environment (Recommended)
+## Installation & Setup
 
-### Development Environment
+### Docker Environment (Recommended)
 
-1. Clone the repository
 ```bash
+# 1. Clone & Setup
 git clone <repository-url>
 cd fuji-calendar
+cp .env.example .env
+
+# 2. Database Migration
+docker-compose -f docker-compose.dev.yml up postgres -d
+sleep 10
+npx prisma migrate deploy
+
+# 3. Initial Setup
+node scripts/admin/create-admin.js          # admin/admin123
+node scripts/setup-initial-data.js          # Sample locations
+
+# 4. Start Application
+docker-compose -f docker-compose.dev.yml up -d
 ```
 
-2. Start development environment
-```bash
-./scripts/docker-dev.sh start
-```
-
-3. Access
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:8000
+### Access
+- **Frontend**: http://localhost:3000
+- **Admin Login**: admin / admin123
 
 ### Production Environment
 

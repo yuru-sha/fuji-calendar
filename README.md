@@ -1,7 +1,7 @@
 # Fuji Calendar - Diamond Fuji & Pearl Fuji Photography Guide
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/yuru-sha/fuji-calendar)
 
-**Version 0.1.0**
+**Version 0.2.0**
 
 A calendar application that displays optimal dates and locations for Diamond Fuji and Pearl Fuji photography. Provides accurate information based on high-precision astronomical calculations using Astronomy Engine to help photography enthusiasts efficiently plan their shoots.
 

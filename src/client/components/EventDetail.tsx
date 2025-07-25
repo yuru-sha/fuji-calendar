@@ -31,13 +31,8 @@ const EventDetail: React.FC<EventDetailProps> = memo(({
     return new Set();
   });
 
-  // 初期選択：一番上の地点を自動選択して地図に表示
-  React.useEffect(() => {
-    if (events.length > 0 && !selectedLocationId && onLocationSelect) {
-      const firstLocation = events[0].location;
-      onLocationSelect(firstLocation);
-    }
-  }, [events, selectedLocationId, onLocationSelect]);
+  // HomePage側で選択管理されるため、ここでの自動選択は不要
+  // （HomePageのhandleDateClickで最初の地点が自動選択される）
   const formatTime = (time: Date): string => {
     return timeUtils.formatJstTime(time);
   };

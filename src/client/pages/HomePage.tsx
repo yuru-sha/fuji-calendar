@@ -141,10 +141,18 @@ const HomePage: React.FC = () => {
     setSelectedDate(date);
     setLoading(true);
     
+    // 日付が変わったら地点選択をリセット
+    setSelectedLocationId(undefined);
+    
     try {
       const dateString = timeUtils.formatDateString(date);
       const response = await apiClient.getDayEvents(dateString);
       setDayEvents(response.events || []);
+      
+      // 最初の地点を自動選択（イベントがある場合）
+      if (response.events && response.events.length > 0) {
+        setSelectedLocationId(response.events[0].location.id);
+      }
       
       // 天気情報を取得（7日間以内の未来日付のみ）
       const today = new Date();

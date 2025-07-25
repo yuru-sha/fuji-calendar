@@ -257,7 +257,7 @@ const MapView: React.FC<MapViewProps> = ({
         
         // 太陽のライン（選択地点から富士山を通って延長）を計算
         // 富士山から更に延長した点を計算
-        const extensionDistance = 0.3; // 約30km相当
+        const extensionDistance = 3.5; // 約350km相当
         const extendedLat = FUJI_COORDINATES.latitude + (FUJI_COORDINATES.latitude - selectedLocation.latitude) * extensionDistance;
         const extendedLng = FUJI_COORDINATES.longitude + (FUJI_COORDINATES.longitude - selectedLocation.longitude) * extensionDistance;
         const extendedPoint: [number, number] = [extendedLat, extendedLng];

@@ -323,7 +323,7 @@ const EventDetail: React.FC<EventDetailProps> = memo(({
                             {event.type === 'pearl' && event.moonPhase !== undefined && (
                               <div className={styles.detailItem}>
                                 <span className={styles.detailLabel}>月相:</span>
-                                <span className={styles.detailValue}>{(event.moonPhase * 100).toFixed(1)}%</span>
+                                <span className={styles.detailValue}>{event.moonPhase.toFixed(1)}°</span>
                               </div>
                             )}
                             {event.type === 'pearl' && event.moonIllumination !== undefined && (
@@ -369,7 +369,7 @@ const EventDetail: React.FC<EventDetailProps> = memo(({
                             {location.fujiDistance && (
                               <div className={styles.detailItem}>
                                 <span className={styles.detailLabel}>富士山まで:</span>
-                                <span className={styles.detailValue}>約{location.fujiDistance.toFixed(1)}km</span>
+                                <span className={styles.detailValue}>約{(location.fujiDistance / 1000).toFixed(1)}km</span>
                               </div>
                             )}
                             <div className={styles.detailItem}>

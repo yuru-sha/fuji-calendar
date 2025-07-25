@@ -5,8 +5,10 @@
   "main": "dist/server/index.js",
   "scripts": {
     "dev:server": "nodemon",
-    "dev:client": "vite",
+    "dev:client": "vite", 
+    "dev:worker": "nodemon --exec ts-node src/server/worker.ts",
     "dev": "npm run build:client && npm run dev:server",
+    "worker": "node dist/server/worker.js",
     "build:server": "tsc -p tsconfig.server.json",
     "build:client": "vite build",
     "build": "npm run build:server && npm run build:client",

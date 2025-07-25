@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { calendarServicePrisma } from '../services/CalendarServicePrisma';
 // import { celestialOrbitDataService } from '../services/CelestialOrbitDataService'; // リアルタイム計算により不要
 // import { astronomicalDataService } from '../services/AstronomicalDataService'; // 削除済み
-import { locationFujiEventService } from '../services/LocationFujiEventService';
+// import { locationFujiEventService } from '../services/LocationFujiEventService'; // 廃止 - EventCacheServiceに移行
 import { getComponentLogger } from '../../shared/utils/logger';
 
 /**
@@ -252,7 +252,7 @@ export class PrismaAdminController {
       ] = await Promise.all([
         Promise.resolve({ totalRecords: 0, message: 'CelestialOrbitData削除済み' }),
         Promise.resolve({ totalCandidates: 0 }), // AstronomicalDataService削除により無効化
-        locationFujiEventService.getStatistics(),
+        Promise.resolve({ totalEvents: 0, message: 'LocationFujiEventService廃止済み - EventCacheServiceに移行' }),
         Promise.resolve({ message: '新システムではパフォーマンス指標は直接取得不要' })
       ]);
 
@@ -322,7 +322,7 @@ export class PrismaAdminController {
         eventStats
       ] = await Promise.all([
         Promise.resolve({ totalCandidates: 0 }), // AstronomicalDataService削除により無効化
-        locationFujiEventService.getStatistics(year)
+        Promise.resolve({ totalEvents: 0, message: 'LocationFujiEventService廃止済み - EventCacheServiceに移行' })
       ]);
 
       const responseTime = Date.now() - startTime;

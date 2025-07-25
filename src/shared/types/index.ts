@@ -247,16 +247,15 @@ export interface ApiError {
 export interface SunPosition {
   azimuth: number;
   elevation: number;
-  sunrise: Date;
-  sunset: Date;
+  distance: number; // 地球からの距離（AU単位）
 }
 
 export interface MoonPosition {
   azimuth: number;
   elevation: number;
-  moonrise: Date;
-  moonset: Date;
+  distance: number; // 地球からの距離（AU単位）
   phase: number; // 0-1 (0: 新月, 0.5: 満月)
+  illumination: number; // 照度（0-1）
 }
 
 // 富士山の座標定数（剣ヶ峰）

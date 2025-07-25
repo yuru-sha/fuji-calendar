@@ -183,7 +183,7 @@ const HomePage: React.FC = () => {
     return dayEvents.filter(event => {
       // 距離フィルター
       if (filters.distance !== 'all') {
-        const distance = event.location.fujiDistance || 0;
+        const distance = (event.location.fujiDistance || 0) / 1000; // メートルからキロメートルに変換
         switch (filters.distance) {
           case 'very_near':
             if (distance > 50) return false;
@@ -598,7 +598,7 @@ const HomePage: React.FC = () => {
                           color: '#166534',
                           marginTop: '0.25rem'
                         }}>
-                          富士山まで約{selectedLocation.fujiDistance.toFixed(1)}km
+                          富士山まで約{(selectedLocation.fujiDistance / 1000).toFixed(1)}km
                         </div>
                       )}
                     </div>

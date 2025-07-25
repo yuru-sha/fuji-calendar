@@ -3,7 +3,7 @@ import IORedis from 'ioredis';
 
 import { getComponentLogger } from '../../shared/utils/logger';
 
-import { BatchCalculationService } from './BatchCalculationService';
+import { batchCalculationService } from './BatchCalculationService';
 
 import { HistoricalEventsModel } from '../models/HistoricalEvents';
 
@@ -59,7 +59,7 @@ export class QueueService {
   private monthlyQueue: Queue<MonthlyCalculationJob>;
   private dailyQueue: Queue<DailyCalculationJob>;
   private historicalQueue: Queue<HistoricalCalculationJob>;
-  private batchService: BatchCalculationService;
+  // BatchCalculationServiceはシングルトンを使用
   private historicalModel: HistoricalEventsModel;
   private workers: Worker[] = [];
 
@@ -70,7 +70,7 @@ export class QueueService {
     this.dailyQueue = new Queue('daily-calculation', { connection: redisConnection });
     this.historicalQueue = new Queue('historical-calculation', { connection: redisConnection });
     
-    this.batchService = new BatchCalculationService();
+    // BatchCalculationServiceはシングルトンを使用
     this.historicalModel = new HistoricalEventsModel();
     
     this.initializeWorkers();
@@ -315,7 +315,7 @@ export class QueueService {
 
         // 年間計算（月ごとに分割）
         for (let month = 1; month <= 12; month++) {
-          await this.batchService.calculateMonthlyEvents(year, month, [locationId]);
+          await batchCalculationService.calculateMonthlyEvents(year, month, [locationId]);
         }
         
         logger.info('Year calculation completed', {
@@ -358,7 +358,7 @@ export class QueueService {
     });
 
     try {
-      await this.batchService.calculateMonthlyEvents(year, month, [locationId]);
+      await batchCalculationService.calculateMonthlyEvents(year, month, [locationId]);
       
       logger.info('Monthly calculation completed', {
         jobId: job.id,
@@ -394,7 +394,7 @@ export class QueueService {
     });
 
     try {
-      await this.batchService.calculateDayEvents(year, month, day, [locationId]);
+      await batchCalculationService.calculateDayEvents(year, month, day, [locationId]);
       
       logger.info('Daily calculation completed', {
         jobId: job.id,
@@ -447,7 +447,7 @@ export class QueueService {
         // その年のデータを計算
         // 年間計算（月ごとに分割）
         for (let month = 1; month <= 12; month++) {
-          await this.batchService.calculateMonthlyEvents(year, month, [locationId]);
+          await batchCalculationService.calculateMonthlyEvents(year, month, [locationId]);
         }
 
         // 計算結果をhistoricalテーブルに保存

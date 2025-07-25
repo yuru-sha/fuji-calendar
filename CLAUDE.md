@@ -11,9 +11,45 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **イベント詳細**: 日付クリックで詳細情報と地図表示・ルート案内
 - **お気に入り管理**: 撮影地点・イベントの保存・エクスポート機能
 - **管理者機能**: JWT認証による地点管理システム
-- **高性能**: RedisキャッシュとPino構造化ログで最適化（5-10倍性能向上）
+- **高性能**: Pino構造化ログで最適化（5-10倍性能向上）
 - **開発支援**: 包括的デバッグスクリプト群とパフォーマンス分析ツール
 - **天気情報**: 7日間天気予報と撮影条件レコメンデーション（模擬実装）
+- **非同期処理**: BullMQとRedisによるキューシステムでバックグラウンド計算
+
+### 技術スタック
+- **Backend**: Node.js + Express + TypeScript
+- **Database**: PostgreSQL + Prisma ORM
+- **Queue**: BullMQ + Redis
+- **Frontend**: React 18 + TypeScript + Tailwind CSS
+- **認証**: JWT (Access + Refresh Token)
+- **ログ**: Pino (構造化ログ)
+- **天体計算**: Astronomy Engine
+
+## 開発方針・ベストプラクティス
+
+### コーディング規約
+1. **ログ出力**: `console.*`は使用禁止。必ず`getComponentLogger`で取得したPinoロガーを使用
+2. **TypeScript**: 厳密な型チェックを有効化。`any`型の使用は最小限に
+3. **エラーハンドリング**: 全てのasync関数でtry-catchを実装
+4. **コメント**: 日本語でビジネスロジックを説明。英語は技術的な内容のみ
+5. **時刻処理**: 全ての時刻はJST基準。`timeUtils`を必ず使用
+
+### パフォーマンス
+1. **データベース**: N+1クエリを避ける。Prismaの`include`/`select`を活用
+2. **キャッシュ**: 重い計算は事前計算してDBに保存
+3. **非同期処理**: 重い処理はキューシステム（BullMQ）で実行
+4. **フロントエンド**: React.memoとuseCallbackで不要な再レンダリングを防ぐ
+
+### セキュリティ
+1. **認証**: JWTトークンの適切な有効期限設定
+2. **入力検証**: 全てのAPI入力値を検証
+3. **SQL注入**: Prismaの型安全なクエリを使用
+4. **秘密情報**: 環境変数で管理、ログに出力禁止
+
+### デバッグ・テスト
+1. **構造化ログ**: 検索・分析しやすい形式でログ出力
+2. **デバッグスクリプト**: `scripts/`ディレクトリに天体計算検証用スクリプトを配置
+3. **エラー追跡**: requestIdを使用してリクエスト単位で追跡
 
 ## Development Commands
 
@@ -46,7 +82,8 @@ npm run test:watch    # Watch mode for tests
 - **AstronomicalCalculator** (`src/server/services/AstronomicalCalculator.ts`): 天体計算の中核。Astronomy Engineライブラリを使用してダイヤモンド富士・パール富士の時刻を高精度計算。大気屈折補正、地球楕円体モデル、シーズン自動判定機能を実装
 - **FavoritesService** (`src/client/services/favoritesService.ts`): LocalStorageベースのお気に入り管理システム。JSONエクスポート/インポート機能付き
 - **AuthService** (`src/server/services/AuthService.ts`): JWTベースの認証システム。アカウントロック、リフレッシュトークン対応
-- **CacheService** (`src/server/services/CacheService.ts`): Redisベースの高性能キャッシュシステム。メモリフォールバック付き
+- **EventCacheService** (`src/server/services/EventCacheService.ts`): イベントデータの事前計算とPostgreSQLへの保存を管理
+- **QueueService** (`src/server/services/QueueService.ts`): BullMQを使用した非同期ジョブ管理。地点登録時の計算処理をバックグラウンド実行
 - **TimeUtils** (`src/shared/utils/timeUtils.ts`): JST/UTC変換と時刻処理。日本の撮影者向けに全ての時刻をJST基準で統一
 - **CalendarService** (`src/server/services/CalendarService.ts`): 月間イベントの集計とレコメンデーション生成、天気情報統合（模擬実装）
 - **Logger** (`src/shared/utils/logger.ts`): Pinoベースの高性能構造化ログシステム。天体計算の詳細追跡とパフォーマンス監視
@@ -73,13 +110,14 @@ npm run test:watch    # Watch mode for tests
 - API レスポンスは `timeUtils.formatDateString()` でJST文字列
 - フロントエンドでの日付クリック時は `timeUtils.formatDateString(date)` を使用 (`date.toISOString().split('T')[0]` は使用禁止)
 
-### Database Schema
+### Database Schema (PostgreSQL + Prisma)
 
-- **locations**: 撮影地点 (緯度経度・標高・アクセス情報)
+- **locations**: 撮影地点 (緯度経度・標高・アクセス情報・富士山への事前計算値)
+- **location_fuji_events**: 富士現象イベントデータ (天体計算結果のキャッシュ)
 - **admins**: 管理者アカウント (bcrypt + JWT認証)
 - **location_requests**: 撮影地点追加リクエスト
 
-SQLite3使用、初回起動時に `src/server/database/schema.sql` から初期化
+Prisma ORMを使用、`prisma/schema.prisma`で定義
 
 ### Security Implementation
 
@@ -102,6 +140,10 @@ React 18 + TypeScript + Tailwind CSS v3.4.17構成
 ### Common Issues & Solutions
 
 **時差問題**: カレンダーで日付をクリックした際に前日のデータが表示される場合、`HomePage.tsx` の `handleDateClick` で `date.toISOString().split('T')[0]` ではなく `timeUtils.formatDateString(date)` を使用すること
+
+**ログ出力**: 全てのコンポーネントで `getComponentLogger('component-name')` で取得したPinoロガーを使用。`console.log/error/warn` は使用禁止
+
+**データベースアクセス**: Prismaの型安全なクエリを使用。生のSQLは避ける。リレーションは`include`で取得
 
 **UI視認性問題**: イベントアイコンが小さく件数表示が見えない場合、`Calendar.module.css`でアイコンサイズを28pxに、件数表示に白背景と境界線を追加。`HomePage.module.css`で今後のイベントリストを白背景に変更
 
@@ -126,10 +168,12 @@ React 18 + TypeScript + Tailwind CSS v3.4.17構成
 Required in production:
 - `PORT`: Server port (default: 3000)
 - `NODE_ENV`: Environment mode
-- `DB_PATH`: SQLite database path
+- `DATABASE_URL`: PostgreSQL接続URL (prisma使用)
 - `JWT_SECRET`: JWT signing secret
 - `REFRESH_SECRET`: Refresh token secret
 - `FRONTEND_URL`: Frontend URL for CORS (production only)
+- `REDIS_HOST`: Redisホスト (default: localhost) - キューシステムで必要
+- `REDIS_PORT`: Redisポート (default: 6379)
 
 Logging configuration:
 - `LOG_LEVEL`: Log level (trace, debug, info, warn, error, fatal) - default: info in prod, debug in dev
@@ -235,6 +279,38 @@ export interface WeatherInfo {
 - **表示項目**: 天候・雲量・視界・撮影条件をカード形式で表示
 - **ルートボタン**: 🗺️ アイコン付きの直感的なルート検索ボタン
 
+## 2025年7月の重要な修正履歴
+
+### 1. event_dateの前日問題修正 (2025-07-25)
+**問題**: PostgreSQLに保存される`event_date`が前日になる
+**原因**: `EventCacheService.createJstDateOnly`メソッドでローカルタイムゾーンを使用していた
+**修正**: UTC基準で日付を作成し、JST→UTC変換を正しく行うように修正
+```typescript
+// 修正後のcreateJstDateOnly
+const utcDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+utcDate.setUTCHours(utcDate.getUTCHours() - 9);
+```
+
+### 2. キューシステムの有効化 (2025-07-25)
+**問題**: 地点登録時に2025年データが作成されない
+**原因**: `queueService`が無効化されていた
+**修正**: 
+- `src/server/index.ts`で`queueService`のインポートを復活
+- 地点登録時に当年（2025年）と翌年（2026年）のデータがキューに登録されるように修正
+- Redisが必要（`REDIS_HOST`環境変数で設定）
+
+### 3. バックグラウンドジョブの起動時実行問題
+**問題**: `npm run dev`する度に月間イベント計算ジョブが動く
+**原因**: `BackgroundJobSchedulerPrisma`のスケジューリングメソッドが起動時に条件チェックなしで実行される可能性
+**推奨対策**: 
+- 開発環境では`NODE_ENV`で制御
+- 初回実行を防ぐフラグの追加
+- 適切なジョブスケジューラー（node-cron等）の使用
+
+### 4. 富士山頂への仰角計算の修正
+**修正内容**: `AstronomicalCalculator.calculateElevationToFuji`メソッドで、より正確な仰角計算を実装
+**重要**: 地点登録・更新時に自動的に`fujiElevation`が計算される
+
 ## トラブルシューティング
 
 ### よくある問題
@@ -242,6 +318,8 @@ export interface WeatherInfo {
 2. **Tailwind CSS クラス未適用**: PostCSS設定確認、Tailwind v3.4.17使用確認
 3. **レイアウト崩れ**: `content-wide` クラス適用確認、max-width統一確認
 4. **天気情報未表示**: 7日間以内の未来日付のみ表示される仕様を確認
+5. **event_dateが前日になる**: `EventCacheService.createJstDateOnly`の実装を確認
+6. **地点登録後にデータが作成されない**: Redisが起動しているか、`queueService`が有効か確認
 
 ### 開発環境セットアップ
 ```bash

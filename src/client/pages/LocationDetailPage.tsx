@@ -214,7 +214,7 @@ const LocationDetailPage: React.FC = () => {
                 {location.fujiDistance && (
                   <div className={styles.infoItem}>
                     <span className={styles.infoLabel}>富士山まで:</span>
-                    <span className={styles.infoValue}>約{location.fujiDistance.toFixed(1)}km</span>
+                    <span className={styles.infoValue}>約{(location.fujiDistance / 1000).toFixed(1)}km</span>
                   </div>
                 )}
                 {location.fujiAzimuth !== undefined && (

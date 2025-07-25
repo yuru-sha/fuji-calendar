@@ -26,9 +26,8 @@ import PrismaAdminController from './controllers/PrismaAdminController';
 // import { LocationModel } from './models/Location'; // 一時的に無効化
 // import BackgroundJobScheduler from './services/BackgroundJobScheduler'; // 一時的に無効化
 import BackgroundJobSchedulerPrisma from './services/BackgroundJobSchedulerPrisma';
-// import { queueService } from './services/QueueService'; // 一時的に無効化
+import { queueService } from './services/QueueService';
 import { calendarServicePrisma } from './services/CalendarServicePrisma';
-// import { queueService } from './services/QueueService'; // 一時的に無効化
 
 const app = express();
 const PORT = process.env.PORT || 3000;

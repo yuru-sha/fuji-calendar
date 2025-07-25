@@ -298,7 +298,7 @@ const MapView: React.FC<MapViewProps> = ({
           const endAngle = fujiAzimuth + camera.angle / 2;
           
           // 扇形の円弧を描画するための点を生成
-          const radius = selectedLocation.fujiDistance ? selectedLocation.fujiDistance * 0.3 : 30; // km
+          const radius = selectedLocation.fujiDistance ? (selectedLocation.fujiDistance / 1000) * 0.3 : 30; // km (メートルからキロメートルに変換)
           const radiusInDegrees = radius / 111; // 1度 ≈ 111km
           
           for (let angle = startAngle; angle <= endAngle; angle += 2) {

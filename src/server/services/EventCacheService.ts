@@ -39,12 +39,17 @@ export class EventCacheService {
       const locations = await prisma.location.findMany();
       const locationTyped: Location[] = locations.map(loc => ({
         ...loc,
+        // 数値型フィールドの安全な変換
+        latitude: Number(loc.latitude) || 0,
+        longitude: Number(loc.longitude) || 0,
+        elevation: Number(loc.elevation) || 0,
+        // オプショナルフィールドの変換
         description: loc.description || undefined,
         accessInfo: loc.accessInfo || undefined,
         parkingInfo: loc.parkingInfo || undefined,
-        fujiAzimuth: loc.fujiAzimuth || undefined,
-        fujiElevation: loc.fujiElevation || undefined,
-        fujiDistance: loc.fujiDistance || undefined
+        fujiAzimuth: loc.fujiAzimuth ? Number(loc.fujiAzimuth) : undefined,
+        fujiElevation: loc.fujiElevation ? Number(loc.fujiElevation) : undefined,
+        fujiDistance: loc.fujiDistance ? Number(loc.fujiDistance) : undefined
       }));
 
       // 年間イベントを計算
@@ -56,7 +61,7 @@ export class EventCacheService {
           prisma.locationFujiEvent.create({
             data: {
               locationId: event.location.id,
-              eventDate: new Date(event.time.toDateString()),
+              eventDate: this.createJstDateOnly(event.time),
               eventTime: event.time,
               azimuth: event.azimuth || 0,
               altitude: event.elevation || 0,
@@ -97,6 +102,210 @@ export class EventCacheService {
   }
 
   /**
+   * 地点別月間キャッシュ生成（効率的な月単位処理）
+   */
+  async generateLocationMonthCache(locationId: number, year: number, month: number): Promise<{
+    success: boolean;
+    totalEvents: number;
+    timeMs: number;
+  }> {
+    const startTime = Date.now();
+
+    try {
+      this.logger.info('地点月間キャッシュ生成開始', { locationId, year, month });
+
+      // 地点情報を取得
+      const location = await prisma.location.findUnique({
+        where: { id: locationId }
+      });
+
+      if (!location) {
+        throw new Error(`Location not found: ${locationId}`);
+      }
+
+      const locationTyped: Location = {
+        ...location,
+        latitude: Number(location.latitude) || 0,
+        longitude: Number(location.longitude) || 0,
+        elevation: Number(location.elevation) || 0,
+        description: location.description || undefined,
+        accessInfo: location.accessInfo || undefined,
+        parkingInfo: location.parkingInfo || undefined,
+        fujiAzimuth: location.fujiAzimuth ? Number(location.fujiAzimuth) : undefined,
+        fujiElevation: location.fujiElevation ? Number(location.fujiElevation) : undefined,
+        fujiDistance: location.fujiDistance ? Number(location.fujiDistance) : undefined
+      };
+
+      // 該当月の既存データを削除
+      const monthStart = new Date(year, month - 1, 1);
+      const monthEnd = new Date(year, month, 0, 23, 59, 59, 999);
+      
+      await prisma.locationFujiEvent.deleteMany({
+        where: { 
+          locationId: locationId,
+          calculationYear: year,
+          eventTime: {
+            gte: monthStart,
+            lte: monthEnd
+          }
+        }
+      });
+
+      // 月間イベントを計算
+      const events = this.astronomicalCalculator.calculateMonthlyEvents(year, month, [locationTyped]);
+
+      // データベースに保存
+      const savedEvents = await Promise.all(
+        events.map(event => 
+          prisma.locationFujiEvent.create({
+            data: {
+              locationId: event.location.id,
+              eventDate: this.createJstDateOnly(event.time),
+              eventTime: event.time,
+              azimuth: event.azimuth || 0,
+              altitude: event.elevation || 0,
+              qualityScore: this.getQualityScore(event.accuracy),
+              moonPhase: event.moonPhase,
+              moonIllumination: event.moonIllumination,
+              calculationYear: year,
+              eventType: this.getEventType(event),
+              accuracy: this.mapAccuracy(event.accuracy)
+            }
+          })
+        )
+      );
+
+      const endTime = Date.now();
+      
+      this.logger.info('地点月間キャッシュ生成完了', {
+        locationId,
+        year,
+        month,
+        totalEvents: savedEvents.length,
+        timeMs: endTime - startTime
+      });
+
+      return {
+        success: true,
+        totalEvents: savedEvents.length,
+        timeMs: endTime - startTime
+      };
+
+    } catch (error) {
+      this.logger.error('地点月間キャッシュ生成エラー', error, { locationId, year, month });
+      return {
+        success: false,
+        totalEvents: 0,
+        timeMs: Date.now() - startTime
+      };
+    }
+  }
+
+  /**
+   * 地点別日別キャッシュ生成（単日処理）
+   */
+  async generateLocationDayCache(locationId: number, year: number, month: number, day: number): Promise<{
+    success: boolean;
+    totalEvents: number;
+    timeMs: number;
+  }> {
+    const startTime = Date.now();
+
+    try {
+      this.logger.info('地点日別キャッシュ生成開始', { locationId, year, month, day });
+
+      // 地点情報を取得
+      const location = await prisma.location.findUnique({
+        where: { id: locationId }
+      });
+
+      if (!location) {
+        throw new Error(`Location not found: ${locationId}`);
+      }
+
+      const locationTyped: Location = {
+        ...location,
+        latitude: Number(location.latitude) || 0,
+        longitude: Number(location.longitude) || 0,
+        elevation: Number(location.elevation) || 0,
+        description: location.description || undefined,
+        accessInfo: location.accessInfo || undefined,
+        parkingInfo: location.parkingInfo || undefined,
+        fujiAzimuth: location.fujiAzimuth ? Number(location.fujiAzimuth) : undefined,
+        fujiElevation: location.fujiElevation ? Number(location.fujiElevation) : undefined,
+        fujiDistance: location.fujiDistance ? Number(location.fujiDistance) : undefined
+      };
+
+      // 該当日の既存データを削除
+      const dayStart = new Date(year, month - 1, day, 0, 0, 0, 0);
+      const dayEnd = new Date(year, month - 1, day, 23, 59, 59, 999);
+      
+      await prisma.locationFujiEvent.deleteMany({
+        where: { 
+          locationId: locationId,
+          calculationYear: year,
+          eventTime: {
+            gte: dayStart,
+            lte: dayEnd
+          }
+        }
+      });
+
+      // その日のイベントを計算
+      const date = new Date(year, month - 1, day, 12, 0, 0, 0); // JST正午基準
+      const diamondEvents = this.astronomicalCalculator.calculateDiamondFuji(date, [locationTyped]);
+      const pearlEvents = this.astronomicalCalculator.calculatePearlFuji(date, [locationTyped]);
+      const events = [...diamondEvents, ...pearlEvents];
+
+      // データベースに保存
+      const savedEvents = await Promise.all(
+        events.map(event => 
+          prisma.locationFujiEvent.create({
+            data: {
+              locationId: event.location.id,
+              eventDate: this.createJstDateOnly(event.time),
+              eventTime: event.time,
+              azimuth: event.azimuth || 0,
+              altitude: event.elevation || 0,
+              qualityScore: this.getQualityScore(event.accuracy),
+              moonPhase: event.moonPhase,
+              moonIllumination: event.moonIllumination,
+              calculationYear: year,
+              eventType: this.getEventType(event),
+              accuracy: this.mapAccuracy(event.accuracy)
+            }
+          })
+        )
+      );
+
+      const endTime = Date.now();
+      
+      this.logger.info('地点日別キャッシュ生成完了', {
+        locationId,
+        year,
+        month,
+        day,
+        totalEvents: savedEvents.length,
+        timeMs: endTime - startTime
+      });
+
+      return {
+        success: true,
+        totalEvents: savedEvents.length,
+        timeMs: endTime - startTime
+      };
+
+    } catch (error) {
+      this.logger.error('地点日別キャッシュ生成エラー', error, { locationId, year, month, day });
+      return {
+        success: false,
+        totalEvents: 0,
+        timeMs: Date.now() - startTime
+      };
+    }
+  }
+
+  /**
    * 単一地点の年間データを生成・保存（地点登録時用）
    */
   async generateLocationCache(locationId: number, year: number): Promise<{
@@ -120,12 +329,17 @@ export class EventCacheService {
 
       const locationTyped: Location = {
         ...location,
+        // 数値型フィールドの安全な変換
+        latitude: Number(location.latitude) || 0,
+        longitude: Number(location.longitude) || 0,
+        elevation: Number(location.elevation) || 0,
+        // オプショナルフィールドの変換
         description: location.description || undefined,
         accessInfo: location.accessInfo || undefined,
         parkingInfo: location.parkingInfo || undefined,
-        fujiAzimuth: location.fujiAzimuth || undefined,
-        fujiElevation: location.fujiElevation || undefined,
-        fujiDistance: location.fujiDistance || undefined
+        fujiAzimuth: location.fujiAzimuth ? Number(location.fujiAzimuth) : undefined,
+        fujiElevation: location.fujiElevation ? Number(location.fujiElevation) : undefined,
+        fujiDistance: location.fujiDistance ? Number(location.fujiDistance) : undefined
       };
 
       // 既存データを削除
@@ -145,7 +359,7 @@ export class EventCacheService {
           prisma.locationFujiEvent.create({
             data: {
               locationId: event.location.id,
-              eventDate: new Date(event.time.toDateString()),
+              eventDate: this.createJstDateOnly(event.time),
               eventTime: event.time,
               azimuth: event.azimuth || 0,
               altitude: event.elevation || 0,
@@ -216,6 +430,30 @@ export class EventCacheService {
       case 'fair': return 'fair';
       default: return null;
     }
+  }
+
+  /**
+   * JST時刻から日付のみを抽出してJST基準の日付オブジェクトを作成
+   */
+  private createJstDateOnly(jstDateTime: Date): Date {
+    // JST時刻の年月日を取得
+    const jstTimeString = jstDateTime.toLocaleString('ja-JP', {
+      timeZone: 'Asia/Tokyo',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+    
+    const [year, month, day] = jstTimeString.split('/').map(n => parseInt(n));
+    
+    // UTC時刻で00:00:00 JSTを表現（UTC時刻では前日の15:00:00）
+    // JST 00:00:00 = UTC 前日 15:00:00
+    const utcDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+    
+    // JSTとUTCの差は9時間なので、9時間引く
+    utcDate.setUTCHours(utcDate.getUTCHours() - 9);
+    
+    return utcDate;
   }
 }
 

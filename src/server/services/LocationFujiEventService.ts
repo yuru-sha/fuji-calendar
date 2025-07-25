@@ -1,6 +1,7 @@
 import { prisma } from '../database/prisma';
 import { LocationFujiEvent, EventType, Accuracy, Location, CelestialOrbitData } from '@prisma/client';
 import { getComponentLogger, StructuredLogger } from '../../shared/utils/logger';
+import { timeUtils } from '../../shared/utils/timeUtils';
 
 // 高精度ダイヤモンド富士検出用定数
 const FUJI_SUMMIT_WIDTH = 800; // 富士山山頂の物理的な幅（メートル）
@@ -189,9 +190,9 @@ export class LocationFujiEventService {
     year: number
   ): Promise<FujiEventCandidate[]> {
     
-    // 年間の天体軌道データを直接取得
-    const startDate = new Date(year, 0, 1);
-    const endDate = new Date(year, 11, 31);
+    // 年間の天体軌道データを直接取得（JST基準）
+    const startDate = timeUtils.getMonthStart(year, 1); // JST 1月1日 00:00
+    const endDate = timeUtils.getMonthEnd(year, 12);    // JST 12月31日 23:59
     
     this.logger.info('CelestialOrbitDataから富士現象候補を検索', {
       locationId: location.id,
@@ -291,10 +292,11 @@ export class LocationFujiEventService {
 
     const matchedEvents: FujiEventCandidate[] = [];
 
-    // 日付ごとにグループ分けして高精度検出
+    // 日付ごとにグループ分けして高精度検出（JST基準）
     const dataByDate = new Map<string, CelestialOrbitData[]>();
     for (const candidate of candidates) {
-      const dateKey = candidate.date.toISOString().split('T')[0];
+      // JST基準の日付文字列を使用
+      const dateKey = timeUtils.formatDateString(candidate.date);
       if (!dataByDate.has(dateKey)) {
         dataByDate.set(dateKey, []);
       }
@@ -437,8 +439,8 @@ export class LocationFujiEventService {
    * 指定年の全イベントをクリア
    */
   private async clearYearEvents(year: number): Promise<void> {
-    const startDate = new Date(year, 0, 1);
-    const endDate = new Date(year + 1, 0, 1);
+    const startDate = timeUtils.getMonthStart(year, 1);
+    const endDate = timeUtils.getMonthStart(year + 1, 1);
 
     const deleteResult = await prisma.locationFujiEvent.deleteMany({
       where: {
@@ -459,8 +461,8 @@ export class LocationFujiEventService {
    * 特定地点の指定年イベントをクリア
    */
   private async clearLocationEvents(locationId: number, year: number): Promise<void> {
-    const startDate = new Date(year, 0, 1);
-    const endDate = new Date(year + 1, 0, 1);
+    const startDate = timeUtils.getMonthStart(year, 1);
+    const endDate = timeUtils.getMonthStart(year + 1, 1);
 
     const deleteResult = await prisma.locationFujiEvent.deleteMany({
       where: {
@@ -553,13 +555,15 @@ export class LocationFujiEventService {
     let minOffsetDiff = Infinity;
     
     for (const data of sortedData) {
-      // 厳密な方位角チェック（-0.52度から+0.08度の非対称フィルタ）
+      // 厳密な方位角チェック（実測値ベースの非対称フィルタ）
       const azimuthDiff = data.azimuth - location.fujiAzimuth;
-      const normalizedAzimuthDiff = azimuthDiff > 180 ? azimuthDiff - 360 : 
-                                   azimuthDiff < -180 ? azimuthDiff + 360 : azimuthDiff;
+      const normalizedAzimuthDiff = this.normalizeAzimuthDifference(azimuthDiff);
       
-      // -0.52度から+0.08度の範囲に限定
-      if (normalizedAzimuthDiff < -0.52 || normalizedAzimuthDiff > 0.08) continue;
+      // 実測値ベースの範囲制限（-0.52度から+0.08度）
+      const AZIMUTH_MIN_OFFSET = -0.52; // 実測値による最小オフセット
+      const AZIMUTH_MAX_OFFSET = 0.08;  // 実測値による最大オフセット
+      
+      if (normalizedAzimuthDiff < AZIMUTH_MIN_OFFSET || normalizedAzimuthDiff > AZIMUTH_MAX_OFFSET) continue;
       
       // 太陽下端の仰角を計算
       const sunBottomElevation = data.elevation - SUN_RADIUS;
@@ -651,9 +655,9 @@ export class LocationFujiEventService {
   private removeDuplicateEvents(events: FujiEventCandidate[]): FujiEventCandidate[] {
     const groupedEvents = new Map<string, FujiEventCandidate[]>();
 
-    // 日付+現象タイプでグループ化
+    // 日付+現象タイプでグループ化（JST基準）
     for (const event of events) {
-      const dateKey = event.eventDate.toISOString().split('T')[0];
+      const dateKey = timeUtils.formatDateString(event.eventDate);
       const groupKey = `${dateKey}-${event.eventType}`;
 
       if (!groupedEvents.has(groupKey)) {
@@ -740,6 +744,15 @@ export class LocationFujiEventService {
   }
 
   /**
+   * 方位角差を正規化（-180度〜+180度の範囲に調整）
+   */
+  private normalizeAzimuthDifference(azimuthDiff: number): number {
+    if (azimuthDiff > 180) return azimuthDiff - 360;
+    if (azimuthDiff < -180) return azimuthDiff + 360;
+    return azimuthDiff;
+  }
+
+  /**
    * 統計情報を取得
    */
   async getStatistics(year?: number): Promise<{
@@ -761,8 +774,8 @@ export class LocationFujiEventService {
   }> {
     const whereClause = year ? {
       eventDate: {
-        gte: new Date(year, 0, 1),
-        lt: new Date(year + 1, 0, 1)
+        gte: timeUtils.getMonthStart(year, 1),
+        lt: timeUtils.getMonthStart(year + 1, 1)
       }
     } : {};
 

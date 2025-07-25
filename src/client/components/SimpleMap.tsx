@@ -178,7 +178,7 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
       if (isSelected) {
         markerColor = '#10b981'; // 選択: 緑
       } else {
-        const distance = location.fujiDistance || 0;
+        const distance = (location.fujiDistance || 0) / 1000; // メートルからキロメートルに変換
         
         // 距離に応じた色分け
         if (distance <= 50) {
@@ -317,7 +317,7 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
         // 画角表示
         if (cameraSettings.showAngles && location.fujiAzimuth) {
           const angle = getFieldOfViewAngle(cameraSettings.focalLength, cameraSettings.sensorType, cameraSettings.aspectRatio, cameraSettings.orientation);
-          const distance = location.fujiDistance ? location.fujiDistance * 1000 : 50000; // meters
+          const distance = location.fujiDistance ? location.fujiDistance : 50000; // meters (既にメートル単位)
           
           const startAzimuth = (location.fujiAzimuth! - angle / 2) % 360;
           const endAzimuth = (location.fujiAzimuth! + angle / 2) % 360;

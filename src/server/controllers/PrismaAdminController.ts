@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { fujiSystemOrchestrator } from '../services/FujiSystemOrchestrator';
 import { calendarServicePrisma } from '../services/CalendarServicePrisma';
-import { celestialOrbitDataService } from '../services/CelestialOrbitDataService';
+// import { celestialOrbitDataService } from '../services/CelestialOrbitDataService'; // リアルタイム計算により不要
 // import { astronomicalDataService } from '../services/AstronomicalDataService'; // 削除済み
 import { locationFujiEventService } from '../services/LocationFujiEventService';
 import { getComponentLogger } from '../../shared/utils/logger';

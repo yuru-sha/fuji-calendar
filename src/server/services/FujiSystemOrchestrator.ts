@@ -1,5 +1,5 @@
 import { getComponentLogger, StructuredLogger } from '../../shared/utils/logger';
-import { celestialOrbitDataService } from './CelestialOrbitDataService';
+// import { celestialOrbitDataService } from './CelestialOrbitDataService'; // リアルタイム計算により不要
 // import { astronomicalDataService } from './AstronomicalDataService'; // 削除済み
 import { locationFujiEventService } from './LocationFujiEventService';
 import { PrismaClientManager } from '../database/prisma';

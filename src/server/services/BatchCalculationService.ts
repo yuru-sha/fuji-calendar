@@ -1,6 +1,6 @@
 import { EventsCacheModel } from '../models/EventsCache';
 import { LocationModel } from '../models/Location';
-import { AstronomicalCalculatorImpl } from './NewAstronomicalCalculator';
+import { AstronomicalCalculatorImpl } from './AstronomicalCalculator';
 
 const astronomicalCalculator = new AstronomicalCalculatorImpl();
 import { 

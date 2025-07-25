@@ -579,11 +579,11 @@ async function startServer() {
     }
     serverLogger.info('Prisma データベース接続完了');
     
-    // バックグラウンドスケジューラー開始（一時的に無効化）
+    // バックグラウンドスケジューラー開始（必要な機能のみ）
     // backgroundScheduler.start(); // 一時的に無効化
-    // backgroundSchedulerPrisma.start();
-    serverLogger.info('バックグラウンドジョブスケジューラー一時無効化', {
-      // prismaScheduler: backgroundSchedulerPrisma.getStatus()
+    backgroundSchedulerPrisma.start(); // Prismaベース
+    serverLogger.info('バックグラウンドジョブスケジューラー開始', {
+      activeJobs: ['cache-cleanup', 'statistics-update', 'yearly-maintenance', 'monthly-maintenance']
     });
     
     app.listen(PORT, () => {

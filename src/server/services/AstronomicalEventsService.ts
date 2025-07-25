@@ -1,5 +1,5 @@
 import { getUnifiedDatabase, UnifiedDatabase } from '../database/connection-unified';
-import { AstronomicalCalculatorImpl } from './NewAstronomicalCalculator';
+import { AstronomicalCalculatorImpl } from './AstronomicalCalculator';
 import { getComponentLogger, StructuredLogger } from '../../shared/utils/logger';
 
 const astronomicalCalculator = new AstronomicalCalculatorImpl();

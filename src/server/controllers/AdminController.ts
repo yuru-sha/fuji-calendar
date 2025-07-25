@@ -3,8 +3,9 @@ import { FUJI_COORDINATES } from '../../shared/types';
 import { getComponentLogger } from '../../shared/utils/logger';
 import { AdminModel } from '../models/Admin';
 import { PrismaClientManager } from '../database/prisma';
-import { AstronomicalCalculatorImpl } from '../services/NewAstronomicalCalculator';
+import { AstronomicalCalculatorImpl } from '../services/AstronomicalCalculator';
 import { LocationFujiEventService } from '../services/LocationFujiEventService';
+import { eventCacheService } from '../services/EventCacheService';
 
 const astronomicalCalculator = new AstronomicalCalculatorImpl();
 import * as bcrypt from 'bcrypt';
@@ -92,7 +93,7 @@ export class AdminController {
       try {
         fujiAzimuth = astronomicalCalculator.calculateBearingToFuji(tempLocation);
         fujiElevation = astronomicalCalculator.calculateElevationToFuji(tempLocation);
-        fujiDistance = astronomicalCalculator.calculateDistanceToFuji(tempLocation);
+        fujiDistance = astronomicalCalculator.getDistanceToFuji(tempLocation);
         
         this.logger.info('富士山への事前計算完了', {
           locationName: locationData.name,
@@ -140,10 +141,9 @@ export class AdminController {
 
       // 富士現象イベントの初期計算（バックグラウンドで実行）
       const currentYear = new Date().getFullYear();
-      // 現在年と前後2年分を計算（合計5年分）
-      for (let year = currentYear - 2; year <= currentYear + 2; year++) {
-        this.recalculateLocationEvents(newLocation.id, year, 'create');
-      }
+      // 当年と翌年のイベントキャッシュを生成
+      this.generateLocationEventCache(newLocation.id, currentYear);
+      this.generateLocationEventCache(newLocation.id, currentYear + 1);
       
       res.status(201).json({
         success: true,
@@ -235,7 +235,7 @@ export class AdminController {
         try {
           const fujiAzimuth = astronomicalCalculator.calculateBearingToFuji(tempLocation);
           const fujiElevation = astronomicalCalculator.calculateElevationToFuji(tempLocation);
-          const fujiDistance = astronomicalCalculator.calculateDistanceToFuji(tempLocation);
+          const fujiDistance = astronomicalCalculator.getDistanceToFuji(tempLocation);
           
           updateData.fujiAzimuth = Math.round(fujiAzimuth * 1000) / 1000;
           updateData.fujiElevation = Math.round(fujiElevation * 1000000) / 1000000;
@@ -319,7 +319,7 @@ export class AdminController {
         const currentYear = new Date().getFullYear();
         // 現在年と前後2年分を再計算（合計5年分）
         for (let year = currentYear - 2; year <= currentYear + 2; year++) {
-          this.recalculateLocationEvents(id, year, 'update');
+          this.performEventRecalculation(id, year, 'update');
         }
       }
       
@@ -834,23 +834,52 @@ export class AdminController {
   }
 
   /**
-   * 地点の富士現象イベントを非同期で再計算
+   * 地点のイベントキャッシュを非同期で生成
    * ユーザーレスポンスをブロックしないよう、バックグラウンドで実行
    */
-  private recalculateLocationEvents(locationId: number, year: number, operation: 'create' | 'update'): void {
+  private generateLocationEventCache(locationId: number, year: number): void {
     // バックグラウンドで非同期実行（awaitしない）
-    this.performEventRecalculation(locationId, year, operation).catch((error) => {
-      this.logger.error('富士現象イベント再計算エラー', {
+    this.performEventCacheGeneration(locationId, year).catch((error) => {
+      this.logger.error('地点イベントキャッシュ生成エラー', {
         locationId,
         year,
-        operation,
         error: error instanceof Error ? error.message : 'Unknown error'
       });
     });
   }
 
   /**
-   * 実際の富士現象イベント再計算処理
+   * 実際のイベントキャッシュ生成処理（新システム）
+   */
+  private async performEventCacheGeneration(locationId: number, year: number): Promise<void> {
+    this.logger.info('地点イベントキャッシュ生成開始', {
+      locationId,
+      year
+    });
+
+    try {
+      const result = await eventCacheService.generateLocationCache(locationId, year);
+      
+      this.logger.info('地点イベントキャッシュ生成完了', {
+        locationId,
+        year,
+        totalEvents: result.totalEvents,
+        timeMs: result.timeMs,
+        success: result.success
+      });
+    } catch (error) {
+      this.logger.error('地点イベントキャッシュ生成失敗', {
+        locationId,
+        year,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      
+      // 重要：エラーが発生してもスローしない（バックグラウンド処理のため）
+    }
+  }
+
+  /**
+   * 実際の富士現象イベント再計算処理（従来システム - 更新時用）
    */
   private async performEventRecalculation(locationId: number, year: number, operation: 'create' | 'update'): Promise<void> {
     this.logger.info('富士現象イベント再計算開始', {

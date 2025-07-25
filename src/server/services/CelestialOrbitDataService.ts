@@ -1,7 +1,7 @@
 import { prisma } from '../database/prisma';
 import { CelestialOrbitData, Prisma } from '@prisma/client';
 import { getComponentLogger, StructuredLogger } from '../../shared/utils/logger';
-import { AstronomicalCalculatorImpl } from './NewAstronomicalCalculator';
+import { AstronomicalCalculatorImpl } from './AstronomicalCalculator';
 
 const astronomicalCalculator = new AstronomicalCalculatorImpl();
 import { FUJI_COORDINATES } from '../../shared/types';

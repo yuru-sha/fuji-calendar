@@ -1,9 +1,9 @@
 import { getComponentLogger, StructuredLogger } from '../../shared/utils/logger';
 
-import { BatchCalculationService } from './BatchCalculationService';
+// import { BatchCalculationService } from './BatchCalculationService'; // リアルタイム計算により不要
 import { queueService } from './QueueService';
 import { fujiCalculationOrchestrator } from './FujiCalculationOrchestrator';
-import { celestialOrbitDataService } from './CelestialOrbitDataService';
+import { eventCacheService } from './EventCacheService';
 
 import { EventsCacheModel } from '../models/EventsCache';
 import { LocationModel } from '../models/Location';
@@ -13,7 +13,7 @@ export class BackgroundJobScheduler {
   // setTimeout最大値（JavaScriptの32ビット制限: 約24.8日）
   private static readonly MAX_TIMEOUT_MS = 2147483647; // 2^31 - 1
   
-  public readonly batchService: BatchCalculationService;
+  // public readonly batchService: BatchCalculationService; // リアルタイム計算により不要
   private cacheModel: EventsCacheModel;
   private locationModel: LocationModel;
   private historicalModel: HistoricalEventsModel;
@@ -22,7 +22,7 @@ export class BackgroundJobScheduler {
   private isRunning: boolean = false;
 
   constructor() {
-    this.batchService = new BatchCalculationService();
+    // this.batchService = new BatchCalculationService(); // リアルタイム計算により不要
     this.cacheModel = new EventsCacheModel();
     this.locationModel = new LocationModel();
     this.historicalModel = new HistoricalEventsModel();
@@ -38,12 +38,11 @@ export class BackgroundJobScheduler {
     this.isRunning = true;
     this.logger.info('バックグラウンドジョブスケジューラー開始');
 
-    this.schedulePrecomputation();
+    // this.schedulePrecomputation(); // リアルタイム計算により不要
     this.scheduleCacheCleanup();
     this.scheduleStatisticsUpdate();
     this.scheduleYearlyMaintenance();
     this.scheduleMonthlyMaintenance();
-    this.scheduleCelestialDataGeneration();
   }
 
   stop(): void {
@@ -75,35 +74,6 @@ export class BackgroundJobScheduler {
     return setTimeout(callback, delay);
   }
 
-  /**
-   * 事前計算ジョブのスケジュール
-   */
-  private schedulePrecomputation(): void {
-    // 毎日午前2時に次の3ヶ月分を事前計算
-    this.scheduleDaily('precomputation', 2, 0, async () => {
-      try {
-        this.logger.info('定期事前計算ジョブ開始');
-        await this.batchService.precomputeUpcomingMonths(3);
-        this.logger.info('定期事前計算ジョブ完了');
-      } catch (error) {
-        this.logger.error('定期事前計算ジョブエラー', error);
-      }
-    });
-
-    // 毎時0分に当月の不足分を補完
-    this.scheduleHourly('monthly-補完', 0, async () => {
-      try {
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = now.getMonth() + 1;
-        
-        await this.batchService.calculateMonthlyEvents(year, month, undefined, 'medium');
-        this.logger.debug('当月補完ジョブ完了', { year, month });
-      } catch (error) {
-        this.logger.warn('当月補完ジョブエラー', error);
-      }
-    });
-  }
 
   /**
    * キャッシュクリーンアップのスケジュール
@@ -167,6 +137,28 @@ export class BackgroundJobScheduler {
     });
 
     // 毎年1月1日 午前0時30分に新年データ最終確認
+    // 毎年12月1日 午前2時に翌年データ事前計算
+    this.scheduleYearly('yearly-cache-generation', 12, 1, 2, 0, async () => {
+      try {
+        const nextYear = new Date().getFullYear() + 1;
+        this.logger.info('年次キャッシュ生成ジョブ開始', { targetYear: nextYear });
+        
+        const result = await eventCacheService.generateYearlyCache(nextYear);
+        
+        if (result.success) {
+          this.logger.info('年次キャッシュ生成ジョブ完了', {
+            targetYear: nextYear,
+            totalEvents: result.totalEvents,
+            timeMs: result.timeMs
+          });
+        } else {
+          this.logger.error('年次キャッシュ生成ジョブ失敗', result.error, { targetYear: nextYear });
+        }
+      } catch (error) {
+        this.logger.error('年次キャッシュ生成ジョブエラー', error);
+      }
+    });
+
     this.scheduleYearly('new-year-verification', 1, 1, 0, 30, async () => {
       try {
         this.logger.info('新年データ検証ジョブ開始');
@@ -189,65 +181,6 @@ export class BackgroundJobScheduler {
     });
   }
 
-  /**
-   * 天体軌道データ生成のスケジュール
-   */
-  private scheduleCelestialDataGeneration(): void {
-    // サーバー起動5分後に今年の天体データ生成を開始
-    const fiveMinutesLater = 5 * 60 * 1000; // 5分 = 300,000ms
-    
-    const timeoutId = this.safeSetTimeout(async () => {
-      try {
-        const currentYear = new Date().getFullYear();
-        this.logger.info('天体軌道データ生成ジョブ開始（起動時）', { year: currentYear });
-        
-        const result = await celestialOrbitDataService.generateYearlyData(currentYear);
-        
-        if (result.success) {
-          this.logger.info('天体軌道データ生成ジョブ完了', {
-            year: currentYear,
-            totalDataPoints: result.totalDataPoints,
-            timeMs: result.timeMs
-          });
-        } else {
-          this.logger.error('天体軌道データ生成ジョブ失敗', null, { year: currentYear });
-        }
-        
-      } catch (error) {
-        this.logger.error('天体軌道データ生成ジョブエラー', error);
-      }
-    }, fiveMinutesLater);
-    
-    this.scheduledJobs.set('celestial-data-generation', timeoutId);
-    
-    this.logger.info('天体軌道データ生成スケジュール', {
-      delayMinutes: 5,
-      scheduledTime: new Date(Date.now() + fiveMinutesLater).toISOString()
-    });
-
-    // 年次で天体データを再生成（毎年12月1日 午前3時）
-    this.scheduleYearly('celestial-yearly-generation', 12, 1, 3, 0, async () => {
-      try {
-        const currentYear = new Date().getFullYear();
-        this.logger.info('年次天体軌道データ生成ジョブ開始', { year: currentYear });
-        
-        const result = await celestialOrbitDataService.generateYearlyData(currentYear);
-        
-        if (result.success) {
-          this.logger.info('年次天体軌道データ生成ジョブ完了', {
-            year: currentYear,
-            totalDataPoints: result.totalDataPoints,
-            timeMs: result.timeMs
-          });
-        } else {
-          this.logger.error('年次天体軌道データ生成ジョブ失敗', null, { year: currentYear });
-        }
-        
-      } catch (error) {
-        this.logger.error('年次天体軌道データ生成ジョブエラー', error);
-      }
-    });
-  }
 
   /**
    * 月次メンテナンスのスケジュール
@@ -459,23 +392,6 @@ export class BackgroundJobScheduler {
     });
   }
 
-  /**
-   * 即座に事前計算を実行（手動トリガー用）
-   */
-  async triggerImmediatePrecomputation(monthsAhead: number = 2): Promise<void> {
-    this.logger.info('手動事前計算開始', { monthsAhead });
-    
-    try {
-      const jobs = await this.batchService.precomputeUpcomingMonths(monthsAhead);
-      this.logger.info('手動事前計算完了', { 
-        jobCount: jobs.length,
-        monthsAhead 
-      });
-    } catch (error) {
-      this.logger.error('手動事前計算エラー', error);
-      throw error;
-    }
-  }
 
   /**
    * 手動での年間富士現象計算実行（テスト・メンテナンス用）
@@ -505,37 +421,6 @@ export class BackgroundJobScheduler {
     }
   }
 
-  /**
-   * 手動での天体軌道データ生成実行
-   */
-  async triggerCelestialDataGeneration(year: number): Promise<{
-    success: boolean;
-    totalDataPoints: number;
-    timeMs: number;
-  }> {
-    this.logger.info('手動天体軌道データ生成開始', { year });
-    
-    try {
-      const result = await celestialOrbitDataService.generateYearlyData(year);
-      
-      this.logger.info('手動天体軌道データ生成完了', {
-        year,
-        success: result.success,
-        totalDataPoints: result.totalDataPoints,
-        timeMs: result.timeMs
-      });
-
-      return result;
-      
-    } catch (error) {
-      this.logger.error('手動天体軌道データ生成エラー', error, { year });
-      return {
-        success: false,
-        totalDataPoints: 0,
-        timeMs: 0
-      };
-    }
-  }
 
   /**
    * 計算システムの健康状態チェック（手動実行用）
@@ -577,7 +462,7 @@ export class BackgroundJobScheduler {
 
   /**
    * 年間富士現象計算処理（12月1日実行）
-   * 新しい3段階アーキテクチャによる翌年の事前計算
+   * リアルタイム計算システムでのメンテナンス処理
    */
   async performYearlyFujiCalculation(): Promise<void> {
     const nextYear = new Date().getFullYear() + 1;
@@ -666,7 +551,7 @@ export class BackgroundJobScheduler {
     this.logger.info('年次準備開始', { targetYear: nextYear });
 
     try {
-      // 全地点の翌年データを事前計算
+      // 全地点の翌年メンテナンス処理
       const locations = await this.locationModel.findAll();
       
       for (const location of locations) {
@@ -948,9 +833,8 @@ export class BackgroundJobScheduler {
       this.logger.info('ジョブ再スケジュール', { jobName });
       
       // ジョブタイプに応じて再スケジュール
-      if (jobName === 'precomputation') {
-        this.schedulePrecomputation();
-      } else if (jobName === 'cache-cleanup') {
+      // precomputation は削除済み
+      if (jobName === 'cache-cleanup') {
         this.scheduleCacheCleanup();
       } else if (jobName === 'statistics-update') {
         this.scheduleStatisticsUpdate();

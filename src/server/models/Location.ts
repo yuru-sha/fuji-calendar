@@ -1,6 +1,6 @@
 // import { Database, getDatabase } from '../database/connection'; // PostgreSQL移行により無効化
 import { Location, CreateLocationRequest } from '../../shared/types';
-import { AstronomicalCalculatorImpl } from '../services/NewAstronomicalCalculator';
+import { AstronomicalCalculatorImpl } from '../services/AstronomicalCalculator';
 
 const astronomicalCalculator = new AstronomicalCalculatorImpl();
 

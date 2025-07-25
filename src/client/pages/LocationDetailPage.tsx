@@ -50,10 +50,10 @@ const LocationDetailPage: React.FC = () => {
               targetDate.getMonth() + 1
             );
             
-            // この地点のイベントのみフィルタリング
+            // この地点のイベントのみフィルタリング（FujiEventの型のみ）
             const locationEvents = calendarResponse.events.filter(event => 
-              event.location.id === foundLocation.id
-            );
+              'location' in event && (event as any).location.id === foundLocation.id
+            ) as unknown as FujiEvent[];
             
             events.push(...locationEvents);
           } catch (error) {
@@ -91,8 +91,8 @@ const LocationDetailPage: React.FC = () => {
     return directions[index];
   };
 
-  const formatEventDate = (timeString: string) => {
-    const date = new Date(timeString);
+  const formatEventDate = (time: string | Date) => {
+    const date = typeof time === 'string' ? new Date(time) : time;
     return date.toLocaleDateString('ja-JP', {
       year: 'numeric',
       month: 'short',
@@ -101,8 +101,8 @@ const LocationDetailPage: React.FC = () => {
     });
   };
 
-  const formatEventTime = (timeString: string) => {
-    const date = new Date(timeString);
+  const formatEventTime = (time: string | Date) => {
+    const date = typeof time === 'string' ? new Date(time) : time;
     return date.toLocaleTimeString('ja-JP', {
       hour: '2-digit',
       minute: '2-digit'

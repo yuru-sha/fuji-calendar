@@ -41,31 +41,6 @@ model Location {
   @@map("locations")
 }
 
-model CelestialOrbitData {
-  id               BigInt   @id @default(autoincrement())
-  date             DateTime @db.Date
-  time             DateTime @db.Timestamptz(6)
-  hour             Int
-  minute           Int
-  celestialType    String   @map("celestial_type") @db.VarChar(10)
-  azimuth          Float
-  elevation        Float
-  visible          Boolean  @default(false)
-  moonPhase        Float?   @map("moon_phase")
-  moonIllumination Float?   @map("moon_illumination")
-  season           String?  @db.VarChar(10)
-  timeOfDay        String?  @map("time_of_day") @db.VarChar(10)
-  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  @@unique([date, hour, minute, celestialType])
-  @@index([date, celestialType], map: "idx_date_celestial")
-  @@index([celestialType, visible], map: "idx_celestial_visible")
-  @@index([elevation, celestialType], map: "idx_elevation_celestial")
-  @@index([moonPhase, date], map: "idx_moon_phase_date")
-  @@index([season, timeOfDay], map: "idx_season_timeofday")
-  @@map("celestial_orbit_data")
-}
 
 model LocationFujiEvent {
   id               BigInt    @id @default(autoincrement())

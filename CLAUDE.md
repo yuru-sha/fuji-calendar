@@ -175,6 +175,7 @@ React 18 + TypeScript + Tailwind CSS v3.4.17構成
 - 月相データ: AstronomicalCalculatorで0-1照度率に正規化 (従来の0-360度から変換)
 - Redisキュー管理とPostgreSQL + Prismaに技術スタック更新
 - **富士山頂仰角計算**: 地球曲率・大気屈折を考慮した高精度計算式を実装。地点登録・更新時に`fujiElevation`が自動計算される重要なコンポーネント（詳細: [docs/fuji-elevation-calculation.md](docs/fuji-elevation-calculation.md)）
+- **ダイヤモンド富士・パール富士検出**: 方位角±1.5度、高度±0.5度の高精度検出アルゴリズム。4段階精度評価システム（perfect/excellent/good/fair）で品質管理（詳細: [docs/diamond-pearl-fuji-conditions.md](docs/diamond-pearl-fuji-conditions.md)）
 
 **デバッグスクリプト**: `scripts/`ディレクトリに天体計算のデバッグ用スクリプトが完備。`debug_diamond_fuji_detailed.js`、`debug_pearl_fuji_detailed.js`等で詳細な計算過程を確認可能
 

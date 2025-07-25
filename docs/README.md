@@ -19,6 +19,9 @@ Astronomy Engineを使った高精度計算の詳細と最新改善
 ### 🏔️ [富士山頂仰角計算](./fuji-elevation-calculation.md)
 地球曲率・大気屈折を考慮した高精度仰角計算システム
 
+### 💎 [ダイヤモンド富士・パール富士の定義と検出](./diamond-pearl-fuji-conditions.md)
+物理的定義、観測条件、高精度検出アルゴリズムの包括的解説
+
 ### 📱 [UI/UX改善履歴](./ui-improvements.md)
 カレンダー表示とインターフェースの視認性向上
 

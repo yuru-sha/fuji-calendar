@@ -1,6 +1,6 @@
 import { getComponentLogger, StructuredLogger } from '../../shared/utils/logger';
 
-import { PrismaClientManager } from '../database/prisma';
+// import { PrismaClientManager } from '../database/prisma';
 import { calendarServicePrisma } from './CalendarServicePrisma';
 
 /**

@@ -305,23 +305,23 @@ export class FujiCalculationOrchestrator {
   // ヘルパーメソッド
   // =================================================================
 
-  private estimateDataPoints(year: number): number {
+  private estimateDataPoints(_year: number): number {
     // 1年間、5分間隔のデータ点数を計算
     const minutesPerYear = 365 * 24 * 60;
     return Math.floor(minutesPerYear / 5);
   }
 
-  private async checkCelestialData(year: number) {
+  private async checkCelestialData(_year: number) {
     // TODO: 実装
     return { exists: true, recordCount: 105120 }; // 5分間隔の概算値
   }
 
-  private async checkFilteredData(year: number) {
+  private async checkFilteredData(_year: number) {
     // TODO: 実装
     return { exists: true, candidateCount: 0, optimalCount: 0 };
   }
 
-  private async checkPhenomenaData(year: number) {
+  private async checkPhenomenaData(_year: number) {
     // TODO: 実装
     return { exists: true, phenomenaCount: 0, locationCoverage: 1.0 };
   }

@@ -20,7 +20,7 @@ const HomePage: React.FC = () => {
   const [locations, setLocations] = useState<Location[]>([]);
   const [selectedLocationId, setSelectedLocationId] = useState<number | undefined>(undefined);
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>(undefined);
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
   const [filters, setFilters] = useState<FilterOptions>({

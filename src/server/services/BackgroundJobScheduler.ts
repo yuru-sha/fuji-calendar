@@ -515,7 +515,7 @@ export class BackgroundJobScheduler {
   /**
    * 年間計算失敗時のフォールバック処理
    */
-  private async handleYearlyCalculationFailure(year: number, error: Error): Promise<void> {
+  private async handleYearlyCalculationFailure(year: number, _error: Error): Promise<void> {
     this.logger.warn('年間計算失敗 - フォールバック処理開始', { year });
 
     try {

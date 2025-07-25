@@ -1,12 +1,8 @@
-import { Database } from 'sqlite3';
-
 import { 
-  HistoricalEvent, 
   HistoricalEventResponse, 
   HistoricalStats, 
   MonthlyHistoricalSummary,
-  HistoricalSearchOptions,
-  FujiEvent
+  HistoricalSearchOptions
 } from '../../shared/types';
 import { getComponentLogger, StructuredLogger } from '../../shared/utils/logger';
 

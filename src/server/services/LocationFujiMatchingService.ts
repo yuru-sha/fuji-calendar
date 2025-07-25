@@ -305,7 +305,7 @@ export class LocationFujiMatchingService {
     
     // 各グループから最高品質のものを選択
     const uniqueEvents: LocationFujiEvent[] = [];
-    for (const [groupKey, groupEvents] of groupedEvents) {
+    for (const groupEvents of groupedEvents.values()) {
       // 品質スコア順でソート
       groupEvents.sort((a, b) => b.qualityScore - a.qualityScore);
       

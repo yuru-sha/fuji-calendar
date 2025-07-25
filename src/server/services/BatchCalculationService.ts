@@ -1,9 +1,8 @@
-import { Location, FujiEvent } from '../../shared/types';
+import { Location } from '../../shared/types';
 import { AstronomicalCalculatorImpl } from './AstronomicalCalculator';
 import { eventCacheService } from './EventCacheService';
 import { PrismaClientManager } from '../database/prisma';
 import { getComponentLogger, StructuredLogger } from '../../shared/utils/logger';
-import { timeUtils } from '../../shared/utils/timeUtils';
 
 /**
  * バッチ計算サービス
@@ -153,7 +152,7 @@ export class BatchCalculationService {
             locationName: location.name,
             year,
             month,
-            events: monthEvents.length
+            events: monthResult.totalEvents
           });
           
         } catch (locationError) {
@@ -243,7 +242,6 @@ export class BatchCalculationService {
         }
       });
       
-      const date = new Date(year, month - 1, day, 12, 0, 0, 0); // JST正午基準
       let totalEvents = 0;
       
       // 各地点でその日のデータをデータベースに保存

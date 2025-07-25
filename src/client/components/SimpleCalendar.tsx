@@ -181,7 +181,7 @@ const SimpleCalendar: React.FC<SimpleCalendarProps> = ({
             }}
           >
             {/* 右上の星印インジケーター（お気に入りイベントがある日のみ） */}
-            {day.events && day.events.events.some(event => isEventFavorite(event)) && (
+            {day.events && day.events.events.some(event => isEventFavorite(event.id)) && (
               <div style={{ 
                 position: 'absolute',
                 top: '3px',

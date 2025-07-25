@@ -1,7 +1,6 @@
 import { getUnifiedDatabase, UnifiedDatabase } from '../database/connection-unified';
 import { FujiEvent } from '../../shared/types';
 import { 
-  EventsCacheEntry, 
   CachedEventsData, 
   CacheKeyOptions, 
   CacheResult,

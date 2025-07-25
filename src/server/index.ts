@@ -24,8 +24,8 @@ import PrismaAdminController from './controllers/PrismaAdminController';
 
 // Services
 import BackgroundJobSchedulerPrisma from './services/BackgroundJobSchedulerPrisma';
-import { queueService } from './services/QueueService';
-import { calendarServicePrisma } from './services/CalendarServicePrisma';
+// import { queueService } from './services/QueueService';
+// import { calendarServicePrisma } from './services/CalendarServicePrisma';
 
 // Utilities
 import { getComponentLogger } from '../shared/utils/logger';
@@ -197,7 +197,7 @@ app.get('*', (req, res) => {
 
 // エラーハンドリング
 app.use(errorLoggingMiddleware);
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   serverLogger.error('未処理エラー', err, {
     requestId: req.requestId,
     url: req.url,

@@ -317,15 +317,15 @@ const CameraPanel: React.FC<CameraPanelProps> = ({
   );
 };
 
-// ヘルパー関数
-const getSensorName = (sensorType: string): string => {
-  switch (sensorType) {
-    case 'fullframe': return 'フルサイズ';
-    case 'apsc': return 'APS-C';
-    case 'micro43': return 'マイクロフォーサーズ';
-    default: return '';
-  }
-};
+// ヘルパー関数（未使用だが将来的に使用予定）
+// const getSensorName = (sensorType: string): string => {
+//   switch (sensorType) {
+//     case 'fullframe': return 'フルサイズ';
+//     case 'apsc': return 'APS-C';
+//     case 'micro43': return 'マイクロフォーサーズ';
+//     default: return '';
+//   }
+// };
 
 const calculateFieldOfView = (focalLength: number, sensorType: string, aspectRatio: string, orientation: string = 'landscape') => {
   const sensorDimensions = {

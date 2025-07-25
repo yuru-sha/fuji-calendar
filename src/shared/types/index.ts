@@ -7,14 +7,14 @@ export interface Location {
   latitude: number;
   longitude: number;
   elevation: number;
-  description?: string;
-  accessInfo?: string;
+  description?: string | null;
+  accessInfo?: string | null;
   warnings?: string;
-  parkingInfo?: string;    // 駐車場情報
+  parkingInfo?: string | null;    // 駐車場情報
   // 富士山への事前計算値（高速化のため）
-  fujiAzimuth?: number;    // 富士山への方位角（度）
-  fujiElevation?: number;  // 富士山頂への仰角（度）
-  fujiDistance?: number;   // 富士山までの距離（km）
+  fujiAzimuth?: number | null;    // 富士山への方位角（度）
+  fujiElevation?: number | null;  // 富士山頂への仰角（度）
+  fujiDistance?: number | null;   // 富士山までの距離（km）
   createdAt: Date;
   updatedAt: Date;
 }

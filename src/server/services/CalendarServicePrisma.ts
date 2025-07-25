@@ -5,7 +5,7 @@ import { PrismaClientManager } from '../database/prisma';
 import { eventCacheService } from './EventCacheService';
 import { timeUtils } from '../../shared/utils/timeUtils';
 import { getComponentLogger, StructuredLogger } from '../../shared/utils/logger';
-import { LocationFujiEvent, EventType } from '@prisma/client';
+import { LocationFujiEvent } from '@prisma/client';
 
 /**
  * Prismaベースの新しいカレンダーサービス

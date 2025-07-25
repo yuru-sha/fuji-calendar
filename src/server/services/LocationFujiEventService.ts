@@ -211,7 +211,7 @@ export class LocationFujiEventService {
     );
     
     // ダイヤモンド富士の物理的方位角範囲を適用
-    let validAzimuthRanges: Array<{min: number, max: number}> = [];
+    const validAzimuthRanges: Array<{min: number, max: number}> = [];
     
     // 朝のダイヤモンド富士範囲（70-110度）
     const morningMin = Math.max(70, location.fujiAzimuth - azimuthTolerance);
@@ -250,7 +250,7 @@ export class LocationFujiEventService {
     });
 
     // 複数の方位角範囲でクエリを実行
-    let allCandidates: CelestialOrbitData[] = [];
+    const allCandidates: CelestialOrbitData[] = [];
     
     for (const range of validAzimuthRanges) {
       const whereConditions: any = {

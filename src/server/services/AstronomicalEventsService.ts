@@ -181,7 +181,7 @@ export class AstronomicalEventsService {
     const startDate = new Date(year, 0, 1);
     const endDate = new Date(year + 1, 0, 1);
     
-    let currentDate = new Date(startDate);
+    const currentDate = new Date(startDate);
     
     while (currentDate < endDate) {
       // 日の出時刻の計算
@@ -272,7 +272,7 @@ export class AstronomicalEventsService {
     const startDate = new Date(year, 0, 1);
     const endDate = new Date(year + 1, 0, 1);
     
-    let currentDate = new Date(startDate);
+    const currentDate = new Date(startDate);
     
     while (currentDate < endDate) {
       // 月の出時刻の計算
@@ -527,8 +527,7 @@ export class AstronomicalEventsService {
     const endDate = new Date(year + 1, 0, 1);
     
     // 月相イベントの大まかな計算
-    const lunarCycle = 29.530588853;
-    let currentDate = new Date(startDate);
+    const currentDate = new Date(startDate);
     
     while (currentDate < endDate) {
       const moonPosition = astronomicalCalculator.calculateMoonPosition(currentDate);

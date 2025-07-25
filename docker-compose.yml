@@ -26,7 +26,7 @@ services:
   # Nginx (リバースプロキシ + 静的ファイル配信)
   nginx:
     image: nginx:alpine
-    container_name: fuji-calendar-nginx
+    container_name: fuji_calendar_nginx
     restart: unless-stopped
     ports:
       - "80:80"

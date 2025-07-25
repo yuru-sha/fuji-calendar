@@ -93,7 +93,7 @@ services:
     container_name: fuji_calendar_redis
     restart: unless-stopped
     expose:
-      - "6379"
+      - "6379:6379"
     volumes:
       - ./data/redis:/data
     command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru

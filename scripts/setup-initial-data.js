@@ -12,7 +12,6 @@
  *   node scripts/setup-initial-data.js [year]
  */
 
-const { celestialOrbitDataService } = require('../dist/server/services/CelestialOrbitDataService');
 const { locationFujiEventService } = require('../dist/server/services/LocationFujiEventService');
 const { PrismaClient } = require('@prisma/client');
 
@@ -95,20 +94,8 @@ async function setupInitialData() {
     }
     console.log(`📍 地点データ修正完了: ${locations.length}件\n`);
 
-    // ステップ2: 天体軌道データ生成
-    console.log(`🌟 ステップ2: ${year}年の天体軌道データ生成中...`);
-    const celestialStartTime = Date.now();
-    const celestialResult = await celestialOrbitDataService.generateYearlyData(year);
-    const celestialTime = Date.now() - celestialStartTime;
-
-    if (!celestialResult.success) {
-      throw new Error('天体軌道データ生成に失敗しました');
-    }
-
-    console.log(`🌟 天体軌道データ生成完了: ${celestialResult.totalDataPoints.toLocaleString()}件 (${Math.floor(celestialTime/60000)}分${Math.floor((celestialTime%60000)/1000)}秒)\n`);
-
-    // ステップ3: イベントマッチング実行
-    console.log('🎯 ステップ3: LocationFujiEventマッチング実行中...');
+    // ステップ2: イベントマッチング実行
+    console.log('🎯 LocationFujiEventマッチング実行中...');
     const matchingStartTime = Date.now();
     const matchingResult = await locationFujiEventService.matchAllLocations(year);
     const matchingTime = Date.now() - matchingStartTime;
@@ -128,7 +115,6 @@ async function setupInitialData() {
     console.log('');
     console.log('📊 セットアップ結果:');
     console.log(`  📍 地点データ: ${locations.length}件修正`);
-    console.log(`  🌟 天体データ: ${celestialResult.totalDataPoints.toLocaleString()}件生成`);
     console.log(`  🎯 富士イベント: ${matchingResult.totalEvents}件マッチング`);
     console.log(`    - ダイヤモンド富士: ${matchingResult.diamondEvents}件`);
     console.log(`    - パール富士: ${matchingResult.pearlEvents}件`);

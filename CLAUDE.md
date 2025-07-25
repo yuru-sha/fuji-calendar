@@ -48,7 +48,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### デバッグ・テスト
 1. **構造化ログ**: 検索・分析しやすい形式でログ出力
-2. **デバッグスクリプト**: `scripts/`ディレクトリに天体計算検証用スクリプトを配置
+2. **デバッグスクリプト**: `scripts/debug/`ディレクトリに天体計算検証用スクリプトを整理・配置
 3. **エラー追跡**: requestIdを使用してリクエスト単位で追跡
 
 ## Development Commands
@@ -177,7 +177,7 @@ React 18 + TypeScript + Tailwind CSS v3.4.17構成
 - **富士山頂仰角計算**: 地球曲率・大気屈折を考慮した高精度計算式を実装。地点登録・更新時に`fujiElevation`が自動計算される重要なコンポーネント（詳細: [docs/fuji-elevation-calculation.md](docs/fuji-elevation-calculation.md)）
 - **ダイヤモンド富士・パール富士検出**: 方位角±1.5度、高度±0.5度の高精度検出アルゴリズム。4段階精度評価システム（perfect/excellent/good/fair）で品質管理（詳細: [docs/diamond-pearl-fuji-conditions.md](docs/diamond-pearl-fuji-conditions.md)）
 
-**デバッグスクリプト**: `scripts/`ディレクトリに天体計算のデバッグ用スクリプトが完備。`debug_diamond_fuji_detailed.js`、`debug_pearl_fuji_detailed.js`等で詳細な計算過程を確認可能
+**デバッグスクリプト**: `scripts/debug/`ディレクトリに天体計算のデバッグ用スクリプトが完備。`debug-diamond-fuji.js`、`debug_futtsu_elevation_detailed.js`等で詳細な計算過程を確認可能
 
 ### Environment Variables
 

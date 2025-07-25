@@ -1,11 +1,12 @@
-import { Database, getDatabase } from '../database/connection';
+// import { Database, getDatabase } from '../database/connection'; // PostgreSQL移行により無効化
 import { LocationRequest, LocationRequestBody } from '../../shared/types';
 
 export class LocationRequestModel {
-  private db: Database;
+  // private db: Database; // PostgreSQL移行により無効化
 
   constructor() {
-    this.db = getDatabase();
+    // this.db = getDatabase(); // PostgreSQL移行により無効化
+    throw new Error('LocationRequestModel は PostgreSQL 移行により現在使用できません。');
   }
 
   // 全ての撮影地点リクエストを取得

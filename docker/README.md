@@ -1,45 +1,51 @@
 # Docker 環境構成
 
-富士山カレンダーのDocker環境を構築するための設定ファイル群です。
+ダイヤモンド富士・パール富士カレンダーのDocker環境を構築するための設定ファイル群です。
 
 ## 構成オプション
 
-### 1. モノリシック構成 (推奨)
-シンプルな単一コンテナ構成。本番運用に最適。
+### 本番環境 (推奨)
+PostgreSQL + Redis + Nginx による高性能構成。
 
 ```bash
-# 本番環境
+# 本番環境起動
 docker-compose up -d
 
-# 開発環境
-docker-compose -f docker-compose.dev.yml up
+# または管理スクリプト使用
+bash scripts/config/docker-prod.sh start
 ```
 
 **コンテナ:**
-- `app`: フロントエンド + バックエンド (Node.js)
-- `redis`: キューシステム
+- `postgres`: PostgreSQL 15 データベース
+- `backend`: Express.js API サーバー (Node.js)
+- `nginx`: リバースプロキシ + 静的ファイル配信
+- `redis`: キューシステム (BullMQ)
 
-### 2. マイクロサービス構成
-コンテナを機能別に分離した構成。スケーラビリティ重視。
+### 開発環境
+ホットリロード対応の開発用構成。
 
 ```bash
-docker-compose -f docker-compose.microservices.yml up -d
+# 開発環境起動
+docker-compose -f docker-compose.dev.yml up
+
+# または管理スクリプト使用
+bash scripts/config/docker-dev.sh start
 ```
 
 **コンテナ:**
-- `gateway`: Nginx (フロントエンド配信 + APIプロキシ)
-- `backend`: Express.js API サーバー
-- `redis`: キューシステム
+- `postgres`: PostgreSQL 15 データベース (開発用)
+- `app`: Express.js + React 開発サーバー
+- `redis`: キューシステム (開発用)
 
 ## ディレクトリ構造
 
 ```
 docker/
 ├── README.md                    # このファイル
-├── Dockerfile.monolith          # モノリシック用
-├── Dockerfile.dev               # 開発用
+├── Dockerfile.monolith          # 本番環境用 (統合ビルド)
+├── Dockerfile.dev               # 開発環境用 (ホットリロード)
 ├── backend/
-│   └── Dockerfile              # バックエンド専用
+│   └── Dockerfile              # バックエンド専用 (マイクロサービス用)
 └── frontend/
     ├── Dockerfile              # フロントエンド用 (Nginx)
     ├── nginx.conf              # Nginx メイン設定
@@ -61,10 +67,10 @@ docker-compose -f docker-compose.dev.yml up
 ### 2. 本番環境デプロイ
 ```bash
 # 本番用ビルドとデプロイ
-./scripts/docker-prod.sh deploy
+bash scripts/config/docker-prod.sh deploy
 
 # ヘルスチェック
-./scripts/docker-prod.sh health
+bash scripts/config/docker-prod.sh health
 ```
 
 ## 環境変数
@@ -72,6 +78,11 @@ docker-compose -f docker-compose.dev.yml up
 必須の環境変数:
 
 ```bash
+# データベース設定
+DB_NAME=fuji_calendar
+DB_USER=fuji_user
+DB_PASSWORD=prod_password_change_me
+
 # JWT設定
 JWT_SECRET=your-super-secret-jwt-key
 REFRESH_SECRET=your-super-secret-refresh-key
@@ -86,18 +97,20 @@ FRONTEND_URL=https://your-domain.com
 
 ## ネットワーク構成
 
-- **モノリシック**: `fuji-calendar-network`
-- **マイクロサービス**: `fuji-calendar-microservices`  
-- **開発環境**: `fuji-calendar-dev-network`
+- **本番環境**: `fuji_calendar_network`
+- **開発環境**: `fuji_calendar_network`
 
 ## ボリューム管理
 
 ```bash
-# データベースバックアップ
-docker exec fuji-calendar-app sqlite3 /app/data/fuji-calendar.db ".backup /app/data/backup-$(date +%Y%m%d).db"
+# PostgreSQLバックアップ
+docker exec fuji_calendar_postgres_prod pg_dump -U fuji_user fuji_calendar > backup-$(date +%Y%m%d).sql
 
 # ログ確認
-docker exec fuji-calendar-app tail -f /app/logs/error.log
+docker exec fuji-calendar-backend tail -f /app/logs/fuji-calendar-$(date +%Y-%m-%d).log
+
+# データベース接続テスト
+docker exec fuji_calendar_postgres_prod psql -U fuji_user -d fuji_calendar -c "SELECT COUNT(*) FROM locations;"
 ```
 
 ## トラブルシューティング
@@ -138,11 +151,17 @@ docker stats
 
 ## パフォーマンス調整
 
-### Redis設定
-- **メモリ制限**: 256MB (モノリシック) / 512MB (マイクロサービス)
-- **削除ポリシー**: `allkeys-lru`
+### PostgreSQL設定
+- **バージョン**: PostgreSQL 15 Alpine
+- **文字エンコーディング**: UTF-8
+- **タイムゾーン**: Asia/Tokyo
 
-### Nginx設定 (マイクロサービス)
+### Redis設定
+- **メモリ制限**: 512MB
+- **削除ポリシー**: `allkeys-lru`
+- **永続化**: AOF有効
+
+### Nginx設定
 - **Gzip圧縮**: 有効 (レベル6)
 - **静的ファイルキャッシュ**: 1年
 - **Worker数**: CPU自動検出

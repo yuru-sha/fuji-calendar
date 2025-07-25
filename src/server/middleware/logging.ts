@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import pinoHttp from 'pino-http';
-import { logger, generateRequestId, StructuredLogger, getComponentLogger } from '../../shared/utils/logger';
+import { logger, generateRequestId, getComponentLogger } from '../../shared/utils/logger';
 
 /**
  * Express用のリクエストIDミドルウェア

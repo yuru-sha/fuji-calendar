@@ -1,6 +1,6 @@
 # インストールガイド
 
-富士山カレンダーのインストールと初期設定手順について説明します。
+ダイヤモンド富士・パール富士カレンダーのインストールと初期設定手順について説明します。
 
 ## システム要件
 
@@ -11,8 +11,8 @@
 
 ### ローカル開発環境
 - Node.js 18以上
+- PostgreSQL 14以上
 - Redis 6以上
-- SQLite3
 
 ## Docker環境での設置（推奨）
 
@@ -23,20 +23,43 @@ git clone <repository-url>
 cd fuji-calendar
 ```
 
-### 2. 開発環境の起動
+### 2. 初期設定
+
+```bash
+# 環境変数ファイルをコピー
+cp .env.example .env
+
+# データベース起動とマイグレーション実行
+docker-compose -f docker-compose.dev.yml up postgres -d
+sleep 15  # PostgreSQL起動待ち
+
+# ローカル接続でマイグレーション実行
+DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" npx prisma migrate deploy
+
+# 管理者アカウント作成
+DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" node scripts/admin/create-admin.js
+
+# 初期データ生成
+DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" node scripts/setup-initial-data.js
+```
+
+### 3. 開発環境の起動
 
 ```bash
 # 開発環境起動（初回は自動でビルド）
-./scripts/docker-dev.sh start
+docker-compose -f docker-compose.dev.yml up -d
+
+# または管理スクリプト使用
+bash scripts/config/docker-dev.sh start
 
 # ログの確認
-./scripts/docker-dev.sh logs
+docker-compose -f docker-compose.dev.yml logs -f
 
 # 停止
-./scripts/docker-dev.sh stop
+docker-compose -f docker-compose.dev.yml down
 ```
 
-### 3. アクセス確認
+### 4. アクセス確認
 
 - フロントエンド: http://localhost:3000
 - バックエンドAPI: http://localhost:8000
@@ -57,22 +80,46 @@ nano .env
 **必須設定項目:**
 ```bash
 NODE_ENV=production
+DATABASE_URL=postgresql://fuji_user:prod_password_change_me@postgres:5432/fuji_calendar
+DB_NAME=fuji_calendar
+DB_USER=fuji_user
+DB_PASSWORD=prod_password_change_me
 JWT_SECRET=your-very-secure-jwt-secret-here
 REFRESH_SECRET=your-very-secure-refresh-secret-here
 FRONTEND_URL=https://your-domain.com
 ```
 
-### 2. 本番環境のデプロイ
+### 2. 初期セットアップ
 
 ```bash
-# 本番環境をデプロイ
-./scripts/docker-prod.sh deploy
+# データベースとRedisのデータディレクトリ作成
+mkdir -p data/postgres data/redis
 
-# 起動確認
-./scripts/docker-prod.sh health
+# データベース起動
+docker-compose up postgres -d
+sleep 20  # PostgreSQL起動待ち
+
+# データベースマイグレーション（ローカル接続）
+DATABASE_URL="postgresql://fuji_user:prod_password_change_me@localhost:5432/fuji_calendar" npx prisma migrate deploy
+
+# 管理者アカウント作成
+DATABASE_URL="postgresql://fuji_user:prod_password_change_me@localhost:5432/fuji_calendar" node scripts/admin/create-admin.js
 ```
 
-### 3. SSL証明書の設定（オプション）
+### 3. 本番環境のデプロイ
+
+```bash
+# 本番環境起動
+docker-compose up -d
+
+# または管理スクリプト使用
+bash scripts/config/docker-prod.sh deploy
+
+# 起動確認
+bash scripts/config/docker-prod.sh health
+```
+
+### 4. SSL証明書の設定（オプション）
 
 ```bash
 # Let's Encryptを使用する場合
@@ -105,10 +152,13 @@ npm install
 ### 3. データベースの初期化
 
 ```bash
-# サーバーをビルド
-npm run build:server
+# PostgreSQLの起動（Dockerを使用する場合）
+docker run -d --name postgres-fuji -e POSTGRES_PASSWORD=password -e POSTGRES_DB=fuji_calendar -p 5432:5432 postgres:14
 
-# 初回起動（データベースとサンプルデータが自動作成）
+# Prismaマイグレーション実行
+npx prisma migrate dev
+
+# 初回起動（サンプルデータが自動作成）
 npm run start
 ```
 
@@ -123,28 +173,41 @@ npm run dev:server  # バックエンドのみ
 npm run dev:client  # フロントエンドのみ
 ```
 
+## スクリプト構成
+
+システムには以下のカテゴリに分類されたスクリプトが用意されています：
+
+```bash
+scripts/
+├── admin/           # 管理者アカウント作成
+├── analysis/        # 計算精度検証・分析
+├── config/          # Docker・インフラ設定
+├── data-generation/ # データ生成・修正
+├── debug/           # 天体計算デバッグ
+├── generation/      # イベントデータ生成
+├── migration/       # データベース初期化
+├── testing/         # システムテスト・チェック
+└── utilities/       # パフォーマンス・負荷テスト
+```
+
+詳細は `scripts/README.md` を参照してください。
+
 ## データベース初期設定
-
-### サンプルデータの確認
-
-初回起動時に以下の撮影地点が自動登録されます：
-
-1. 竜ヶ岳（山梨県）
-2. 三ツ峠山（山梨県）
-3. 海ほたるPA（千葉県）
-4. 江の島（神奈川県）
-5. 房総スカイライン鋸山PA（千葉県）
-6. 毛無山（静岡県）
 
 ### 管理者アカウントの作成
 
 ```bash
-# 管理者アカウントを作成
-node scripts/create-admin.js
-
-# または、SQLiteコマンドライン
-sqlite3 data/fuji-calendar.db < scripts/create-admin.sql
+# 管理者アカウントを作成（admin/admin123）
+node scripts/admin/create-admin.js
 ```
+
+### 撮影地点の登録
+
+セットアップ完了後、管理者画面から正確な撮影地点データを手動登録してください：
+
+1. **管理者ログイン**: http://localhost:3000 (admin / admin123)
+2. **地点登録**: 管理画面から撮影地点を登録
+3. **データ生成**: 地点登録時に自動でダイヤモンド富士・パール富士のイベントデータが計算されます
 
 ## 設定ファイル
 
@@ -154,7 +217,7 @@ sqlite3 data/fuji-calendar.db < scripts/create-admin.sql
 |--------|------|-------------|------|
 | `NODE_ENV` | 実行環境 | development | ○ |
 | `PORT` | サーバーポート | 8000 | × |
-| `DB_PATH` | データベースファイルパス | ./data/fuji-calendar.db | × |
+| `DATABASE_URL` | PostgreSQL接続URL | postgresql://user:pass@localhost:5432/fuji_calendar | × |
 | `JWT_SECRET` | JWT署名シークレット | ランダム生成 | 本番○ |
 | `REFRESH_SECRET` | リフレッシュトークンシークレット | ランダム生成 | 本番○ |
 | `FRONTEND_URL` | フロントエンドURL | localhost:3000 | 本番○ |
@@ -188,12 +251,17 @@ lsof -i :8000
 kill -9 <PID>
 ```
 
-#### 2. データベース権限エラー
+#### 2. PostgreSQL接続エラー
 
 ```bash
-# データディレクトリの権限を修正
-chmod 755 data/
-chmod 644 data/fuji-calendar.db
+# PostgreSQLの起動確認
+psql -h localhost -U postgres -d fuji_calendar -c "\l"
+
+# データベース接続テスト
+node scripts/testing/test-postgres-connection.js
+
+# Prismaマイグレーション状態確認
+npx prisma migrate status
 ```
 
 #### 3. Redisの接続エラー
@@ -208,8 +276,8 @@ redis-cli ping  # "PONG" が返ればOK
 
 ```bash
 # Dockerイメージの再構築
-./scripts/docker-dev.sh clean
-./scripts/docker-dev.sh start
+bash scripts/config/docker-dev.sh clean
+bash scripts/config/docker-dev.sh start
 
 # ボリュームの削除（データ消失注意）
 docker volume prune
@@ -219,22 +287,28 @@ docker volume prune
 
 ```bash
 # 開発環境
-./scripts/docker-dev.sh logs
+bash scripts/config/docker-dev.sh logs
 
 # 本番環境
-./scripts/docker-prod.sh logs
+bash scripts/config/docker-prod.sh logs
 
 # ローカル環境
 tail -f logs/app.log
+
+# データベース状態チェック
+node scripts/testing/check_db_status.js
 ```
 
 ### 再インストール
 
 ```bash
 # 開発環境の完全クリーンアップ
-./scripts/docker-dev.sh clean
+bash scripts/config/docker-dev.sh clean
 npm run clean
-rm -rf node_modules data/* logs/*
+rm -rf node_modules logs/*
+
+# データベースのリセット
+npx prisma migrate reset
 
 # 再インストール
 npm install
@@ -254,7 +328,13 @@ npm run dev
 
 ```bash
 # システムリソースの監視
-./scripts/docker-prod.sh health
+bash scripts/config/docker-prod.sh health
+
+# データベース進捗チェック
+node scripts/testing/check-progress.js
+
+# パフォーマンス分析
+node scripts/utilities/performance-analysis.js
 
 # ログの監視
 tail -f logs/app.log | grep ERROR

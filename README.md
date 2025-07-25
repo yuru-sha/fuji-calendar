@@ -36,8 +36,8 @@ A calendar application that displays optimal dates and locations for Diamond Fuj
 - Node.js
 - Express
 - TypeScript (strict mode)
-- SQLite3 (Database)
-- Redis (Cache & Queue system)
+- PostgreSQL 15 + Prisma ORM (Database)
+- Redis (Cache & Queue system with BullMQ)
 - Astronomy Engine (High-precision astronomical calculations)
 - Pino (Structured logging with performance optimization)
 - bcrypt (Password hashing)
@@ -53,30 +53,39 @@ A calendar application that displays optimal dates and locations for Diamond Fuj
 - Docker & Docker Compose
 - nginx (Reverse proxy)
 
-## Installation & Setup
+## 🚀 Quick Start
+
+**Get running in 5 minutes**: [QUICKSTART.md](QUICKSTART.md)
 
 ### Requirements
-- Docker & Docker Compose **Recommended**
-- OR Node.js 18+ + Redis
+- Docker & Docker Compose v2 **Recommended**
+- Node.js 18+ (for initial setup only)
 
-## Docker Environment (Recommended)
+## Installation & Setup
 
-### Development Environment
+### Docker Environment (Recommended)
 
-1. Clone the repository
 ```bash
+# 1. Clone & Setup
 git clone <repository-url>
 cd fuji-calendar
+cp .env.example .env
+
+# 2. Database Migration
+docker-compose -f docker-compose.dev.yml up postgres -d
+sleep 15
+DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" npx prisma migrate deploy
+
+# 3. Initial Setup
+DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" node scripts/admin/create-admin.js          # admin/admin123
+
+# 4. Start Application
+docker-compose -f docker-compose.dev.yml up -d
 ```
 
-2. Start development environment
-```bash
-./scripts/docker-dev.sh start
-```
-
-3. Access
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:8000
+### Access
+- **Frontend**: http://localhost:3000
+- **Admin Login**: admin / admin123
 
 ### Production Environment
 
@@ -88,28 +97,32 @@ cp .env.example .env
 
 2. Deploy production environment
 ```bash
-./scripts/docker-prod.sh deploy
+# Production environment startup
+docker-compose up -d
+
+# Or use management script
+bash scripts/config/docker-prod.sh deploy
 ```
 
 3. Access
-- Application: http://localhost:8000
+- Application: http://localhost
 
 ### Docker Management Commands
 
 ```bash
 # Development environment
-./scripts/docker-dev.sh start      # Start development environment
-./scripts/docker-dev.sh stop       # Stop
-./scripts/docker-dev.sh logs       # View logs
-./scripts/docker-dev.sh status     # Check status
-./scripts/docker-dev.sh clean      # Cleanup
+bash scripts/config/docker-dev.sh start      # Start development environment
+bash scripts/config/docker-dev.sh stop       # Stop
+bash scripts/config/docker-dev.sh logs       # View logs
+bash scripts/config/docker-dev.sh status     # Check status
+bash scripts/config/docker-dev.sh clean      # Cleanup
 
 # Production environment
-./scripts/docker-prod.sh deploy    # Deploy
-./scripts/docker-prod.sh start     # Start
-./scripts/docker-prod.sh stop      # Stop
-./scripts/docker-prod.sh backup    # Database backup
-./scripts/docker-prod.sh health    # Health check
+bash scripts/config/docker-prod.sh deploy    # Deploy
+bash scripts/config/docker-prod.sh start     # Start
+bash scripts/config/docker-prod.sh stop      # Stop
+bash scripts/config/docker-prod.sh backup    # Database backup
+bash scripts/config/docker-prod.sh health    # Health check
 ```
 
 ## Local Environment (Without Docker)
@@ -251,9 +264,9 @@ fuji-calendar/
 
 | Variable | Description | Default Value |
 |----------|-------------|---------------|
-| `PORT` | Server port | 8000 |
+| `PORT` | Server port | 3000 |
 | `NODE_ENV` | Runtime environment | development |
-| `DB_PATH` | Database file path | ./data/fuji-calendar.db |
+| `DATABASE_URL` | PostgreSQL connection URL | postgresql://user:pass@localhost:5432/fuji_calendar |
 | `JWT_SECRET` | JWT signing secret ⚠️ **Change for production** | Default value |
 | `REFRESH_SECRET` | Refresh token secret ⚠️ **Change for production** | Default value |
 | `REDIS_HOST` | Redis host | localhost |

@@ -1,0 +1,181 @@
+// ダイヤモンド富士・パール富士カレンダー新スキーマ（5テーブル構成）
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 1. 管理者テーブル（既存データを継承）
+model Admin {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique @db.VarChar(100)
+  email        String   @unique @db.VarChar(255)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("admins")
+}
+
+// 2. 地点マスタテーブル（既存データを継承）
+model Location {
+  id          Int     @id @default(autoincrement())
+  name        String  @db.VarChar(255)
+  prefecture  String  @db.VarChar(100)
+  latitude    Float
+  longitude   Float
+  elevation   Float
+  description String?
+  accessInfo  String? @map("access_info")
+  parkingInfo String? @map("parking_info")
+
+  // 富士山への方位・距離情報
+  fujiAzimuth   Float? @map("fuji_azimuth")
+  fujiElevation Float? @map("fuji_elevation")
+  fujiDistance  Float? @map("fuji_distance")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // リレーション
+  events LocationFujiEvent[]
+
+  @@index([prefecture])
+  @@index([latitude, longitude])
+  @@index([fujiAzimuth, fujiElevation])
+  @@map("locations")
+}
+
+// 3. 天体軌道データ（5分刻み基本データ）
+model CelestialOrbitData {
+  id       BigInt   @id @default(autoincrement())
+  date     DateTime @db.Date
+  time     DateTime @db.Timestamptz
+  hour     Int
+  minute   Int
+
+  // 天体種類
+  celestialType String @map("celestial_type") @db.VarChar(10)
+
+  // 軌道データ
+  azimuth   Float
+  elevation Float
+  visible   Boolean @default(false)
+
+  // 月専用データ
+  moonPhase         Float? @map("moon_phase")
+  moonIllumination Float? @map("moon_illumination")
+
+  // メタデータ
+  season    String? @db.VarChar(10)
+  timeOfDay String? @map("time_of_day") @db.VarChar(10)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([date, hour, minute, celestialType], map: "unique_date_time_celestial")
+  @@index([date, celestialType], map: "idx_date_celestial")
+  @@index([celestialType, visible], map: "idx_celestial_visible")
+  @@index([elevation, celestialType], map: "idx_elevation_celestial")
+  @@index([moonPhase, date], map: "idx_moon_phase_date")
+  @@index([season, timeOfDay], map: "idx_season_timeofday")
+  @@map("celestial_orbit_data")
+}
+
+// 4. 天文データ（中間データ：富士現象候補）
+model AstronomicalData {
+  id         BigInt   @id @default(autoincrement())
+  date       DateTime @db.Date
+  pattern    Pattern
+  elevation  Int
+  timeOfDay  String   @map("time_of_day") @db.VarChar(10)
+
+  // 現象時刻と位置
+  preciseTime DateTime @map("precise_time") @db.Timestamptz
+  azimuth     Float
+
+  // 月データ（パール富士用）
+  moonElevation Float? @map("moon_elevation")
+  moonAzimuth   Float? @map("moon_azimuth")
+  moonPhase     Float? @map("moon_phase")
+
+  // 品質評価
+  quality           Quality?
+  atmosphericFactor Float?   @map("atmospheric_factor")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([date, pattern, elevation, timeOfDay], map: "unique_date_pattern_elevation_timeofday")
+  @@index([date, pattern], map: "idx_astro_date_pattern")
+  @@index([pattern, elevation], map: "idx_astro_pattern_elevation")
+  @@index([quality, date], map: "idx_astro_quality_date")
+  @@map("astronomical_data")
+}
+
+// 5. 地点別富士現象イベント（探索結果）
+model LocationFujiEvent {
+  id         BigInt    @id @default(autoincrement())
+  locationId Int       @map("location_id")
+  eventDate  DateTime  @map("event_date") @db.Date
+  eventTime  DateTime  @map("event_time") @db.Timestamptz
+  eventType  EventType @map("event_type")
+
+  // 天体の位置情報
+  azimuth  Float
+  altitude Float
+
+  // 品質・精度情報
+  qualityScore Float    @default(0.0) @map("quality_score")
+  accuracy     Accuracy?
+
+  // パール富士の場合の月情報
+  moonPhase         Float? @map("moon_phase")
+  moonIllumination Float? @map("moon_illumination")
+
+  // メタデータ
+  calculationYear Int      @map("calculation_year")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // リレーション
+  location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@unique([locationId, eventDate, eventTime, eventType], map: "unique_location_event")
+  @@index([locationId, eventDate], map: "idx_location_date")
+  @@index([eventDate], map: "idx_event_date")
+  @@index([eventType, eventDate], map: "idx_event_type_date")
+  @@index([qualityScore(sort: Desc)], map: "idx_quality_score")
+  @@map("location_fuji_events")
+}
+
+// Enum定義
+enum Pattern {
+  diamond
+  pearl
+}
+
+enum Quality {
+  excellent
+  good
+  fair
+  poor
+}
+
+enum EventType {
+  diamond_sunrise
+  diamond_sunset
+  pearl_moonrise
+  pearl_moonset
+}
+
+enum Accuracy {
+  perfect
+  excellent
+  good
+  fair
+}

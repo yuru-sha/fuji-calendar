@@ -3,7 +3,7 @@ import IORedis from 'ioredis';
 
 import { getComponentLogger } from '../../shared/utils/logger';
 
-import { BatchCalculationService } from './BatchCalculationService';
+import { batchCalculationService } from './BatchCalculationService';
 
 import { HistoricalEventsModel } from '../models/HistoricalEvents';
 
@@ -59,7 +59,7 @@ export class QueueService {
   private monthlyQueue: Queue<MonthlyCalculationJob>;
   private dailyQueue: Queue<DailyCalculationJob>;
   private historicalQueue: Queue<HistoricalCalculationJob>;
-  private batchService: BatchCalculationService;
+  // BatchCalculationServiceはシングルトンを使用
   private historicalModel: HistoricalEventsModel;
   private workers: Worker[] = [];
 
@@ -70,14 +70,31 @@ export class QueueService {
     this.dailyQueue = new Queue('daily-calculation', { connection: redisConnection });
     this.historicalQueue = new Queue('historical-calculation', { connection: redisConnection });
     
-    this.batchService = new BatchCalculationService();
+    // BatchCalculationServiceはシングルトンを使用
     this.historicalModel = new HistoricalEventsModel();
+    
+    // 起動時に全キューをクリア
+    this.clearAllQueues();
     
     this.initializeWorkers();
     
     logger.info('Queue service initialized', {
       queues: ['location-calculation', 'monthly-calculation', 'daily-calculation', 'historical-calculation']
     });
+  }
+
+  private async clearAllQueues(): Promise<void> {
+    try {
+      await Promise.all([
+        this.locationQueue.obliterate({ force: true }),
+        this.monthlyQueue.obliterate({ force: true }),
+        this.dailyQueue.obliterate({ force: true }),
+        this.historicalQueue.obliterate({ force: true })
+      ]);
+      logger.info('起動時に全キューをクリアしました');
+    } catch (error) {
+      logger.warn('キューのクリアに失敗しました', error);
+    }
   }
 
   private initializeWorkers(): void {
@@ -315,7 +332,7 @@ export class QueueService {
 
         // 年間計算（月ごとに分割）
         for (let month = 1; month <= 12; month++) {
-          await this.batchService.calculateMonthlyEvents(year, month, [locationId]);
+          await batchCalculationService.calculateMonthlyEvents(year, month, [locationId]);
         }
         
         logger.info('Year calculation completed', {
@@ -358,7 +375,7 @@ export class QueueService {
     });
 
     try {
-      await this.batchService.calculateMonthlyEvents(year, month, [locationId]);
+      await batchCalculationService.calculateMonthlyEvents(year, month, [locationId]);
       
       logger.info('Monthly calculation completed', {
         jobId: job.id,
@@ -394,7 +411,7 @@ export class QueueService {
     });
 
     try {
-      await this.batchService.calculateDayEvents(year, month, day, [locationId]);
+      await batchCalculationService.calculateDayEvents(year, month, day, [locationId]);
       
       logger.info('Daily calculation completed', {
         jobId: job.id,
@@ -447,7 +464,7 @@ export class QueueService {
         // その年のデータを計算
         // 年間計算（月ごとに分割）
         for (let month = 1; month <= 12; month++) {
-          await this.batchService.calculateMonthlyEvents(year, month, [locationId]);
+          await batchCalculationService.calculateMonthlyEvents(year, month, [locationId]);
         }
 
         // 計算結果をhistoricalテーブルに保存
@@ -557,19 +574,36 @@ export class QueueService {
     daily: any;
     historical: any;
   }> {
-    const [locationStats, monthlyStats, dailyStats, historicalStats] = await Promise.all([
-      this.locationQueue.getJobCounts(),
-      this.monthlyQueue.getJobCounts(),
-      this.dailyQueue.getJobCounts(),
-      this.historicalQueue.getJobCounts(),
-    ]);
+    try {
+      const [locationStats, monthlyStats, dailyStats, historicalStats] = await Promise.all([
+        this.locationQueue.getJobCounts().catch(err => {
+          logger.error('Failed to get location queue stats', err);
+          return { waiting: 0, active: 0, completed: 0, failed: 0 };
+        }),
+        this.monthlyQueue.getJobCounts().catch(err => {
+          logger.error('Failed to get monthly queue stats', err);
+          return { waiting: 0, active: 0, completed: 0, failed: 0 };
+        }),
+        this.dailyQueue.getJobCounts().catch(err => {
+          logger.error('Failed to get daily queue stats', err);
+          return { waiting: 0, active: 0, completed: 0, failed: 0 };
+        }),
+        this.historicalQueue.getJobCounts().catch(err => {
+          logger.error('Failed to get historical queue stats', err);
+          return { waiting: 0, active: 0, completed: 0, failed: 0 };
+        }),
+      ]);
 
-    return {
-      location: locationStats,
-      monthly: monthlyStats,
-      daily: dailyStats,
-      historical: historicalStats,
-    };
+      return {
+        location: locationStats,
+        monthly: monthlyStats,
+        daily: dailyStats,
+        historical: historicalStats,
+      };
+    } catch (error) {
+      logger.error('Failed to get queue statistics', error);
+      throw new Error('キューの状態取得に失敗しました');
+    }
   }
 
   /**
@@ -608,21 +642,41 @@ export class QueueService {
   async shutdown(): Promise<void> {
     logger.info('Shutting down queue service');
     
-    // ワーカーの停止
-    await Promise.all(this.workers.map(worker => worker.close()));
-    
-    // キューの停止
-    await Promise.all([
-      this.locationQueue.close(),
-      this.monthlyQueue.close(),
-      this.dailyQueue.close(),
-      this.historicalQueue.close(),
-    ]);
+    try {
+      // ワーカーの停止（個別にエラーハンドリング）
+      const workerClosePromises = this.workers.map(worker => 
+        worker.close().catch(err => {
+          logger.error('Failed to close worker', err);
+        })
+      );
+      await Promise.all(workerClosePromises);
+      
+      // キューの停止（個別にエラーハンドリング）
+      await Promise.all([
+        this.locationQueue.close().catch(err => {
+          logger.error('Failed to close location queue', err);
+        }),
+        this.monthlyQueue.close().catch(err => {
+          logger.error('Failed to close monthly queue', err);
+        }),
+        this.dailyQueue.close().catch(err => {
+          logger.error('Failed to close daily queue', err);
+        }),
+        this.historicalQueue.close().catch(err => {
+          logger.error('Failed to close historical queue', err);
+        }),
+      ]);
 
-    // Redis接続の切断
-    await redisConnection.quit();
-    
-    logger.info('Queue service shutdown completed');
+      // Redis接続の切断
+      await redisConnection.quit().catch(err => {
+        logger.error('Failed to close Redis connection', err);
+      });
+      
+      logger.info('Queue service shutdown completed');
+    } catch (error) {
+      logger.error('Error during queue service shutdown', error);
+      throw error;
+    }
   }
 }
 

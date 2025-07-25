@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useFavorites } from '../hooks/useFavorites';
+import { timeUtils } from '../../shared/utils/timeUtils';
 import styles from './FavoritesPage.module.css';
 import diamondFujiIcon from '../assets/icons/diamond_fuji_small.png';
 import pearlFujiIcon from '../assets/icons/pearl_fuji_small.png';
 
 const FavoritesPage: React.FC = () => {
+  const navigate = useNavigate();
   const {
     favoriteLocations,
     favoriteEvents,
@@ -125,6 +128,26 @@ const FavoritesPage: React.FC = () => {
     });
   };
 
+  // イベントの詳細を見るためにホーム画面に遷移
+  const handleViewEventDetail = (event: any) => {
+    const eventDate = new Date(event.time);
+    const dateString = timeUtils.formatDateString(eventDate);
+    
+    // ホーム画面に遷移し、該当日付を選択状態にする
+    navigate(`/?date=${dateString}`, {
+      state: { 
+        selectedDate: eventDate,
+        selectedLocationId: event.locationId,
+        selectedEventId: event.id
+      }
+    });
+  };
+
+  // 地点専用の詳細ページに遷移
+  const handleViewLocationDetail = (location: any) => {
+    navigate(`/location/${location.id}`);
+  };
+
   return (
     <div className={styles.favoritesPage}>
       <div className="content-wide">
@@ -238,13 +261,22 @@ const FavoritesPage: React.FC = () => {
                       📍 {event.locationName}
                     </div>
                   </div>
-                  <button
-                    className={styles.removeButton}
-                    onClick={() => removeEventFromFavorites(event.id)}
-                    title="削除"
-                  >
-                    ×
-                  </button>
+                  <div className={styles.eventActions}>
+                    <button
+                      className={styles.viewDetailButton}
+                      onClick={() => handleViewEventDetail(event)}
+                      title="詳細を見る"
+                    >
+                      📅 詳細を見る
+                    </button>
+                    <button
+                      className={styles.removeButton}
+                      onClick={() => removeEventFromFavorites(event.id)}
+                      title="削除"
+                    >
+                      削除
+                    </button>
+                  </div>
                 </div>
               ))
             )}
@@ -284,13 +316,22 @@ const FavoritesPage: React.FC = () => {
                       📍 {event.locationName}
                     </div>
                   </div>
-                  <button
-                    className={styles.removeButton}
-                    onClick={() => removeEventFromFavorites(event.id)}
-                    title="削除"
-                  >
-                    ×
-                  </button>
+                  <div className={styles.eventActions}>
+                    <button
+                      className={styles.viewDetailButton}
+                      onClick={() => handleViewEventDetail(event)}
+                      title="詳細を見る"
+                    >
+                      📅 詳細を見る
+                    </button>
+                    <button
+                      className={styles.removeButton}
+                      onClick={() => removeEventFromFavorites(event.id)}
+                      title="削除"
+                    >
+                      削除
+                    </button>
+                  </div>
                 </div>
               ))
             )}
@@ -326,13 +367,22 @@ const FavoritesPage: React.FC = () => {
                       追加日: {new Date(location.addedAt).toLocaleDateString('ja-JP')}
                     </div>
                   </div>
-                  <button
-                    className={styles.removeButton}
-                    onClick={() => removeLocationFromFavorites(location.id)}
-                    title="削除"
-                  >
-                    ×
-                  </button>
+                  <div className={styles.locationActions}>
+                    <button
+                      className={styles.viewDetailButton}
+                      onClick={() => handleViewLocationDetail(location)}
+                      title="詳細を見る"
+                    >
+                      🗺️ 詳細を見る
+                    </button>
+                    <button
+                      className={styles.removeButton}
+                      onClick={() => removeLocationFromFavorites(location.id)}
+                      title="削除"
+                    >
+                      削除
+                    </button>
+                  </div>
                 </div>
               ))
             )}

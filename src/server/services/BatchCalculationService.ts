@@ -1,349 +1,450 @@
-import { EventsCacheModel } from '../models/EventsCache';
-import { LocationModel } from '../models/Location';
-import { astronomicalCalculator } from './AstronomicalCalculatorAstronomyEngine';
-import { 
-  BatchCalculationJob, 
-  CacheKeyOptions 
-} from '../../shared/types/cache';
-import { FujiEvent, Location } from '../../shared/types';
+import { Location } from '../../shared/types';
+import { AstronomicalCalculatorImpl } from './AstronomicalCalculator';
+import { eventCacheService } from './EventCacheService';
+import { PrismaClientManager } from '../database/prisma';
 import { getComponentLogger, StructuredLogger } from '../../shared/utils/logger';
 
 /**
  * バッチ計算サービス
- * 重い天体計算を事前に実行してキャッシュに保存
+ * QueueServiceから呼び出される重い天体計算処理を担当
  */
 export class BatchCalculationService {
-  private cacheModel: EventsCacheModel;
-  private locationModel: LocationModel;
+  private astronomicalCalculator: AstronomicalCalculatorImpl;
   private logger: StructuredLogger;
-  private isRunning: boolean = false;
-  private currentJob?: BatchCalculationJob;
+  private prisma = PrismaClientManager.getInstance();
 
   constructor() {
-    this.cacheModel = new EventsCacheModel();
-    this.locationModel = new LocationModel();
-    this.logger = getComponentLogger('batch-calculation');
+    this.astronomicalCalculator = new AstronomicalCalculatorImpl();
+    this.logger = getComponentLogger('batch-calculation-service');
   }
 
   /**
-   * 月間イベントの事前計算
+   * 単一地点の年間イベント計算
+   */
+  async calculateLocationYearlyEvents(
+    locationId: number, 
+    year: number
+  ): Promise<{
+    success: boolean;
+    totalEvents: number;
+    timeMs: number;
+    error?: string;
+  }> {
+    const startTime = Date.now();
+    
+    try {
+      this.logger.info('地点年間計算開始', { locationId, year });
+      
+      // 地点情報を取得
+      const location = await this.prisma.location.findUnique({
+        where: { id: locationId }
+      });
+      
+      if (!location) {
+        throw new Error(`Location not found: ${locationId}`);
+      }
+
+      // EventCacheServiceを使用して年間計算を実行
+      const result = await eventCacheService.generateLocationCache(locationId, year);
+      
+      const timeMs = Date.now() - startTime;
+      
+      if (result.success) {
+        this.logger.info('地点年間計算完了', {
+          locationId,
+          locationName: location.name,
+          year,
+          totalEvents: result.totalEvents,
+          timeMs
+        });
+        
+        return {
+          success: true,
+          totalEvents: result.totalEvents,
+          timeMs
+        };
+      } else {
+        throw new Error(result.error || 'Unknown error');
+      }
+      
+    } catch (error) {
+      const timeMs = Date.now() - startTime;
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      this.logger.error('地点年間計算エラー', error, {
+        locationId,
+        year,
+        timeMs
+      });
+      
+      return {
+        success: false,
+        totalEvents: 0,
+        timeMs,
+        error: errorMessage
+      };
+    }
+  }
+
+  /**
+   * 月間イベント計算（複数地点対応）
    */
   async calculateMonthlyEvents(
-    year: number, 
-    month: number, 
-    locationIds?: number[],
-    priority: 'high' | 'medium' | 'low' = 'medium'
-  ): Promise<BatchCalculationJob> {
+    year: number,
+    month: number,
+    locationIds: number[]
+  ): Promise<{
+    success: boolean;
+    totalEvents: number;
+    processedLocations: number;
+    timeMs: number;
+    locationResults: Array<{
+      locationId: number;
+      locationName: string;
+      events: number;
+      success: boolean;
+      error?: string;
+    }>;
+    error?: string;
+  }> {
+    const startTime = Date.now();
     
-    // 対象地点の取得
-    const allLocations = await this.locationModel.findAll();
-    const targetLocations = locationIds 
-      ? allLocations.filter(loc => locationIds.includes(loc.id))
-      : allLocations;
-
-    if (targetLocations.length === 0) {
-      throw new Error('計算対象の地点が見つかりません');
-    }
-
-    // ジョブの作成
-    const job: BatchCalculationJob = {
-      id: `monthly_${year}_${month}_${Date.now()}`,
-      type: 'monthly',
-      year,
-      month,
-      locationIds: targetLocations.map(loc => loc.id),
-      priority,
-      status: 'pending',
-      createdAt: new Date(),
-      progress: {
-        total: targetLocations.length,
-        completed: 0,
-        percentage: 0
-      }
-    };
-
-    this.logger.info('月間バッチ計算ジョブ開始', {
-      jobId: job.id,
-      year,
-      month,
-      locationCount: targetLocations.length,
-      priority
-    });
-
-    // 非同期でバッチ処理を実行
-    this.executeMonthlyBatch(job, targetLocations).catch(error => {
-      this.logger.error('月間バッチ計算エラー', error, { jobId: job.id });
-    });
-
-    return job;
-  }
-
-  /**
-   * 月間バッチ処理の実行
-   */
-  private async executeMonthlyBatch(job: BatchCalculationJob, locations: Location[]): Promise<void> {
-    this.currentJob = job;
-    this.isRunning = true;
-    job.status = 'running';
-    job.startedAt = new Date();
-
     try {
-      const startTime = Date.now();
+      this.logger.info('月間計算開始', { year, month, locationCount: locationIds.length });
       
-      this.logger.info('月間バッチ処理実行開始', {
-        jobId: job.id,
-        year: job.year,
-        month: job.month,
-        locationCount: locations.length
-      });
-
-      // 各地点について月間計算を実行
-      for (let i = 0; i < locations.length; i++) {
-        const location = locations[i];
-        
+      const locationResults = [];
+      let totalEvents = 0;
+      let processedLocations = 0;
+      
+      // 各地点で月間計算を実行
+      for (const locationId of locationIds) {
         try {
-          await this.calculateAndCacheMonthlyLocation(job.year!, job.month!, location);
+          const location = await this.prisma.location.findUnique({
+            where: { id: locationId }
+          });
           
-          // 進捗更新
-          job.progress.completed = i + 1;
-          job.progress.percentage = Math.round((job.progress.completed / job.progress.total) * 100);
+          if (!location) {
+            locationResults.push({
+              locationId,
+              locationName: `Unknown (${locationId})`,
+              events: 0,
+              success: false,
+              error: 'Location not found'
+            });
+            continue;
+          }
           
-          this.logger.debug('地点別月間計算完了', {
-            jobId: job.id,
-            locationId: location.id,
+          // 月間データをデータベースに保存（EventCacheServiceを使用）
+          const monthResult = await eventCacheService.generateLocationMonthCache(locationId, year, month);
+          
+          locationResults.push({
+            locationId,
             locationName: location.name,
-            progress: `${job.progress.completed}/${job.progress.total}`
+            events: monthResult.totalEvents,
+            success: monthResult.success
+          });
+          
+          totalEvents += monthResult.totalEvents;
+          processedLocations++;
+          
+          this.logger.debug('地点月間計算完了', {
+            locationId,
+            locationName: location.name,
+            year,
+            month,
+            events: monthResult.totalEvents
           });
           
         } catch (locationError) {
-          this.logger.error('地点別計算エラー', locationError, {
-            jobId: job.id,
-            locationId: location.id,
-            locationName: location.name
+          const location = await this.prisma.location.findUnique({
+            where: { id: locationId }
+          }).catch(() => null);
+          
+          locationResults.push({
+            locationId,
+            locationName: location?.name || `Unknown (${locationId})`,
+            events: 0,
+            success: false,
+            error: locationError instanceof Error ? locationError.message : 'Unknown error'
           });
-          // 個別地点のエラーは継続
+          
+          this.logger.error('地点月間計算エラー', locationError, {
+            locationId,
+            year,
+            month
+          });
         }
       }
-
-      // ジョブ完了
-      job.status = 'completed';
-      job.completedAt = new Date();
       
-      const totalTime = Date.now() - startTime;
-      this.logger.info('月間バッチ処理完了', {
-        jobId: job.id,
-        year: job.year,
-        month: job.month,
-        locationCount: locations.length,
-        totalTimeMs: totalTime,
-        avgTimePerLocation: Math.round(totalTime / locations.length)
-      });
-
-    } catch (error) {
-      job.status = 'failed';
-      job.errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      job.completedAt = new Date();
+      const timeMs = Date.now() - startTime;
       
-      this.logger.error('月間バッチ処理失敗', error, {
-        jobId: job.id,
-        year: job.year,
-        month: job.month
-      });
-      
-      throw error;
-    } finally {
-      this.isRunning = false;
-      this.currentJob = undefined;
-    }
-  }
-
-  /**
-   * 特定地点の月間イベント計算とキャッシュ
-   */
-  private async calculateAndCacheMonthlyLocation(
-    year: number, 
-    month: number, 
-    location: Location
-  ): Promise<void> {
-    const startTime = Date.now();
-    
-    // 既存キャッシュの確認
-    const cacheOptions: CacheKeyOptions = {
-      year,
-      month,
-      locationId: location.id
-    };
-    
-    const existingCache = await this.cacheModel.getCache(cacheOptions);
-    if (existingCache.hit) {
-      this.logger.debug('キャッシュ済みのためスキップ', {
+      this.logger.info('月間計算完了', {
         year,
         month,
-        locationId: location.id,
-        locationName: location.name
+        totalEvents,
+        processedLocations,
+        requestedLocations: locationIds.length,
+        timeMs
       });
-      return;
+      
+      return {
+        success: true,
+        totalEvents,
+        processedLocations,
+        timeMs,
+        locationResults
+      };
+      
+    } catch (error) {
+      const timeMs = Date.now() - startTime;
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      this.logger.error('月間計算エラー', error, {
+        year,
+        month,
+        locationIds
+      });
+      
+      return {
+        success: false,
+        totalEvents: 0,
+        processedLocations: 0,
+        timeMs,
+        locationResults: [],
+        error: errorMessage
+      };
     }
-
-    // 月間イベント計算実行
-    const events = await astronomicalCalculator.calculateMonthlyEvents(year, month, [location]);
-    const calculationTime = Date.now() - startTime;
-
-    // キャッシュに保存
-    await this.cacheModel.setCache(
-      cacheOptions,
-      events,
-      calculationTime,
-      60 // 60日間有効
-    );
-
-    this.logger.info('地点別月間計算・キャッシュ完了', {
-      year,
-      month,
-      locationId: location.id,
-      locationName: location.name,
-      eventCount: events.length,
-      calculationTimeMs: calculationTime
-    });
   }
 
   /**
-   * 複数月の事前計算（次の3ヶ月分など）
-   */
-  async precomputeUpcomingMonths(monthsAhead: number = 3): Promise<BatchCalculationJob[]> {
-    const jobs: BatchCalculationJob[] = [];
-    const currentDate = new Date();
-    
-    for (let i = 0; i <= monthsAhead; i++) {
-      const targetDate = new Date(currentDate);
-      targetDate.setMonth(targetDate.getMonth() + i);
-      
-      const year = targetDate.getFullYear();
-      const month = targetDate.getMonth() + 1;
-      
-      try {
-        const job = await this.calculateMonthlyEvents(year, month, undefined, 'low');
-        jobs.push(job);
-        
-        // バッチ間の間隔を空ける（システム負荷軽減）
-        if (i < monthsAhead) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-      } catch (error) {
-        this.logger.error('先行計算エラー', error, { year, month });
-      }
-    }
-
-    this.logger.info('先行計算ジョブ作成完了', {
-      monthsAhead,
-      jobCount: jobs.length
-    });
-
-    return jobs;
-  }
-
-  /**
-   * 特定日のイベント計算（高優先度）
+   * 日別イベント計算（複数地点対応）
    */
   async calculateDayEvents(
-    year: number, 
-    month: number, 
-    day: number, 
-    locationIds?: number[]
-  ): Promise<FujiEvent[]> {
+    year: number,
+    month: number,
+    day: number,
+    locationIds: number[]
+  ): Promise<{
+    success: boolean;
+    totalEvents: number;
+    processedLocations: number;
+    timeMs: number;
+    error?: string;
+  }> {
+    const startTime = Date.now();
     
-    const targetDate = new Date(year, month - 1, day);
-    const allLocations = await this.locationModel.findAll();
-    const targetLocations = locationIds 
-      ? allLocations.filter(loc => locationIds.includes(loc.id))
-      : allLocations;
-
-    const allEvents: FujiEvent[] = [];
-
-    for (const location of targetLocations) {
-      const cacheOptions: CacheKeyOptions = {
+    try {
+      this.logger.info('日別計算開始', { year, month, day, locationCount: locationIds.length });
+      
+      const locations = await this.prisma.location.findMany({
+        where: {
+          id: { in: locationIds }
+        }
+      });
+      
+      let totalEvents = 0;
+      
+      // 各地点でその日のデータをデータベースに保存
+      for (const location of locations) {
+        const dayResult = await eventCacheService.generateLocationDayCache(location.id, year, month, day);
+        totalEvents += dayResult.totalEvents;
+        
+        this.logger.debug('地点日別計算完了', {
+          locationId: location.id,
+          locationName: location.name,
+          year,
+          month,
+          day,
+          totalEvents: dayResult.totalEvents,
+          success: dayResult.success
+        });
+      }
+      
+      const timeMs = Date.now() - startTime;
+      
+      this.logger.info('日別計算完了', {
         year,
         month,
         day,
-        locationId: location.id
-      };
-
-      // キャッシュ確認
-      const cached = await this.cacheModel.getCache(cacheOptions);
-      if (cached.hit && cached.data) {
-        allEvents.push(...cached.data);
-        continue;
-      }
-
-      // キャッシュがない場合は計算
-      const startTime = Date.now();
-      const diamondEvents = await astronomicalCalculator.calculateDiamondFuji(targetDate, location);
-      const pearlEvents = await astronomicalCalculator.calculatePearlFuji(targetDate, location);
-      const dayEvents = [...diamondEvents, ...pearlEvents];
-      const calculationTime = Date.now() - startTime;
-
-      // 日次キャッシュに保存
-      await this.cacheModel.setCache(
-        cacheOptions,
-        dayEvents,
-        calculationTime,
-        30 // 30日間有効
-      );
-
-      allEvents.push(...dayEvents);
-    }
-
-    return allEvents;
-  }
-
-  /**
-   * キャッシュクリーンアップ
-   */
-  async cleanupCache(): Promise<void> {
-    this.logger.info('キャッシュクリーンアップ開始');
-    
-    const deletedCount = await this.cacheModel.cleanupExpiredCache();
-    
-    this.logger.info('キャッシュクリーンアップ完了', {
-      deletedEntries: deletedCount
-    });
-  }
-
-  /**
-   * バッチ処理の状態取得
-   */
-  getStatus(): {
-    isRunning: boolean;
-    currentJob?: BatchCalculationJob;
-  } {
-    return {
-      isRunning: this.isRunning,
-      currentJob: this.currentJob
-    };
-  }
-
-  /**
-   * 緊急時のバッチ処理停止
-   */
-  async stop(): Promise<void> {
-    if (this.isRunning && this.currentJob) {
-      this.currentJob.status = 'failed';
-      this.currentJob.errorMessage = 'Manually stopped';
-      this.currentJob.completedAt = new Date();
-      
-      this.logger.warn('バッチ処理を手動停止', {
-        jobId: this.currentJob.id
+        totalEvents,
+        processedLocations: locations.length,
+        timeMs
       });
+      
+      return {
+        success: true,
+        totalEvents,
+        processedLocations: locations.length,
+        timeMs
+      };
+      
+    } catch (error) {
+      const timeMs = Date.now() - startTime;
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      this.logger.error('日別計算エラー', error, {
+        year,
+        month,
+        day,
+        locationIds
+      });
+      
+      return {
+        success: false,
+        totalEvents: 0,
+        processedLocations: 0,
+        timeMs,
+        error: errorMessage
+      };
     }
-    
-    this.isRunning = false;
-    this.currentJob = undefined;
   }
 
   /**
-   * キャッシュ統計の取得
+   * バッチ計算の健康状態チェック
    */
-  async getCacheStatistics() {
-    return await this.cacheModel.getCacheStats();
+  async healthCheck(): Promise<{
+    healthy: boolean;
+    calculatorStatus: string;
+    databaseStatus: string;
+    cacheServiceStatus: string;
+    recommendations: string[];
+  }> {
+    const recommendations: string[] = [];
+    let healthy = true;
+    
+    try {
+      // AstronomicalCalculator テスト
+      const testLocation: Location = {
+        id: 999999,
+        name: 'Test Location',
+        prefecture: 'Test',
+        latitude: 35.0,
+        longitude: 139.0,
+        elevation: 100,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      
+      const testDate = new Date();
+      const testSunPos = this.astronomicalCalculator.getSunPosition(
+        testDate, 
+        testLocation.latitude, 
+        testLocation.longitude,
+        testLocation.elevation
+      );
+      
+      const calculatorStatus = (testSunPos.azimuth >= 0 && testSunPos.azimuth <= 360) 
+        ? 'healthy' : 'unhealthy';
+      
+      if (calculatorStatus === 'unhealthy') {
+        healthy = false;
+        recommendations.push('AstronomicalCalculatorの初期化に問題があります');
+      }
+      
+      // データベース接続テスト
+      await this.prisma.$queryRaw`SELECT 1`;
+      const databaseStatus = 'healthy';
+      
+      // EventCacheService テスト
+      const cacheServiceStatus = 'healthy'; // TODO: 適切なヘルスチェック追加
+      
+      this.logger.info('バッチ計算健康チェック完了', {
+        healthy,
+        calculatorStatus,
+        databaseStatus,
+        cacheServiceStatus,
+        recommendationCount: recommendations.length
+      });
+      
+      return {
+        healthy,
+        calculatorStatus,
+        databaseStatus,
+        cacheServiceStatus,
+        recommendations
+      };
+      
+    } catch (error) {
+      this.logger.error('バッチ計算健康チェックエラー', error);
+      
+      return {
+        healthy: false,
+        calculatorStatus: 'error',
+        databaseStatus: 'error',
+        cacheServiceStatus: 'error',
+        recommendations: ['バッチ計算システムに問題があります', 'ログを確認してください']
+      };
+    }
+  }
+
+  /**
+   * 計算統計の取得
+   */
+  async getCalculationStats(): Promise<{
+    totalLocations: number;
+    currentYear: number;
+    monthlyProgress: Array<{
+      month: number;
+      completed: boolean;
+      eventCount: number;
+    }>;
+    systemLoad: {
+      cpu: string;
+      memory: string;
+    };
+  }> {
+    try {
+      const currentYear = new Date().getFullYear();
+      
+      // 地点数を取得
+      const totalLocations = await this.prisma.location.count();
+      
+      // 月別進捗を取得（簡易版）
+      const monthlyProgress = [];
+      for (let month = 1; month <= 12; month++) {
+        const eventCount = await this.prisma.locationFujiEvent.count({
+          where: {
+            calculationYear: currentYear,
+            eventTime: {
+              gte: new Date(currentYear, month - 1, 1),
+              lt: new Date(currentYear, month, 1)
+            }
+          }
+        });
+        
+        monthlyProgress.push({
+          month,
+          completed: eventCount > 0,
+          eventCount
+        });
+      }
+      
+      // システム負荷（簡易版）
+      const memUsage = process.memoryUsage();
+      const systemLoad = {
+        cpu: 'N/A', // Node.jsで正確なCPU使用率取得は複雑
+        memory: `${Math.round(memUsage.heapUsed / 1024 / 1024)}MB / ${Math.round(memUsage.heapTotal / 1024 / 1024)}MB`
+      };
+      
+      this.logger.debug('計算統計取得完了', {
+        totalLocations,
+        currentYear,
+        completedMonths: monthlyProgress.filter(m => m.completed).length
+      });
+      
+      return {
+        totalLocations,
+        currentYear,
+        monthlyProgress,
+        systemLoad
+      };
+      
+    } catch (error) {
+      this.logger.error('計算統計取得エラー', error);
+      throw error;
+    }
   }
 }
+
+// シングルトンインスタンス
+export const batchCalculationService = new BatchCalculationService();

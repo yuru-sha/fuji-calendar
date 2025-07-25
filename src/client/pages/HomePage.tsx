@@ -1,357 +1,685 @@
-import React, { useState } from 'react';
-import Calendar from '../components/Calendar';
-import EventDetail from '../components/EventDetail';
-import MapView from '../components/MapView';
-import { useCalendar } from '../hooks/useCalendar';
-import { useFavorites } from '../hooks/useFavorites';
-import { FujiEvent, FavoriteEvent } from '../../shared/types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
+import { Location, FujiEvent, CalendarResponse, WeatherInfo } from '../../shared/types';
+import { apiClient } from '../services/apiClient';
 import { timeUtils } from '../../shared/utils/timeUtils';
-import styles from './HomePage.module.css';
-import diamondFujiIcon from '../assets/icons/diamond_fuji_small.png';
-import pearlFujiIcon from '../assets/icons/pearl_fuji_small.png';
+import SimpleCalendar from '../components/SimpleCalendar';
+import SimpleMap from '../components/SimpleMap';
+import FilterPanel, { FilterOptions } from '../components/FilterPanel';
+import CameraPanel, { CameraSettings } from '../components/CameraPanel';
+import EventDetail from '../components/EventDetail';
 
 const HomePage: React.FC = () => {
-  const {
-    calendarData,
-    dayEvents,
-    upcomingEvents,
-    locations,
-    loading,
-    upcomingEventsLoaded,
-    error,
-    loadDayEvents,
-    clearError,
-    setCurrentDate
-  } = useCalendar();
-
-  const {
-    upcomingFavoriteEvents,
-    stats: favoriteStats
-  } = useFavorites();
-
-
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  
+  const [calendarData, setCalendarData] = useState<CalendarResponse | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedEvent, setSelectedEvent] = useState<FujiEvent | null>(null);
-  const [showMap, setShowMap] = useState<boolean>(false);
+  const [dayEvents, setDayEvents] = useState<FujiEvent[]>([]);
+  const [weather, setWeather] = useState<WeatherInfo | undefined>(undefined);
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [selectedLocationId, setSelectedLocationId] = useState<number | undefined>(undefined);
+  const [selectedEventId, setSelectedEventId] = useState<string | undefined>(undefined);
+  const [, setLoading] = useState(false);
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
+  const [filters, setFilters] = useState<FilterOptions>({
+    distance: 'all',
+    diamondSunrise: false,
+    diamondSunset: false,
+    pearlMoonrise: false,
+    pearlMoonset: false,
+    specialEvents: {
+      solarEclipse: false,
+      lunarEclipse: false,
+      supermoon: false
+    }
+  });
+  const [cameraSettings, setCameraSettings] = useState<CameraSettings>({
+    showAngles: false,
+    focalLength: 50,
+    sensorType: 'fullframe',
+    aspectRatio: '3:2',
+    orientation: 'landscape'
+  });
 
-  const currentDate = new Date();
-  const currentYear = calendarData?.year || currentDate.getFullYear();
-  const currentMonth = calendarData?.month || (currentDate.getMonth() + 1);
+  // URLパラメータから日付や地点IDを処理
+  useEffect(() => {
+    const dateParam = searchParams.get('date');
+    const locationIdParam = searchParams.get('locationId');
+    
+    // お気に入りから遷移した場合の状態を復元
+    if (location.state) {
+      const { selectedDate: stateDate, selectedLocationId: stateLocationId, selectedEventId: stateEventId } = location.state;
+      
+      if (stateDate) {
+        setSelectedDate(new Date(stateDate));
+        setCurrentYear(new Date(stateDate).getFullYear());
+        setCurrentMonth(new Date(stateDate).getMonth() + 1);
+      }
+      
+      // 地点IDと イベントIDは locationsが読み込まれた後に処理
+      if (stateLocationId) {
+        setSelectedLocationId(stateLocationId); // 一旦セット
+      }
+      
+      if (stateEventId) {
+        setSelectedEventId(stateEventId);
+      }
+    }
+    // URLパラメータから日付を処理
+    else if (dateParam) {
+      try {
+        const date = new Date(dateParam);
+        if (!isNaN(date.getTime())) {
+          setSelectedDate(date);
+          setCurrentYear(date.getFullYear());
+          setCurrentMonth(date.getMonth() + 1);
+        }
+      } catch (error) {
+        console.warn('Invalid date parameter:', dateParam);
+      }
+    }
+    
+    // URLパラメータから地点IDを処理
+    if (locationIdParam) {
+      const locationId = parseInt(locationIdParam);
+      if (!isNaN(locationId)) {
+        setSelectedLocationId(locationId);
+      }
+    }
+  }, [searchParams, location.state]);
 
+  // カレンダーデータを取得
+  useEffect(() => {
+    const loadCalendar = async () => {
+      setLoading(true);
+      try {
+        const response = await apiClient.getMonthlyCalendar(currentYear, currentMonth);
+        console.log('Calendar data loaded:', response);
+        console.log('First event structure:', response.events[0]);
+        setCalendarData(response);
+      } catch (error) {
+        console.error('Failed to load calendar:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadCalendar();
+  }, [currentYear, currentMonth]);
+
+  // 撮影地点を取得
+  useEffect(() => {
+    const loadLocations = async () => {
+      try {
+        const response = await apiClient.getLocations();
+        console.log('Locations loaded:', response);
+        setLocations(response.locations);
+      } catch (error) {
+        console.error('Failed to load locations:', error);
+      }
+    };
+
+    loadLocations();
+  }, []);
+
+  // locations読み込み後に、お気に入りから来た地点IDの存在確認
+  useEffect(() => {
+    if (locations.length > 0 && selectedLocationId) {
+      const locationExists = locations.find(loc => loc.id === selectedLocationId);
+      if (!locationExists) {
+        console.warn(`指定された地点ID ${selectedLocationId} は存在しません。選択をリセットします。`);
+        setSelectedLocationId(undefined);
+      }
+    }
+  }, [locations, selectedLocationId]);
+
+  // URLパラメータで指定された日付のイベントを自動読み込み
+  useEffect(() => {
+    if (selectedDate && calendarData) {
+      handleDateClick(selectedDate);
+    }
+  }, [selectedDate, calendarData]);
+
+  // 月変更ハンドラー
+  const handleMonthChange = (year: number, month: number) => {
+    setCurrentYear(year);
+    setCurrentMonth(month);
+  };
+
+  // 日付選択ハンドラー
   const handleDateClick = async (date: Date) => {
     setSelectedDate(date);
-    const dateString = timeUtils.formatDateString(date);
-    await loadDayEvents(dateString);
+    setLoading(true);
     
-    // 詳細エリアにスクロール
-    setTimeout(() => {
-      const detailArea = document.querySelector(`.${styles.detailArea}`) as HTMLElement;
-      if (detailArea) {
-        detailArea.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'start' 
-        });
+    // 日付が変わったら地点選択をリセット
+    setSelectedLocationId(undefined);
+    
+    try {
+      const dateString = timeUtils.formatDateString(date);
+      const response = await apiClient.getDayEvents(dateString);
+      setDayEvents(response.events || []);
+      
+      // 最初の地点を自動選択（イベントがある場合）
+      if (response.events && response.events.length > 0) {
+        setSelectedLocationId(response.events[0].location.id);
+      } else {
+        // イベントが存在しない場合は地点選択をクリア
+        setSelectedLocationId(undefined);
+        console.warn(`選択された日付 ${timeUtils.formatDateString(date)} にはイベントが存在しません`);
       }
-    }, 100);
-  };
-
-  const handleMonthChange = (year: number, month: number) => {
-    setCurrentDate(year, month);
-    setSelectedDate(null);
-  };
-
-  const handleMapClick = (event: FujiEvent) => {
-    setSelectedEvent(event);
-    setShowMap(true);
-  };
-
-  const handleCloseMap = () => {
-    setShowMap(false);
-    setSelectedEvent(null);
-  };
-
-  const handleUpcomingEventClick = async (event: FujiEvent) => {
-    // イベントの日付を取得
-    const eventDate = new Date(event.time);
-    
-    // その年月のカレンダーに移動
-    const year = eventDate.getFullYear();
-    const month = eventDate.getMonth() + 1;
-    
-    if (calendarData?.year !== year || calendarData?.month !== month) {
-      // 別の月なら月を変更
-      setCurrentDate(year, month);
+      
+      // 天気情報を取得（7日間以内の未来日付のみ）
+      const today = new Date();
+      const diffTime = date.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays >= 0 && diffDays <= 7) {
+        try {
+          const weatherResponse = await apiClient.getWeather(dateString);
+          setWeather(weatherResponse);
+        } catch (weatherError) {
+          console.warn('Failed to load weather data:', weatherError);
+          setWeather(undefined);
+        }
+      } else {
+        setWeather(undefined);
+      }
+    } catch (error) {
+      console.error('Failed to load day events:', error);
+      setDayEvents([]);
+      setWeather(undefined);
+    } finally {
+      setLoading(false);
     }
-    
-    // 日付を選択して詳細を表示
-    setSelectedDate(eventDate);
-    const dateString = timeUtils.formatDateString(eventDate);
-    await loadDayEvents(dateString);
-    
-    // 詳細エリアにスクロール
-    setTimeout(() => {
-      const detailArea = document.querySelector(`.${styles.detailArea}`) as HTMLElement;
-      if (detailArea) {
-        detailArea.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'start' 
-        });
-      }
-    }, 100);
   };
 
-  const handleFavoriteEventClick = async (favoriteEvent: FavoriteEvent) => {
-    // お気に入りイベントの日付を取得
-    const eventDate = new Date(favoriteEvent.time);
-    
-    // その年月のカレンダーに移動
-    const year = eventDate.getFullYear();
-    const month = eventDate.getMonth() + 1;
-    
-    if (calendarData?.year !== year || calendarData?.month !== month) {
-      // 別の月なら月を変更
-      setCurrentDate(year, month);
-    }
-    
-    // 日付を選択して詳細を表示
-    setSelectedDate(eventDate);
-    const dateString = timeUtils.formatDateString(eventDate);
-    await loadDayEvents(dateString);
-    
-    // 詳細エリアにスクロール
-    setTimeout(() => {
-      const detailArea = document.querySelector(`.${styles.detailArea}`) as HTMLElement;
-      if (detailArea) {
-        detailArea.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'start' 
-        });
-      }
-    }, 100);
+  // 地点選択ハンドラー
+  const handleLocationSelect = (location: Location) => {
+    setSelectedLocationId(location.id);
   };
 
+  // フィルタリングされたイベントを計算
+  const filteredEvents = useMemo(() => {
+    if (!dayEvents.length) return [];
 
+    return dayEvents.filter(event => {
+      // 距離フィルター
+      if (filters.distance !== 'all') {
+        const distance = (event.location.fujiDistance || 0) / 1000; // メートルからキロメートルに変換
+        switch (filters.distance) {
+          case 'very_near':
+            if (distance > 50) return false;
+            break;
+          case 'near':
+            if (distance > 100) return false;
+            break;
+          case 'medium':
+            if (distance > 200) return false;
+            break;
+          case 'far':
+            if (distance > 300) return false;
+            break;
+          case 'very_far':
+            if (distance <= 300) return false;
+            break;
+        }
+      }
 
+      // イベントタイプフィルター（複数選択可能）
+      const hasEventTypeFilter = filters.diamondSunrise || filters.diamondSunset || 
+                                 filters.pearlMoonrise || filters.pearlMoonset;
+      
+      if (hasEventTypeFilter) {
+        const isDiamond = event.type === 'diamond';
+        const isPearl = event.type === 'pearl';
+        const isRising = event.subType === 'rising' || event.subType === 'sunrise';
+        const isSetting = event.subType === 'setting' || event.subType === 'sunset';
+
+        let matchesFilter = false;
+        
+        if (isDiamond && isRising && filters.diamondSunrise) matchesFilter = true;
+        if (isDiamond && isSetting && filters.diamondSunset) matchesFilter = true;
+        if (isPearl && isRising && filters.pearlMoonrise) matchesFilter = true;
+        if (isPearl && isSetting && filters.pearlMoonset) matchesFilter = true;
+
+        if (!matchesFilter) return false;
+      }
+
+      // 特別イベントフィルター（現在は基本のイベントのみなので、将来の拡張用）
+      // TODO: 実際の日食・月食・スーパームーンデータが利用可能になったら実装
+      
+      return true;
+    });
+  }, [dayEvents, filters]);
+
+  if (!calendarData) {
+    return (
+      <div style={{ 
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '50vh',
+        flexDirection: 'column',
+        gap: '1rem'
+      }}>
+        <div style={{
+          width: '40px',
+          height: '40px',
+          border: '4px solid #e5e7eb',
+          borderTop: '4px solid #2563eb',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite'
+        }}></div>
+        <p style={{ color: '#6b7280' }}>読み込み中...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className={styles.homePage}>
-      {/* ヘッダーセクション */}
-      <div className="card content-wide">
-        <h2 className="card-title">ダイヤモンド富士・パール富士カレンダー</h2>
-        <div className="readable-text">
-          <p>
-            富士山と太陽・月が重なる美しい瞬間「ダイヤモンド富士」「パール富士」の撮影に最適な日時と場所をご案内します。
-          </p>
-          <p>
-            カレンダーから日付を選択して、詳細な撮影情報をご確認ください。
-          </p>
-        </div>
-      </div>
-
-      {/* エラー表示 */}
-      {error && (
-        <div className="error">
-          <p>{error}</p>
-          <button onClick={clearError}>エラーを閉じる</button>
-        </div>
-      )}
-
-      {/* ローディング表示 */}
-      {loading && (
-        <div className="loading">
-          <div className="spinner"></div>
-          <p>データを読み込み中...</p>
-        </div>
-      )}
-
-      <div className="content-wide">
-        <div className={styles.mainContent}>
-          {/* カレンダーセクション */}
-          <div className={styles.calendarSection}>
-          <div className="card">
-            <h3 className="card-title">カレンダー</h3>
-            {calendarData ? (
-              <Calendar
-                year={currentYear}
-                month={currentMonth}
-                events={calendarData.events}
-                onDateClick={handleDateClick}
-                onMonthChange={handleMonthChange}
-                selectedDate={selectedDate || undefined}
-              />
-            ) : (
-              <div className={styles.placeholderCalendar}>
-                <p>カレンダーを読み込み中...</p>
-              </div>
-            )}
-          </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      {/* 2カラムレイアウト */}
+      <div style={{ 
+        display: 'grid',
+        gridTemplateColumns: '2fr 1fr',
+        gap: '1.5rem'
+      }}>
+        {/* 左カラム: カレンダーと地図 */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <SimpleCalendar
+            year={currentYear}
+            month={currentMonth}
+            events={calendarData.events}
+            onDateClick={handleDateClick}
+            onMonthChange={handleMonthChange}
+            selectedDate={selectedDate || undefined}
+          />
           
-          {/* 日付詳細をカレンダーの下に表示 */}
-          {selectedDate && dayEvents && (
-            <div className={`${styles.detailArea} mt-4`}>
-              <EventDetail
-                date={selectedDate}
-                events={dayEvents.events}
-                weather={dayEvents.weather}
-                onMapClick={handleMapClick}
+          {selectedDate && (
+            <SimpleMap
+              locations={locations}
+              selectedDate={selectedDate}
+              selectedEvents={filteredEvents}
+              selectedLocationId={selectedLocationId}
+              selectedEventId={selectedEventId}
+              onLocationSelect={handleLocationSelect}
+              cameraSettings={cameraSettings}
+            />
+          )}
+          
+          {/* 地図下のコントロールパネル */}
+          {selectedDate && (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '2fr 1fr',
+              gap: '1rem'
+            }}>
+              <FilterPanel
+                filters={filters}
+                onFilterChange={setFilters}
+                eventCount={filteredEvents.length}
+                uniqueLocationCount={new Set(filteredEvents.map(e => e.location.id)).size}
+              />
+              <CameraPanel
+                cameraSettings={cameraSettings}
+                onCameraSettingsChange={setCameraSettings}
               />
             </div>
           )}
+
+          {/* 撮影地詳細情報 */}
+          {selectedDate && filteredEvents.length > 0 && (
+            <EventDetail
+              date={selectedDate}
+              events={filteredEvents}
+              weather={weather}
+              selectedLocationId={selectedLocationId}
+              onLocationSelect={(location) => {
+                if (location) {
+                  setSelectedLocationId(location.id);
+                } else {
+                  setSelectedLocationId(undefined);
+                }
+              }}
+            />
+          )}
         </div>
 
-        {/* サイドバー */}
-        <div className={styles.sidebar}>
-          {/* 今後のイベント */}
-          <div className="card">
-            <h3 className="card-title">今後のイベント</h3>
-            {!upcomingEventsLoaded ? (
-              <p>今後のイベントを読み込み中...</p>
-            ) : upcomingEvents.length > 0 ? (
-              <div className={styles.upcomingEvents}>
-                {upcomingEvents.slice(0, 5).map((event, index) => (
-                  <div 
-                    key={event.id || index} 
-                    className={styles.upcomingEvent}
-                    onClick={() => handleUpcomingEventClick(event)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        handleUpcomingEventClick(event);
-                      }
-                    }}
-                  >
-                    <div className={styles.eventIcon}>
-                      {event.type === 'diamond' 
-                        ? <img src={diamondFujiIcon} alt="ダイヤモンド富士" className={styles.eventIconImg} />
-                        : <img src={pearlFujiIcon} alt="パール富士" className={styles.eventIconImg} />
-                      }
-                    </div>
-                    <div className={styles.eventInfo}>
-                      <div className={styles.eventDate}>
-                        {event.time.toLocaleDateString('ja-JP', {
-                          month: 'short',
-                          day: 'numeric'
-                        })}
-                      </div>
-                      <div className={styles.eventTime}>
-                        {event.time.toLocaleTimeString('ja-JP', {
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </div>
-                      <div className={styles.eventLocation}>
-                        {event.location.name}
-                      </div>
-                    </div>
+        {/* 右カラム: サイドバー */}
+        <div style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: '1.5rem',
+          position: 'sticky',
+          top: '1rem',
+          alignSelf: 'flex-start',
+          maxHeight: 'calc(100vh - 2rem)',
+          overflowY: 'auto'
+        }}>
+          {/* 使い方ガイド */}
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '12px',
+            padding: '1.5rem',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            border: '1px solid #e5e7eb'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              marginBottom: '1rem',
+              paddingBottom: '0.75rem',
+              borderBottom: '1px solid #f3f4f6'
+            }}>
+              <span style={{ fontSize: '1.5rem', marginRight: '0.5rem' }}>📖</span>
+              <h3 style={{ 
+                margin: 0,
+                fontSize: '1.25rem',
+                fontWeight: '700',
+                color: '#1f2937'
+              }}>
+                使い方ガイド
+              </h3>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '0.75rem',
+                padding: '0.5rem',
+                borderRadius: '8px',
+                backgroundColor: '#f8fafc',
+                border: '1px solid #e2e8f0'
+              }}>
+                <span style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '24px',
+                  height: '24px',
+                  backgroundColor: '#3b82f6',
+                  color: 'white',
+                  borderRadius: '50%',
+                  fontSize: '0.75rem',
+                  fontWeight: 'bold',
+                  flexShrink: 0
+                }}>1</span>
+                <div>
+                  <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#1e293b', marginBottom: '0.25rem' }}>
+                    日付を選択
                   </div>
-                ))}
-                {upcomingEvents.length > 5 && (
-                  <p className={styles.moreEvents}>
-                    他 {upcomingEvents.length - 5} 件のイベント
-                  </p>
-                )}
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', lineHeight: '1.4' }}>
+                    カレンダーから撮影したい日付をクリック
+                  </div>
+                </div>
               </div>
-            ) : (
-              <p>今後30日間のイベントはありません。秋から冬にかけてがダイヤモンド富士のシーズンです。</p>
-            )}
-          </div>
-
-          {/* 撮影地点数 */}
-          <div className="card">
-            <h3 className="card-title">撮影地点</h3>
-            <div className={styles.locationStats}>
-              <div className={styles.statItem}>
-                <span className={styles.statNumber}>{locations.length}</span>
-                <span className={styles.statLabel}>地点</span>
+              
+              <div style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '0.75rem',
+                padding: '0.5rem',
+                borderRadius: '8px',
+                backgroundColor: '#f8fafc',
+                border: '1px solid #e2e8f0'
+              }}>
+                <span style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '24px',
+                  height: '24px',
+                  backgroundColor: '#10b981',
+                  color: 'white',
+                  borderRadius: '50%',
+                  fontSize: '0.75rem',
+                  fontWeight: 'bold',
+                  flexShrink: 0
+                }}>2</span>
+                <div>
+                  <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#1e293b', marginBottom: '0.25rem' }}>
+                    地図で位置確認
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', lineHeight: '1.4' }}>
+                    地図上で撮影地点とルート確認
+                  </div>
+                </div>
               </div>
-              <div className={styles.statItem}>
-                <span className={styles.statNumber}>
-                  {new Set(locations.map(l => l.prefecture)).size}
-                </span>
-                <span className={styles.statLabel}>都道府県</span>
+              
+              <div style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '0.75rem',
+                padding: '0.5rem',
+                borderRadius: '8px',
+                backgroundColor: '#f8fafc',
+                border: '1px solid #e2e8f0'
+              }}>
+                <span style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '24px',
+                  height: '24px',
+                  backgroundColor: '#f59e0b',
+                  color: 'white',
+                  borderRadius: '50%',
+                  fontSize: '0.75rem',
+                  fontWeight: 'bold',
+                  flexShrink: 0
+                }}>3</span>
+                <div>
+                  <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#1e293b', marginBottom: '0.25rem' }}>
+                    撮影地詳細を確認
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', lineHeight: '1.4' }}>
+                    下に表示される詳細情報をチェック
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div style={{
+              marginTop: '1rem',
+              padding: '0.75rem',
+              backgroundColor: '#fef3c7',
+              borderRadius: '8px',
+              border: '1px solid #fbbf24'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                fontSize: '0.75rem',
+                color: '#92400e',
+                fontWeight: '500'
+              }}>
+                <span>💡</span>
+                <span>☀️ダイヤモンド富士 🌙パール富士のアイコンで種類を確認できます</span>
               </div>
             </div>
           </div>
 
-          {/* お気に入り */}
-          <div className="card">
-            <h3 className="card-title">お気に入り</h3>
-            
-            
-            <div className={styles.favoriteStats}>
-              <div className={styles.statItem}>
-                <span className={styles.statNumber}>{favoriteStats.totalLocations}</span>
-                <span className={styles.statLabel}>地点</span>
+          {/* 選択中の情報 */}
+          {selectedDate && (
+            <div style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              padding: '1.5rem',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              border: '1px solid #e5e7eb'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                marginBottom: '1rem',
+                paddingBottom: '0.75rem',
+                borderBottom: '1px solid #f3f4f6'
+              }}>
+                <span style={{ fontSize: '1.5rem', marginRight: '0.5rem' }}>📅</span>
+                <h3 style={{ 
+                  margin: 0,
+                  fontSize: '1.25rem',
+                  fontWeight: '700',
+                  color: '#1f2937'
+                }}>
+                  選択中の情報
+                </h3>
               </div>
-              <div className={styles.statItem}>
-                <span className={styles.statNumber}>{favoriteStats.upcomingEvents}</span>
-                <span className={styles.statLabel}>今後のイベント</span>
-              </div>
-            </div>
-            
-            {upcomingFavoriteEvents.length > 0 && (
-              <div className={styles.favoriteEvents}>
-                <h4 className={styles.favoriteEventsTitle}>今後のお気に入りイベント</h4>
-                {upcomingFavoriteEvents.slice(0, 3).map((event, _index) => (
-                  <div 
-                    key={event.id} 
-                    className={styles.favoriteEvent}
-                    onClick={() => handleFavoriteEventClick(event)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        handleFavoriteEventClick(event);
-                      }
-                    }}
-                  >
-                    <div className={styles.favoriteEventIcon}>
-                      {event.type === 'diamond' 
-                        ? <img src={diamondFujiIcon} alt="ダイヤモンド富士" className={styles.eventIconImg} />
-                        : <img src={pearlFujiIcon} alt="パール富士" className={styles.eventIconImg} />
-                      }
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {/* 選択日付 */}
+                <div style={{
+                  padding: '0.75rem',
+                  backgroundColor: '#f0f9ff',
+                  borderRadius: '8px',
+                  border: '1px solid #bae6fd'
+                }}>
+                  <div style={{
+                    fontSize: '0.875rem',
+                    color: '#0369a1',
+                    fontWeight: '600',
+                    marginBottom: '0.25rem'
+                  }}>
+                    選択日付
+                  </div>
+                  <div style={{
+                    fontSize: '1rem',
+                    color: '#0c4a6e',
+                    fontWeight: '500'
+                  }}>
+                    {selectedDate.getFullYear()}年{selectedDate.getMonth() + 1}月{selectedDate.getDate()}日
+                  </div>
+                  <div style={{
+                    fontSize: '0.75rem',
+                    color: '#0369a1',
+                    marginTop: '0.25rem'
+                  }}>
+                    {['日', '月', '火', '水', '木', '金', '土'][selectedDate.getDay()]}曜日
+                  </div>
+                </div>
+
+                {/* 選択地点 */}
+                {selectedLocationId && locations.length > 0 && (() => {
+                  const selectedLocation = locations.find(loc => loc.id === selectedLocationId);
+                  return selectedLocation ? (
+                    <div style={{
+                      padding: '0.75rem',
+                      backgroundColor: '#f0fdf4',
+                      borderRadius: '8px',
+                      border: '1px solid #bbf7d0'
+                    }}>
+                      <div style={{
+                        fontSize: '0.875rem',
+                        color: '#166534',
+                        fontWeight: '600',
+                        marginBottom: '0.25rem'
+                      }}>
+                        選択地点
+                      </div>
+                      <div style={{
+                        fontSize: '1rem',
+                        color: '#14532d',
+                        fontWeight: '500',
+                        marginBottom: '0.25rem'
+                      }}>
+                        {selectedLocation.name}
+                      </div>
+                      <div style={{
+                        fontSize: '0.75rem',
+                        color: '#166534'
+                      }}>
+                        {selectedLocation.prefecture} • 標高{selectedLocation.elevation.toFixed(0)}m
+                      </div>
+                      {selectedLocation.fujiDistance && (
+                        <div style={{
+                          fontSize: '0.75rem',
+                          color: '#166534',
+                          marginTop: '0.25rem'
+                        }}>
+                          富士山まで約{(selectedLocation.fujiDistance / 1000).toFixed(1)}km
+                        </div>
+                      )}
                     </div>
-                    <div className={styles.favoriteEventInfo}>
-                      <div className={styles.favoriteEventDate}>
-                        {new Date(event.time).toLocaleDateString('ja-JP', {
-                          month: 'short',
-                          day: 'numeric'
-                        })}
-                      </div>
-                      <div className={styles.favoriteEventLocation}>
-                        {event.locationName}
-                      </div>
+                  ) : null;
+                })()}
+
+                {/* イベント数 */}
+                {filteredEvents.length > 0 && (
+                  <div style={{
+                    padding: '0.75rem',
+                    backgroundColor: '#fef3c7',
+                    borderRadius: '8px',
+                    border: '1px solid #fbbf24'
+                  }}>
+                    <div style={{
+                      fontSize: '0.875rem',
+                      color: '#92400e',
+                      fontWeight: '600',
+                      marginBottom: '0.25rem'
+                    }}>
+                      この日のイベント
+                    </div>
+                    <div style={{
+                      fontSize: '1rem',
+                      color: '#78350f',
+                      fontWeight: '500'
+                    }}>
+                      {filteredEvents.length}件のイベント
+                    </div>
+                    <div style={{
+                      fontSize: '0.75rem',
+                      color: '#92400e',
+                      marginTop: '0.25rem'
+                    }}>
+                      {new Set(filteredEvents.map(e => e.location.id)).size}箇所の撮影地点
                     </div>
                   </div>
-                ))}
-                {upcomingFavoriteEvents.length > 3 && (
-                  <p className={styles.moreFavorites}>
-                    他 {upcomingFavoriteEvents.length - 3} 件のお気に入り
-                  </p>
+                )}
+
+                {/* 天気情報（ある場合） */}
+                {weather && (
+                  <div style={{
+                    padding: '0.75rem',
+                    backgroundColor: '#fefce8',
+                    borderRadius: '8px',
+                    border: '1px solid #fde047'
+                  }}>
+                    <div style={{
+                      fontSize: '0.875rem',
+                      color: '#a16207',
+                      fontWeight: '600',
+                      marginBottom: '0.25rem'
+                    }}>
+                      天気予報
+                    </div>
+                    <div style={{
+                      fontSize: '1rem',
+                      color: '#713f12',
+                      fontWeight: '500',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem'
+                    }}>
+                      <span>{weather.condition === '晴れ' ? '☀️' : weather.condition === '曇り' ? '☁️' : weather.condition === '雨' ? '🌧️' : '❄️'}</span>
+                      {weather.condition}
+                    </div>
+                    <div style={{
+                      fontSize: '0.75rem',
+                      color: '#a16207',
+                      marginTop: '0.25rem'
+                    }}>
+                      撮影条件: {weather.recommendation === 'excellent' ? '最適' : weather.recommendation === 'good' ? '良い' : weather.recommendation === 'fair' ? '可能' : '困難'}
+                    </div>
+                  </div>
                 )}
               </div>
-            )}
-          </div>
-        </div>
+            </div>
+          )}
+
         </div>
       </div>
-
-      {/* 地図モーダル */}
-      {showMap && selectedEvent && (
-        <div className={styles.modal} style={{ zIndex: 1100 }}>
-          <div className={styles.modalOverlay} onClick={handleCloseMap} />
-          <div className={styles.modalContent} style={{ zIndex: 1101, maxWidth: '95vw', width: '900px' }}>
-            <MapView
-              center={[selectedEvent.location.latitude, selectedEvent.location.longitude]}
-              zoom={12}
-              fujiEvent={selectedEvent}
-              showDirection={true}
-              onClose={handleCloseMap}
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 };

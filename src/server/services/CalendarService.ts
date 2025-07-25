@@ -1,8 +1,9 @@
 import { CalendarEvent, CalendarResponse, EventsResponse, FujiEvent, WeatherInfo, Location } from '../../shared/types';
-import { AstronomicalCalculatorAstronomyEngine } from './AstronomicalCalculatorAstronomyEngine';
+import { AstronomicalCalculatorImpl } from './AstronomicalCalculator';
 import { LocationModel } from '../models/Location';
 import { EventsCacheModel } from '../models/EventsCache';
 // import { BatchCalculationService } from './BatchCalculationService'; // 無効化
+import { prisma } from '../database/prisma';
 import { timeUtils } from '../../shared/utils/timeUtils';
 import { getComponentLogger, StructuredLogger } from '../../shared/utils/logger';
 
@@ -10,13 +11,13 @@ export class CalendarService {
   private locationModel: LocationModel;
   private cacheModel: EventsCacheModel;
   // private batchService: BatchCalculationService; // 無効化
-  private astronomicalCalculator: AstronomicalCalculatorAstronomyEngine;
+  private astronomicalCalculator: AstronomicalCalculatorImpl;
   private logger: StructuredLogger;
 
   constructor() {
     this.locationModel = new LocationModel();
     this.cacheModel = new EventsCacheModel();
-    this.astronomicalCalculator = new AstronomicalCalculatorAstronomyEngine();
+    this.astronomicalCalculator = new AstronomicalCalculatorImpl();
     // this.batchService = new BatchCalculationService(); // 無効化
     this.logger = getComponentLogger('calendar-service');
   }
@@ -26,6 +27,38 @@ export class CalendarService {
     const startTime = Date.now();
     
     try {
+      this.logger.info('月間カレンダー取得開始', {
+        year,
+        month,
+        strategy: 'cache-first-precomputed'
+      });
+      
+      // 1. 事前計算されたキャッシュデータを確認
+      const cachedEvents = await this.getCachedMonthlyEvents(year, month);
+      
+      if (cachedEvents && cachedEvents.length > 0) {
+        const calendarEvents = this.groupEventsByDate(cachedEvents);
+        
+        const responseTime = Date.now() - startTime;
+        this.logger.info('キャッシュから月間カレンダー取得完了', {
+          year,
+          month,
+          totalEvents: cachedEvents.length,
+          calendarEvents: calendarEvents.length,
+          responseTimeMs: responseTime,
+          source: 'precomputed-cache'
+        });
+        
+        return {
+          year,
+          month,
+          events: calendarEvents
+        };
+      }
+      
+      // 2. キャッシュが見つからない場合は直接計算
+      this.logger.warn('事前計算キャッシュが見つからないため直接計算を実行', { year, month });
+      
       // 全ての撮影地点を取得
       const locations = await this.locationModel.findAll();
       
@@ -41,21 +74,7 @@ export class CalendarService {
         };
       }
       
-      this.logger.info('月間カレンダー取得開始', {
-        year,
-        month,
-        locationCount: locations.length,
-        strategy: 'cache-first'
-      });
-      
-      // 直接Astronomy Engine計算（キャッシュなし）
       const allEvents: FujiEvent[] = [];
-      
-      this.logger.info('Astronomy Engine月間計算開始', {
-        year,
-        month,
-        locationCount: locations.length
-      });
       
       // カレンダー表示範囲の計算（前月末〜翌月初を含む）
       const firstDayOfMonth = new Date(year, month - 1, 1);
@@ -69,7 +88,7 @@ export class CalendarService {
       const calendarEndDate = new Date(lastDayOfMonth);
       calendarEndDate.setDate(calendarEndDate.getDate() + (6 - calendarEndDate.getDay()));
       
-      this.logger.info('カレンダー表示範囲でのイベント計算開始', { 
+      this.logger.info('直接計算でのイベント検索開始', { 
         year, 
         month, 
         locationCount: locations.length,
@@ -91,18 +110,14 @@ export class CalendarService {
       const calendarEvents = this.groupEventsByDate(allEvents);
       
       const responseTime = Date.now() - startTime;
-      this.logger.info('Astronomy Engine月間カレンダー取得完了', {
+      this.logger.info('直接計算による月間カレンダー取得完了', {
         year,
         month,
         locationCount: locations.length,
         totalEvents: allEvents.length,
         calendarEvents: calendarEvents.length,
         responseTimeMs: responseTime,
-        eventsPreview: allEvents.slice(0, 3).map(e => ({ 
-          type: e.type, 
-          time: e.time.toISOString(), 
-          location: e.location.name 
-        }))
+        source: 'direct-calculation'
       });
       
       return {
@@ -128,35 +143,47 @@ export class CalendarService {
     const date = new Date(dateString);
     const year = date.getFullYear();
     const month = date.getMonth() + 1;
-    const day = date.getDate();
     
     try {
       this.logger.info('日次イベント取得開始', {
         dateString,
         year,
         month,
-        day,
-        strategy: 'cache-first'
+        strategy: 'cache-first-precomputed'
       });
       
-      // 直接Astronomy Engine計算（キャッシュなし）
+      // 1. 事前計算されたキャッシュデータから該当日のイベントを取得
+      const cachedEvents = await this.getCachedDayEvents(dateString);
+      
+      if (cachedEvents && cachedEvents.length > 0) {
+        // 時刻順にソート
+        cachedEvents.sort((a, b) => a.time.getTime() - b.time.getTime());
+        
+        // 天気情報を取得
+        const weather = await this.getWeatherInfo(date);
+        
+        const responseTime = Date.now() - startTime;
+        this.logger.info('キャッシュから日次イベント取得完了', {
+          dateString,
+          eventCount: cachedEvents.length,
+          responseTimeMs: responseTime,
+          source: 'precomputed-cache'
+        });
+        
+        return {
+          date: dateString,
+          events: cachedEvents,
+          weather
+        };
+      }
+      
+      // 2. キャッシュが見つからない場合は直接計算
+      this.logger.warn('事前計算キャッシュが見つからないため直接計算を実行', { dateString });
+      
       const locations = await this.locationModel.findAll();
       const allEvents: FujiEvent[] = [];
       
-      // ロケーションデータの検証
-      this.logger.debug('取得したロケーションデータ', {
-        locationCount: locations.length,
-        locations: locations.map(loc => ({
-          id: loc.id,
-          name: loc.name,
-          latitude: loc.latitude,
-          longitude: loc.longitude,
-          elevation: loc.elevation,
-          hasCoords: Number.isFinite(loc.latitude) && Number.isFinite(loc.longitude) && Number.isFinite(loc.elevation)
-        }))
-      });
-      
-      this.logger.info('Astronomy Engine直接計算開始', { dateString, locationCount: locations.length });
+      this.logger.info('直接計算開始', { dateString, locationCount: locations.length });
       
       for (const location of locations) {
         const diamondEvents = await this.astronomicalCalculator.calculateDiamondFuji(date, location);
@@ -171,11 +198,11 @@ export class CalendarService {
       const weather = await this.getWeatherInfo(date);
       
       const responseTime = Date.now() - startTime;
-      this.logger.info('日次イベント取得完了', {
+      this.logger.info('直接計算による日次イベント取得完了', {
         dateString,
         eventCount: allEvents.length,
         responseTimeMs: responseTime,
-        eventsPreview: allEvents.map(e => ({ type: e.type, time: e.time.toISOString(), location: e.location.name }))
+        source: 'direct-calculation'
       });
       
       return {
@@ -206,7 +233,7 @@ export class CalendarService {
       this.logger.info('フォールバック計算完了', {
         dateString,
         eventCount: allEvents.length,
-        eventsPreview: allEvents.map(e => ({ type: e.type, time: e.time.toISOString(), location: e.location.name }))
+        source: 'fallback-calculation'
       });
       
       return {
@@ -457,7 +484,11 @@ export class CalendarService {
           60 // 60日間有効
         );
         
-        cachePromises.push(cachePromise);
+        cachePromises.push(
+          cachePromise.catch(err => {
+            this.logger.error('Failed to cache events for location', { locationId: location.id, error: err });
+          })
+        );
       }
       
       await Promise.all(cachePromises);
@@ -650,6 +681,145 @@ export class CalendarService {
     return filteredEvents
       .sort((a, b) => this.calculateEventScore(b) - this.calculateEventScore(a))
       .slice(0, 20);
+  }
+
+  /**
+   * 事前計算されたキャッシュから月間イベントを取得
+   */
+  private async getCachedMonthlyEvents(year: number, month: number): Promise<FujiEvent[]> {
+    try {
+      // PostgreSQL/Prismaから事前計算データを取得
+      const cachedData = await prisma.locationFujiEvent.findMany({
+        where: {
+          calculationYear: year,
+          eventDate: {
+            gte: new Date(year, month - 1, 1),
+            lt: new Date(year, month, 1)
+          }
+        },
+        include: {
+          location: true
+        },
+        orderBy: {
+          eventTime: 'asc'
+        }
+      });
+
+      if (cachedData.length === 0) {
+        return [];
+      }
+
+      // LocationFujiEvent を FujiEvent に変換
+      const events: FujiEvent[] = cachedData.map(cached => ({
+        id: `${cached.eventType.toLowerCase()}-${cached.locationId}-${cached.eventDate.toISOString().split('T')[0]}`,
+        type: cached.eventType.includes('DIAMOND') ? 'diamond' : 'pearl',
+        subType: cached.eventType.includes('sunrise') || cached.eventType === 'diamond_sunrise' ? 'sunrise' :
+                 cached.eventType.includes('sunset') || cached.eventType === 'diamond_sunset' ? 'sunset' :
+                 cached.eventType.includes('moonrise') || cached.eventType === 'pearl_moonrise' ? 'rising' : 'setting',
+        time: cached.eventTime,
+        location: {
+          id: cached.location.id,
+          name: cached.location.name,
+          prefecture: cached.location.prefecture,
+          latitude: cached.location.latitude,
+          longitude: cached.location.longitude,
+          elevation: cached.location.elevation,
+          description: cached.location.description || undefined,
+          accessInfo: cached.location.accessInfo || undefined,
+          parkingInfo: cached.location.parkingInfo || undefined,
+          fujiAzimuth: cached.location.fujiAzimuth || undefined,
+          fujiElevation: cached.location.fujiElevation || undefined,
+          fujiDistance: cached.location.fujiDistance || undefined,
+          createdAt: cached.location.createdAt,
+          updatedAt: cached.location.updatedAt
+        },
+        azimuth: cached.azimuth,
+        elevation: cached.altitude,
+        accuracy: cached.accuracy ? cached.accuracy.toLowerCase() as 'perfect' | 'excellent' | 'good' | 'fair' : undefined,
+        moonPhase: cached.moonPhase || undefined,
+        moonIllumination: cached.moonIllumination || undefined
+      }));
+
+      this.logger.debug('キャッシュから月間イベントを取得', {
+        year,
+        month,
+        eventCount: events.length
+      });
+
+      return events;
+
+    } catch (error) {
+      this.logger.error('キャッシュデータ取得エラー', error, { year, month });
+      return [];
+    }
+  }
+
+  /**
+   * 事前計算されたキャッシュから特定日のイベントを取得
+   */
+  private async getCachedDayEvents(dateString: string): Promise<FujiEvent[]> {
+    try {
+      const targetDate = new Date(dateString);
+      
+      // PostgreSQL/Prismaから事前計算データを取得
+      const cachedData = await prisma.locationFujiEvent.findMany({
+        where: {
+          eventDate: targetDate
+        },
+        include: {
+          location: true
+        },
+        orderBy: {
+          eventTime: 'asc'
+        }
+      });
+
+      if (cachedData.length === 0) {
+        return [];
+      }
+
+      // LocationFujiEvent を FujiEvent に変換
+      const events: FujiEvent[] = cachedData.map(cached => ({
+        id: `${cached.eventType.toLowerCase()}-${cached.locationId}-${cached.eventDate.toISOString().split('T')[0]}`,
+        type: cached.eventType.includes('DIAMOND') ? 'diamond' : 'pearl',
+        subType: cached.eventType.includes('sunrise') || cached.eventType === 'diamond_sunrise' ? 'sunrise' :
+                 cached.eventType.includes('sunset') || cached.eventType === 'diamond_sunset' ? 'sunset' :
+                 cached.eventType.includes('moonrise') || cached.eventType === 'pearl_moonrise' ? 'rising' : 'setting',
+        time: cached.eventTime,
+        location: {
+          id: cached.location.id,
+          name: cached.location.name,
+          prefecture: cached.location.prefecture,
+          latitude: cached.location.latitude,
+          longitude: cached.location.longitude,
+          elevation: cached.location.elevation,
+          description: cached.location.description || undefined,
+          accessInfo: cached.location.accessInfo || undefined,
+          parkingInfo: cached.location.parkingInfo || undefined,
+          fujiAzimuth: cached.location.fujiAzimuth || undefined,
+          fujiElevation: cached.location.fujiElevation || undefined,
+          fujiDistance: cached.location.fujiDistance || undefined,
+          createdAt: cached.location.createdAt,
+          updatedAt: cached.location.updatedAt
+        },
+        azimuth: cached.azimuth,
+        elevation: cached.altitude,
+        accuracy: cached.accuracy ? cached.accuracy.toLowerCase() as 'perfect' | 'excellent' | 'good' | 'fair' : undefined,
+        moonPhase: cached.moonPhase || undefined,
+        moonIllumination: cached.moonIllumination || undefined
+      }));
+
+      this.logger.debug('キャッシュから日次イベントを取得', {
+        dateString,
+        eventCount: events.length
+      });
+
+      return events;
+
+    } catch (error) {
+      this.logger.error('日次キャッシュデータ取得エラー', error, { dateString });
+      return [];
+    }
   }
 }
 

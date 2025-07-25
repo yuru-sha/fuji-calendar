@@ -1,31 +1,70 @@
 services:
+  # PostgreSQL (開発用)
+  postgres:
+    image: postgres:15-alpine
+    container_name: fuji_calendar_postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=fuji_calendar
+      - POSTGRES_USER=fuji_user
+      - POSTGRES_PASSWORD=dev_password_123
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --locale=C
+      - TZ=Asia/Tokyo
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fuji_user -d fuji_calendar"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - fuji_calendar_network
+
   # Redis (開発用)
   redis:
     image: redis:7-alpine
-    container_name: fuji-calendar-redis-dev
+    container_name: fuji_calendar_redis
     restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
-      - ./data/redis-dev:/data
+      - ./data/redis:/data
     command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    networks:
+      - fuji_calendar_network
 
-  # 開発サーバー (ホットリロード対応)
-  app-dev:
+  # 開発サーバー (PostgreSQL対応)
+  app:
     build:
       context: .
       dockerfile: docker/Dockerfile.dev
-    container_name: fuji-calendar-app-dev
+    container_name: fuji_calendar_app
     restart: unless-stopped
     ports:
-      - "8000:8000"
       - "3000:3000"
+      - "3001:3001"
     environment:
       - NODE_ENV=development
-      - PORT=8000
+      - PORT=3000
+      # PostgreSQL接続設定
+      - DB_TYPE=postgres
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=fuji_calendar
+      - DB_USER=fuji_user
+      - DB_PASSWORD=dev_password_123
+      # Redis設定
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - DB_PATH=/app/data/fuji-calendar-dev.db
+      # その他設定
       - JWT_SECRET=dev-jwt-secret-not-for-production
       - REFRESH_SECRET=dev-refresh-secret-not-for-production
       - LOG_LEVEL=debug
@@ -35,13 +74,15 @@ services:
       - /app/node_modules
       - ./data:/app/data
     depends_on:
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     working_dir: /app
     command: npm run dev
-
-# volumes:
-  # Named volumes removed - using local directory mapping instead
+    networks:
+      - fuji_calendar_network
 
 networks:
-  default:
-    name: fuji-calendar-dev-network
+  fuji_calendar_network:
+    driver: bridge

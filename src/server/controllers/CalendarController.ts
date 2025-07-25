@@ -1,15 +1,14 @@
 import { Request, Response } from 'express';
-import { CalendarService } from '../services/CalendarService';
-import { cacheService } from '../services/CacheService';
+import { CalendarServicePrisma } from '../services/CalendarServicePrisma';
 import { timeUtils } from '../../shared/utils/timeUtils';
 import { getComponentLogger } from '../../shared/utils/logger';
 
 export class CalendarController {
-  private calendarService: CalendarService;
+  private calendarService: CalendarServicePrisma;
   private logger = getComponentLogger('calendar-controller');
 
   constructor() {
-    this.calendarService = new CalendarService();
+    this.calendarService = new CalendarServicePrisma();
   }
 
   // 月間カレンダーデータを取得（キャッシュ対応）
@@ -43,21 +42,9 @@ export class CalendarController {
         });
       }
 
-      // キャッシュから取得を試行
-      let calendarData = await cacheService.getMonthlyCalendar(year, month);
-      let cacheHit = true;
-
-      if (!calendarData) {
-        // キャッシュミス：計算して結果をキャッシュ
-        this.logger.info('Cache miss - computing monthly calendar', { year, month });
-        cacheHit = false;
-        
-        calendarData = await this.calendarService.getMonthlyCalendar(year, month);
-        
-        // 結果をキャッシュに保存
-        await cacheService.setMonthlyCalendar(year, month, calendarData);
-        this.logger.info('Monthly calendar cached', { year, month });
-      }
+      // Prismaベースで直接取得
+      this.logger.info('Computing monthly calendar', { year, month });
+      const calendarData = await this.calendarService.getMonthlyCalendar(year, month);
 
       const responseTime = Date.now() - startTime;
       
@@ -65,7 +52,6 @@ export class CalendarController {
       this.logger.info('Monthly calendar response', {
         year,
         month,
-        cacheHit,
         responseTimeMs: responseTime,
         eventCount: calendarData.events.reduce((total: number, event: any) => total + event.events.length, 0)
       });
@@ -85,7 +71,6 @@ export class CalendarController {
           }))
         },
         meta: {
-          cacheHit,
           responseTimeMs: responseTime
         },
         timestamp: timeUtils.getCurrentJst()
@@ -132,28 +117,15 @@ export class CalendarController {
         });
       }
 
-      // キャッシュから取得を試行
-      let eventsData = await cacheService.getDayEvents(dateString);
-      let cacheHit = true;
-
-      if (!eventsData) {
-        // キャッシュミス：計算して結果をキャッシュ
-        this.logger.info('Cache miss - computing day events', { date: dateString });
-        cacheHit = false;
-        
-        eventsData = await this.calendarService.getDayEvents(dateString);
-        
-        // 結果をキャッシュに保存
-        await cacheService.setDayEvents(dateString, eventsData);
-        this.logger.info('Day events cached', { date: dateString });
-      }
+      // Prismaベースで直接取得
+      this.logger.info('Computing day events', { date: dateString });
+      const eventsData = await this.calendarService.getDayEvents(dateString);
 
       const responseTime = Date.now() - startTime;
       
       // パフォーマンスログ
       this.logger.info('Day events response', {
         date: dateString,
-        cacheHit,
         responseTimeMs: responseTime,
         eventCount: eventsData.events.length
       });
@@ -169,7 +141,6 @@ export class CalendarController {
           weather: eventsData.weather
         },
         meta: {
-          cacheHit,
           responseTimeMs: responseTime
         },
         timestamp: timeUtils.getCurrentJst()
@@ -205,28 +176,15 @@ export class CalendarController {
         });
       }
 
-      // キャッシュから取得を試行
-      let events = await cacheService.getUpcomingEvents(limit);
-      let cacheHit = true;
-
-      if (!events) {
-        // キャッシュミス：計算して結果をキャッシュ
-        this.logger.info('Cache miss - computing upcoming events', { limit });
-        cacheHit = false;
-        
-        events = await this.calendarService.getUpcomingEvents(limit);
-        
-        // 結果をキャッシュに保存
-        await cacheService.setUpcomingEvents(limit, events);
-        this.logger.info('Upcoming events cached', { limit, count: events.length });
-      }
+      // Prismaベースで直接取得
+      this.logger.info('Computing upcoming events', { limit });
+      const events = await this.calendarService.getUpcomingEvents(limit);
 
       const responseTime = Date.now() - startTime;
       
       // パフォーマンスログ
       this.logger.info('Upcoming events response', {
         limit,
-        cacheHit,
         responseTimeMs: responseTime,
         eventCount: events.length
       });
@@ -239,7 +197,6 @@ export class CalendarController {
           limit
         },
         meta: {
-          cacheHit,
           responseTimeMs: responseTime
         },
         timestamp: timeUtils.getCurrentJst()
@@ -453,61 +410,46 @@ export class CalendarController {
         });
       }
 
-      // キャッシュから取得を試行
-      let stats = await cacheService.getStats(year);
-      let cacheHit = true;
+      // Prismaベースで直接計算
+      this.logger.info('Computing calendar stats', { year });
+      
+      // 年間統計を計算
+      const stats = {
+        year,
+        totalEvents: 0,
+        diamondEvents: 0,
+        pearlEvents: 0,
+        monthlyBreakdown: [] as any[]
+      };
 
-      if (!stats) {
-        // キャッシュミス：計算して結果をキャッシュ
-        this.logger.info('Cache miss - computing calendar stats', { year });
-        cacheHit = false;
-        
-        // 年間統計を計算
-        stats = {
-          year,
-          totalEvents: 0,
-          diamondEvents: 0,
-          pearlEvents: 0,
-          monthlyBreakdown: [] as any[]
-        };
+      for (let month = 1; month <= 12; month++) {
+        const monthlyData = await this.calendarService.getMonthlyCalendar(year, month);
 
-        for (let month = 1; month <= 12; month++) {
-          // 月次データも可能ならキャッシュから取得
-          let monthlyData = await cacheService.getMonthlyCalendar(year, month);
-          if (!monthlyData) {
-            monthlyData = await this.calendarService.getMonthlyCalendar(year, month);
-            await cacheService.setMonthlyCalendar(year, month, monthlyData);
-          }
+        const monthEvents = monthlyData.events.reduce((total: number, event: any) => total + event.events.length, 0);
+        const monthDiamond = monthlyData.events.reduce((total: number, event: any) => 
+          total + event.events.filter((e: any) => e.type === 'diamond').length, 0);
+        const monthPearl = monthlyData.events.reduce((total: number, event: any) => 
+          total + event.events.filter((e: any) => e.type === 'pearl').length, 0);
 
-          const monthEvents = monthlyData.events.reduce((total: number, event: any) => total + event.events.length, 0);
-          const monthDiamond = monthlyData.events.reduce((total: number, event: any) => 
-            total + event.events.filter((e: any) => e.type === 'diamond').length, 0);
-          const monthPearl = monthlyData.events.reduce((total: number, event: any) => 
-            total + event.events.filter((e: any) => e.type === 'pearl').length, 0);
+        stats.totalEvents += monthEvents;
+        stats.diamondEvents += monthDiamond;
+        stats.pearlEvents += monthPearl;
 
-          stats.totalEvents += monthEvents;
-          stats.diamondEvents += monthDiamond;
-          stats.pearlEvents += monthPearl;
-
-          stats.monthlyBreakdown.push({
-            month,
-            totalEvents: monthEvents,
-            diamondEvents: monthDiamond,
-            pearlEvents: monthPearl
-          });
-        }
-
-        // 結果をキャッシュに保存
-        await cacheService.setStats(year, stats);
-        this.logger.info('Calendar stats cached', { year, totalEvents: stats.totalEvents });
+        stats.monthlyBreakdown.push({
+          month,
+          totalEvents: monthEvents,
+          diamondEvents: monthDiamond,
+          pearlEvents: monthPearl
+        });
       }
+      
+      this.logger.info('Calendar stats computed', { year, totalEvents: stats.totalEvents });
 
       const responseTime = Date.now() - startTime;
       
       // パフォーマンスログ
       this.logger.info('Calendar stats response', {
         year,
-        cacheHit,
         responseTimeMs: responseTime,
         totalEvents: stats.totalEvents
       });
@@ -516,7 +458,6 @@ export class CalendarController {
         success: true,
         data: stats,
         meta: {
-          cacheHit,
           responseTimeMs: responseTime
         },
         timestamp: timeUtils.getCurrentJst()

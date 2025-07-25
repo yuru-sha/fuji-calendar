@@ -9,9 +9,7 @@ import {
   WeatherInfo
 } from '../../shared/types';
 
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? '/api' 
-  : 'http://localhost:8000/api';
+const API_BASE_URL = '/api'; // 開発・本番共に同一ポートなのでパス指定のみ
 
 class ApiError extends Error {
   constructor(
@@ -188,6 +186,12 @@ export class ApiClient {
   // 特定の撮影地点を取得
   async getLocation(id: number): Promise<{ location: Location }> {
     const response = await fetch(`${this.baseUrl}/locations/${id}`);
+    return handleResponse(response);
+  }
+
+  // 天気情報を取得
+  async getWeather(date: string): Promise<WeatherInfo> {
+    const response = await fetch(`${this.baseUrl}/weather/${date}`);
     return handleResponse(response);
   }
 

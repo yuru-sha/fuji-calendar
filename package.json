@@ -5,8 +5,10 @@
   "main": "dist/server/index.js",
   "scripts": {
     "dev:server": "nodemon",
-    "dev:client": "vite",
-    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:client": "vite", 
+    "dev:worker": "nodemon --exec ts-node src/server/worker.ts",
+    "dev": "npm run build:client && npm run dev:server",
+    "worker": "node dist/server/worker.js",
     "build:server": "tsc -p tsconfig.server.json",
     "build:client": "vite build",
     "build": "npm run build:server && npm run build:client",
@@ -32,6 +34,8 @@
   "author": "yuru-sha",
   "license": "MIT",
   "dependencies": {
+    "@prisma/client": "^6.12.0",
+    "@types/pg": "^8.15.4",
     "astronomy-engine": "^2.1.19",
     "bcrypt": "^5.1.1",
     "bullmq": "^5.56.4",
@@ -42,14 +46,15 @@
     "ioredis": "^5.6.1",
     "jsonwebtoken": "^9.0.2",
     "leaflet": "^1.9.4",
+    "pg": "^8.16.3",
     "pino": "^9.7.0",
     "pino-http": "^10.5.0",
     "pino-pretty": "^13.0.0",
     "playwright": "^1.54.1",
+    "prisma": "^6.12.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.20.1",
-    "sqlite3": "^5.1.6"
+    "react-router-dom": "^6.20.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.11",
@@ -64,7 +69,6 @@
     "@types/node": "^20.9.0",
     "@types/react": "^18.2.37",
     "@types/react-dom": "^18.2.15",
-    "@types/sqlite3": "^3.1.11",
     "@typescript-eslint/eslint-plugin": "^6.10.0",
     "@typescript-eslint/parser": "^6.10.0",
     "@vitejs/plugin-react": "^4.1.1",

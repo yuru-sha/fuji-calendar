@@ -1,5 +1,4 @@
 import { getComponentLogger, StructuredLogger } from '../../shared/utils/logger';
-import { fujiSystemOrchestrator } from './FujiSystemOrchestrator';
 import { calendarServicePrisma } from './CalendarServicePrisma';
 // import { LocationModel } from '../models/Location'; // PostgreSQL移行により無効化
 import { PrismaClientManager } from '../database/prisma';
@@ -56,7 +55,7 @@ export class BackgroundJobSchedulerPrisma {
         const nextYear = new Date().getFullYear() + 1;
         this.logger.info('年間富士現象計算ジョブ開始', { year: nextYear });
         
-        const result = await fujiSystemOrchestrator.executeFullYearlyCalculation(nextYear);
+        const result = await calendarServicePrisma.executeYearlyCalculation(nextYear);
         
         if (result.success) {
           this.logger.info('年間富士現象計算ジョブ完了', {
@@ -81,15 +80,15 @@ export class BackgroundJobSchedulerPrisma {
         const currentYear = new Date().getFullYear();
         this.logger.info('当年データ補完チェック開始', { year: currentYear });
         
-        const healthCheck = await fujiSystemOrchestrator.healthCheck(currentYear);
+        const checkSystemHealth = await calendarServicePrisma.checkSystemHealth(currentYear);
         
-        if (!healthCheck.healthy) {
+        if (!checkSystemHealth.healthy) {
           this.logger.warn('システム不健全状態検出 - 再計算実行', {
             year: currentYear,
-            recommendations: healthCheck.recommendations
+            recommendations: checkSystemHealth.recommendations
           });
           
-          const result = await fujiSystemOrchestrator.executeFullYearlyCalculation(currentYear);
+          const result = await calendarServicePrisma.executeYearlyCalculation(currentYear);
           
           if (result.success) {
             this.logger.info('当年データ補完完了', {
@@ -114,18 +113,18 @@ export class BackgroundJobSchedulerPrisma {
     this.scheduleDaily('system-health-check', 1, 0, async () => {
       try {
         const currentYear = new Date().getFullYear();
-        const healthCheck = await fujiSystemOrchestrator.healthCheck(currentYear);
+        const checkSystemHealth = await calendarServicePrisma.checkSystemHealth(currentYear);
         
         this.logger.info('日次システム健康状態チェック完了', {
           year: currentYear,
-          healthy: healthCheck.healthy,
-          recommendationCount: healthCheck.recommendations.length
+          healthy: checkSystemHealth.healthy,
+          recommendationCount: checkSystemHealth.recommendations.length
         });
 
-        if (!healthCheck.healthy) {
+        if (!checkSystemHealth.healthy) {
           this.logger.warn('システム不健全状態検出', {
             year: currentYear,
-            recommendations: healthCheck.recommendations
+            recommendations: checkSystemHealth.recommendations
           });
         }
       } catch (error) {
@@ -136,7 +135,7 @@ export class BackgroundJobSchedulerPrisma {
     // 毎時30分にパフォーマンス統計を更新
     this.scheduleHourly('performance-metrics', 30, async () => {
       try {
-        const metrics = await fujiSystemOrchestrator.getPerformanceMetrics();
+        const metrics = Promise.resolve({ message: '新システムではパフォーマンス指標は自動取得されません' });
         
         this.logger.debug('パフォーマンス統計更新', {
           celestialRecords: metrics.dataVolume.celestialRecords,
@@ -162,8 +161,8 @@ export class BackgroundJobSchedulerPrisma {
         const currentYear = new Date().getFullYear();
         
         // 各サービスの統計を取得して整合性を確認
-        const healthCheck = await fujiSystemOrchestrator.healthCheck(currentYear);
-        const performanceMetrics = await fujiSystemOrchestrator.getPerformanceMetrics();
+        const checkSystemHealth = await calendarServicePrisma.checkSystemHealth(currentYear);
+        const performanceMetrics = Promise.resolve({ message: '新システムではパフォーマンス指標は自動取得されません' });
         
         // データボリュームの妥当性チェック
         const expectedCelestialRecords = 365 * 288 * 2; // 年間 × 5分刻み × 太陽月
@@ -191,7 +190,7 @@ export class BackgroundJobSchedulerPrisma {
         }
         
         this.logger.info('週次データ整合性チェック完了', {
-          healthy: healthCheck.healthy,
+          healthy: checkSystemHealth.healthy,
           dataVolumeCheck: 'passed',
           efficiencyCheck: 'passed'
         });
@@ -211,7 +210,7 @@ export class BackgroundJobSchedulerPrisma {
       try {
         this.logger.info('日次統計更新ジョブ開始');
         
-        const performanceMetrics = await fujiSystemOrchestrator.getPerformanceMetrics();
+        const performanceMetrics = Promise.resolve({ message: '新システムではパフォーマンス指標は自動取得されません' });
         
         this.logger.info('日次統計更新ジョブ完了', {
           totalCelestialRecords: performanceMetrics.dataVolume.celestialRecords,
@@ -273,8 +272,8 @@ export class BackgroundJobSchedulerPrisma {
       
       // 当年と翌年の計算を実行
       const [currentResult, nextResult] = await Promise.all([
-        fujiSystemOrchestrator.executeLocationAddCalculation(locationId, currentYear),
-        fujiSystemOrchestrator.executeLocationAddCalculation(locationId, nextYear)
+        calendarServicePrisma.executeLocationAddCalculation(locationId, currentYear),
+        calendarServicePrisma.executeLocationAddCalculation(locationId, nextYear)
       ]);
       
       this.logger.info('新地点追加計算完了', {
@@ -296,7 +295,7 @@ export class BackgroundJobSchedulerPrisma {
     try {
       this.logger.info('即座計算トリガー', { year });
       
-      const result = await fujiSystemOrchestrator.executeFullYearlyCalculation(year);
+      const result = await calendarServicePrisma.executeYearlyCalculation(year);
       
       if (result.success) {
         this.logger.info('即座計算完了', {
@@ -326,11 +325,11 @@ export class BackgroundJobSchedulerPrisma {
       const nextYear = new Date().getFullYear() + 1;
       
       // 次年度の基本データ準備確認
-      const healthCheck = await fujiSystemOrchestrator.healthCheck(nextYear);
+      const checkSystemHealth = await calendarServicePrisma.checkSystemHealth(nextYear);
       
-      if (!healthCheck.healthy) {
+      if (!checkSystemHealth.healthy) {
         this.logger.warn('次年度データ不備検出 - 事前準備実行');
-        await fujiSystemOrchestrator.executeFullYearlyCalculation(nextYear);
+        await calendarServicePrisma.executeYearlyCalculation(nextYear);
       }
       
       this.logger.info('年次準備メンテナンス完了', { nextYear });
@@ -350,12 +349,12 @@ export class BackgroundJobSchedulerPrisma {
       const currentYear = new Date().getFullYear();
       
       // 新年データの整合性検証
-      const healthCheck = await fujiSystemOrchestrator.healthCheck(currentYear);
-      const performanceMetrics = await fujiSystemOrchestrator.getPerformanceMetrics();
+      const checkSystemHealth = await calendarServicePrisma.checkSystemHealth(currentYear);
+      const performanceMetrics = Promise.resolve({ message: '新システムではパフォーマンス指標は自動取得されません' });
       
       this.logger.info('新年検証メンテナンス完了', {
         year: currentYear,
-        healthy: healthCheck.healthy,
+        healthy: checkSystemHealth.healthy,
         totalEvents: performanceMetrics.dataVolume.eventRecords
       });
       
@@ -397,12 +396,12 @@ export class BackgroundJobSchedulerPrisma {
       const currentMonth = now.getMonth() + 1;
       
       // 当月データの健康状態チェック
-      const healthCheck = await fujiSystemOrchestrator.healthCheck(currentYear);
+      const checkSystemHealth = await calendarServicePrisma.checkSystemHealth(currentYear);
       
       this.logger.info('月次準備メンテナンス完了', {
         year: currentYear,
         month: currentMonth,
-        healthy: healthCheck.healthy
+        healthy: checkSystemHealth.healthy
       });
       
     } catch (error) {
@@ -417,7 +416,7 @@ export class BackgroundJobSchedulerPrisma {
     try {
       this.logger.info('月次検証メンテナンス開始');
       
-      const performanceMetrics = await fujiSystemOrchestrator.getPerformanceMetrics();
+      const performanceMetrics = Promise.resolve({ message: '新システムではパフォーマンス指標は自動取得されません' });
       
       this.logger.info('月次検証メンテナンス完了', {
         dataVolumeCheck: 'passed',

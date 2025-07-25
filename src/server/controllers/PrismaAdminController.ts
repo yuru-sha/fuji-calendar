@@ -1,5 +1,4 @@
 import { Request, Response } from 'express';
-import { fujiSystemOrchestrator } from '../services/FujiSystemOrchestrator';
 import { calendarServicePrisma } from '../services/CalendarServicePrisma';
 // import { celestialOrbitDataService } from '../services/CelestialOrbitDataService'; // リアルタイム計算により不要
 // import { astronomicalDataService } from '../services/AstronomicalDataService'; // 削除済み
@@ -30,7 +29,7 @@ export class PrismaAdminController {
         });
       }
 
-      const healthCheck = await fujiSystemOrchestrator.healthCheck(year);
+      const healthCheck = await calendarServicePrisma.checkSystemHealth(year);
       const responseTime = Date.now() - startTime;
 
       this.logger.info('システム健康状態チェック完了', {
@@ -85,7 +84,7 @@ export class PrismaAdminController {
         requestId: req.requestId
       });
 
-      const result = await fujiSystemOrchestrator.executeFullYearlyCalculation(year);
+      const result = await calendarServicePrisma.executeYearlyCalculation(year);
       const responseTime = Date.now() - startTime;
 
       if (result.success) {
@@ -184,7 +183,7 @@ export class PrismaAdminController {
         requestId: req.requestId
       });
 
-      const result = await fujiSystemOrchestrator.executeLocationAddCalculation(locationIdNum, yearNum);
+      const result = await calendarServicePrisma.executeLocationAddCalculation(locationIdNum, yearNum);
       const responseTime = Date.now() - startTime;
 
       if (result.success) {
@@ -251,10 +250,10 @@ export class PrismaAdminController {
         eventStats,
         performanceMetrics
       ] = await Promise.all([
-        celestialOrbitDataService.getStatistics(),
+        Promise.resolve({ totalRecords: 0, message: 'CelestialOrbitData削除済み' }),
         Promise.resolve({ totalCandidates: 0 }), // AstronomicalDataService削除により無効化
         locationFujiEventService.getStatistics(),
-        fujiSystemOrchestrator.getPerformanceMetrics()
+        Promise.resolve({ message: '新システムではパフォーマンス指標は直接取得不要' })
       ]);
 
       const responseTime = Date.now() - startTime;
@@ -420,7 +419,7 @@ export class PrismaAdminController {
               message: '再構築対象の年が必要です。'
             });
           }
-          result = await fujiSystemOrchestrator.executeFullYearlyCalculation(parseInt(year));
+          result = await calendarServicePrisma.executeYearlyCalculation(parseInt(year));
           break;
           
         case 'vacuum':

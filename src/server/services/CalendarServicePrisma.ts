@@ -2,7 +2,7 @@ import { CalendarEvent, CalendarResponse, EventsResponse, FujiEvent, WeatherInfo
 import { weatherService } from './WeatherService';
 import { PrismaClientManager } from '../database/prisma';
 import { locationFujiEventService } from './LocationFujiEventService';
-import { fujiSystemOrchestrator } from './FujiSystemOrchestrator';
+import { eventCacheService } from './EventCacheService';
 import { timeUtils } from '../../shared/utils/timeUtils';
 import { getComponentLogger, StructuredLogger } from '../../shared/utils/logger';
 import { LocationFujiEvent, EventType } from '@prisma/client';
@@ -481,21 +481,50 @@ export class CalendarServicePrisma {
    * システムの健康状態をチェック
    */
   async checkSystemHealth(year: number = new Date().getFullYear()) {
-    return await fujiSystemOrchestrator.healthCheck(year);
+    try {
+      const prisma = PrismaClientManager.getInstance();
+      
+      // データベース接続チェック
+      await prisma.$queryRaw`SELECT 1`;
+      
+      // 年間データ存在チェック
+      const eventCount = await prisma.locationFujiEvent.count({
+        where: { calculationYear: year }
+      });
+      
+      // 地点数チェック
+      const locationCount = await prisma.location.count();
+      
+      return {
+        healthy: true,
+        year,
+        eventCount,
+        locationCount,
+        recommendations: eventCount === 0 && locationCount > 0 ? 
+          ['地点データはありますがイベントデータがありません。年間キャッシュを生成してください。'] : []
+      };
+    } catch (error) {
+      return {
+        healthy: false,
+        year,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        recommendations: ['データベース接続を確認してください。']
+      };
+    }
   }
 
   /**
    * 年次データ計算を実行
    */
   async executeYearlyCalculation(year: number) {
-    return await fujiSystemOrchestrator.executeFullYearlyCalculation(year);
+    return await eventCacheService.generateYearlyCache(year);
   }
 
   /**
    * 新地点追加時の計算を実行
    */
   async executeLocationAddCalculation(locationId: number, year: number) {
-    return await fujiSystemOrchestrator.executeLocationAddCalculation(locationId, year);
+    return await eventCacheService.generateLocationCache(locationId, year);
   }
 }
 

@@ -174,6 +174,7 @@ React 18 + TypeScript + Tailwind CSS v3.4.17構成
 - カレンダーの星マークをお気に入り機能と連携: 全イベントではなく、ユーザーが選択した地点・日付のみ視覚化
 - 月相データ: AstronomicalCalculatorで0-1照度率に正規化 (従来の0-360度から変換)
 - Redisキュー管理とPostgreSQL + Prismaに技術スタック更新
+- **富士山頂仰角計算**: 地球曲率・大気屈折を考慮した高精度計算式を実装。地点登録・更新時に`fujiElevation`が自動計算される重要なコンポーネント（詳細: [docs/fuji-elevation-calculation.md](docs/fuji-elevation-calculation.md)）
 
 **デバッグスクリプト**: `scripts/`ディレクトリに天体計算のデバッグ用スクリプトが完備。`debug_diamond_fuji_detailed.js`、`debug_pearl_fuji_detailed.js`等で詳細な計算過程を確認可能
 

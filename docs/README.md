@@ -16,6 +16,9 @@ Docker環境・ローカル環境での詳細セットアップ手順
 ### 🌟 [天体計算システム](./astronomical-calculations.md)
 Astronomy Engineを使った高精度計算の詳細と最新改善
 
+### 🏔️ [富士山頂仰角計算](./fuji-elevation-calculation.md)
+地球曲率・大気屈折を考慮した高精度仰角計算システム
+
 ### 📱 [UI/UX改善履歴](./ui-improvements.md)
 カレンダー表示とインターフェースの視認性向上
 

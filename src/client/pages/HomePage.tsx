@@ -255,30 +255,6 @@ const HomePage: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      <div style={{ 
-        textAlign: 'center',
-        padding: '1rem',
-        backgroundColor: 'white',
-        borderRadius: '8px',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-      }}>
-        <h1 style={{ 
-          margin: 0,
-          fontSize: '1.875rem',
-          fontWeight: 'bold',
-          color: '#1f2937'
-        }}>
-          ダイヤモンド富士・パール富士カレンダー
-        </h1>
-        <p style={{ 
-          margin: '0.5rem 0 0 0',
-          color: '#6b7280',
-          fontSize: '1rem'
-        }}>
-          撮影に最適な日時と場所を見つけましょう
-        </p>
-      </div>
-
       {/* 2カラムレイアウト */}
       <div style={{ 
         display: 'grid',

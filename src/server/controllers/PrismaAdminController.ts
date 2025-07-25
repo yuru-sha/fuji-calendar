@@ -1,8 +1,6 @@
 import { Request, Response } from 'express';
+
 import { calendarServicePrisma } from '../services/CalendarServicePrisma';
-// import { celestialOrbitDataService } from '../services/CelestialOrbitDataService'; // リアルタイム計算により不要
-// import { astronomicalDataService } from '../services/AstronomicalDataService'; // 削除済み
-// import { locationFujiEventService } from '../services/LocationFujiEventService'; // 廃止 - EventCacheServiceに移行
 import { getComponentLogger } from '../../shared/utils/logger';
 
 /**

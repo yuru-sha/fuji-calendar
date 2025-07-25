@@ -1,4 +1,4 @@
-// 富士山カレンダー パフォーマンス分析ツール
+// ダイヤモンド富士・パール富士カレンダー パフォーマンス分析ツール
 const path = require('path');
 
 // パフォーマンス分析データ
@@ -140,7 +140,7 @@ function analyzeOptimizationOptions() {
  */
 function generateAnalysisReport() {
   console.log("=".repeat(80));
-  console.log("富士山カレンダー パフォーマンス分析レポート");
+  console.log("ダイヤモンド富士・パール富士カレンダー パフォーマンス分析レポート");
   console.log("=".repeat(80));
   
   console.log("\n【1. 現在の計算コスト内訳】");

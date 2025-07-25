@@ -73,11 +73,28 @@ export class QueueService {
     // BatchCalculationServiceはシングルトンを使用
     this.historicalModel = new HistoricalEventsModel();
     
+    // 起動時に全キューをクリア
+    this.clearAllQueues();
+    
     this.initializeWorkers();
     
     logger.info('Queue service initialized', {
       queues: ['location-calculation', 'monthly-calculation', 'daily-calculation', 'historical-calculation']
     });
+  }
+
+  private async clearAllQueues(): Promise<void> {
+    try {
+      await Promise.all([
+        this.locationQueue.obliterate({ force: true }),
+        this.monthlyQueue.obliterate({ force: true }),
+        this.dailyQueue.obliterate({ force: true }),
+        this.historicalQueue.obliterate({ force: true })
+      ]);
+      logger.info('起動時に全キューをクリアしました');
+    } catch (error) {
+      logger.warn('キューのクリアに失敗しました', error);
+    }
   }
 
   private initializeWorkers(): void {

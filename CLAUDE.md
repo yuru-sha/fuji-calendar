@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-富士山カレンダーは、ダイヤモンド富士とパール富士の撮影に最適な日時と場所を表示するカレンダーアプリケーションです。Astronomy Engineによる高精度天体計算とお気に入り機能を備え、写真愛好家が効率的に撮影計画を立てられる情報を提供します。
+ダイヤモンド富士・パール富士カレンダーは、ダイヤモンド富士とパール富士の撮影に最適な日時と場所を表示するカレンダーアプリケーションです。Astronomy Engineによる高精度天体計算とお気に入り機能を備え、写真愛好家が効率的に撮影計画を立てられる情報を提供します。
 
 ### 主要機能
 - **カレンダービュー**: 月間カレンダーでイベントを一覧表示（視認性向上済み）
@@ -73,6 +73,9 @@ npm run lint:fix      # Auto-fix linting issues
 # Testing
 npm test              # Run tests
 npm run test:watch    # Watch mode for tests
+
+# Admin account creation
+node create-admin.js  # Create admin account (username: admin, password: admin123)
 ```
 
 ## Architecture Overview
@@ -117,7 +120,7 @@ npm run test:watch    # Watch mode for tests
 - **admins**: 管理者アカウント (bcrypt + JWT認証)
 - **location_requests**: 撮影地点追加リクエスト
 
-Prisma ORMを使用、`prisma/schema.prisma`で定義
+PostgreSQL + Prisma ORM使用、`prisma/schema.prisma`で定義。BullMQ + Redisでキュー管理
 
 ### Security Implementation
 
@@ -149,6 +152,8 @@ React 18 + TypeScript + Tailwind CSS v3.4.17構成
 
 **レイアウト一貫性**: カレンダーヘッダーとメイン+サイドバーの幅を統一するため、`content-wide` (max-w-6xl, 1152px) ラッパーを使用
 
+**お気に入り機能**: カレンダーの星マークはお気に入りに追加されたイベントのみに表示。全イベントではなく、ユーザーが選択した地点・日付のみ視覚化
+
 **TypeScript設定**: 厳密な型チェック有効。ESLint設定でReact/TypeScript/Tailwind CSS対応
 
 **Tailwind CSS**: v3.4.17を使用（v4互換性問題のため）。PostCSS設定は `tailwindcss` プラグインを使用
@@ -159,7 +164,16 @@ React 18 + TypeScript + Tailwind CSS v3.4.17構成
 - 方位角許容範囲 (現在1.5度)
 - デバッグログで `minDifference` と `bestTime` の値を確認
 
-**型定義**: `src/shared/types/index.ts` の `FUJI_COORDINATES` で富士山の座標・標高を定義。Location型には必須の `createdAt`/`updatedAt` フィールドあり。`WeatherInfo` インターフェースで天気情報を定義
+**型定義**: `src/shared/types/index.ts` の `FUJI_COORDINATES` で富士山の座標・標高を定義。Location型には必須の `createdAt`/`updatedAt` フィールドあり。`WeatherInfo` インターフェースで天気情報を定義。月相データは0-1の照度率（0-360度から変換済み）
+
+**重要な修正履歴**:
+- AuthControllerをAdminModelからPrismaベースに完全移行 (admin/admin123でログイン)
+- event_date timezone問題解決: createJstDateOnly()でUTC基準の日付計算に修正
+- 起動時自動ジョブ実行を無効化: QueueServiceでキュークリア、BackgroundJobSchedulerで全自動ジョブ停止
+- 新規地点登録時に3年分データ作成 (2024-2026)、以降は年次更新で1年分追加
+- カレンダーの星マークをお気に入り機能と連携: 全イベントではなく、ユーザーが選択した地点・日付のみ視覚化
+- 月相データ: AstronomicalCalculatorで0-1照度率に正規化 (従来の0-360度から変換)
+- Redisキュー管理とPostgreSQL + Prismaに技術スタック更新
 
 **デバッグスクリプト**: `scripts/`ディレクトリに天体計算のデバッグ用スクリプトが完備。`debug_diamond_fuji_detailed.js`、`debug_pearl_fuji_detailed.js`等で詳細な計算過程を確認可能
 

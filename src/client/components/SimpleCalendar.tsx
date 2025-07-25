@@ -1,6 +1,7 @@
 import React from 'react';
 import { CalendarEvent } from '../../shared/types';
 import { timeUtils } from '../../shared/utils/timeUtils';
+import { useFavorites } from '../hooks/useFavorites';
 
 interface SimpleCalendarProps {
   year: number;
@@ -19,6 +20,8 @@ const SimpleCalendar: React.FC<SimpleCalendarProps> = ({
   onMonthChange,
   selectedDate
 }) => {
+  const { isEventFavorite } = useFavorites();
+  
   // カレンダーの日付を生成
   const generateCalendarDays = () => {
     const firstDay = new Date(year, month - 1, 1);
@@ -177,8 +180,8 @@ const SimpleCalendar: React.FC<SimpleCalendarProps> = ({
               position: 'relative'
             }}
           >
-            {/* 右上の星印インジケーター */}
-            {day.events && day.events.events.length > 0 && (
+            {/* 右上の星印インジケーター（お気に入りイベントがある日のみ） */}
+            {day.events && day.events.events.some(event => isEventFavorite(event)) && (
               <div style={{ 
                 position: 'absolute',
                 top: '3px',

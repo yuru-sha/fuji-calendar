@@ -1,12 +1,14 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { AdminModel } from '../models/Admin';
+import { PrismaClientManager } from '../database/prisma';
+import { getComponentLogger } from '../../shared/utils/logger';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const JWT_EXPIRES_IN = '24h';
 
 export class AuthController {
+  private logger = getComponentLogger('auth-controller');
   // 管理者ログイン
   // POST /api/admin/login
   async login(req: Request, res: Response) {
@@ -23,8 +25,13 @@ export class AuthController {
       }
 
       // 管理者の検索
-      const admin = await AdminModel.findByUsername(username);
+      const prisma = PrismaClientManager.getInstance();
+      const admin = await prisma.admin.findUnique({
+        where: { username }
+      });
+      
       if (!admin) {
+        this.logger.warn('ログイン失敗: ユーザーが見つからない', { username });
         return res.status(401).json({
           success: false,
           error: 'Unauthorized',
@@ -35,6 +42,7 @@ export class AuthController {
       // パスワード検証
       const isValidPassword = await bcrypt.compare(password, admin.passwordHash);
       if (!isValidPassword) {
+        this.logger.warn('ログイン失敗: パスワード不正', { username });
         return res.status(401).json({
           success: false,
           error: 'Unauthorized',
@@ -43,7 +51,10 @@ export class AuthController {
       }
 
       // 最終ログイン時刻を更新
-      await AdminModel.updateLastLogin(admin.id);
+      await prisma.admin.update({
+        where: { id: admin.id },
+        data: { updatedAt: new Date() }
+      });
 
       // JWTトークン生成
       const token = jwt.sign(
@@ -56,6 +67,8 @@ export class AuthController {
         { expiresIn: JWT_EXPIRES_IN }
       );
 
+      this.logger.info('ログイン成功', { username, adminId: admin.id });
+      
       res.json({
         success: true,
         token,
@@ -69,7 +82,7 @@ export class AuthController {
       });
 
     } catch (error) {
-      console.error('Login error:', error);
+      this.logger.error('ログインエラー', error);
       res.status(500).json({
         success: false,
         error: 'Internal Server Error',
@@ -95,8 +108,13 @@ export class AuthController {
       const decoded = jwt.verify(token, JWT_SECRET) as any;
       
       // 管理者の存在確認
-      const admin = await AdminModel.findById(decoded.adminId);
+      const prisma = PrismaClientManager.getInstance();
+      const admin = await prisma.admin.findUnique({
+        where: { id: decoded.adminId }
+      });
+      
       if (!admin) {
+        this.logger.warn('トークン検証失敗: 管理者が見つからない', { adminId: decoded.adminId });
         return res.status(401).json({
           success: false,
           error: 'Unauthorized',
@@ -114,7 +132,7 @@ export class AuthController {
       });
 
     } catch (error) {
-      console.error('Token verification error:', error);
+      this.logger.warn('トークン検証エラー', error);
       res.status(401).json({
         success: false,
         error: 'Unauthorized',

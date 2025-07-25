@@ -1,6 +1,6 @@
 # インストールガイド
 
-富士山カレンダーのインストールと初期設定手順について説明します。
+ダイヤモンド富士・パール富士カレンダーのインストールと初期設定手順について説明します。
 
 ## システム要件
 
@@ -11,8 +11,8 @@
 
 ### ローカル開発環境
 - Node.js 18以上
+- PostgreSQL 14以上
 - Redis 6以上
-- SQLite3
 
 ## Docker環境での設置（推奨）
 
@@ -105,10 +105,13 @@ npm install
 ### 3. データベースの初期化
 
 ```bash
-# サーバーをビルド
-npm run build:server
+# PostgreSQLの起動（Dockerを使用する場合）
+docker run -d --name postgres-fuji -e POSTGRES_PASSWORD=password -e POSTGRES_DB=fuji_calendar -p 5432:5432 postgres:14
 
-# 初回起動（データベースとサンプルデータが自動作成）
+# Prismaマイグレーション実行
+npx prisma migrate dev
+
+# 初回起動（サンプルデータが自動作成）
 npm run start
 ```
 
@@ -139,11 +142,11 @@ npm run dev:client  # フロントエンドのみ
 ### 管理者アカウントの作成
 
 ```bash
-# 管理者アカウントを作成
+# 管理者アカウントを作成（admin/admin123）
 node scripts/create-admin.js
 
-# または、SQLiteコマンドライン
-sqlite3 data/fuji-calendar.db < scripts/create-admin.sql
+# または、直接Prismaで作成
+npx prisma db seed
 ```
 
 ## 設定ファイル
@@ -154,7 +157,7 @@ sqlite3 data/fuji-calendar.db < scripts/create-admin.sql
 |--------|------|-------------|------|
 | `NODE_ENV` | 実行環境 | development | ○ |
 | `PORT` | サーバーポート | 8000 | × |
-| `DB_PATH` | データベースファイルパス | ./data/fuji-calendar.db | × |
+| `DATABASE_URL` | PostgreSQL接続URL | postgresql://user:pass@localhost:5432/fuji_calendar | × |
 | `JWT_SECRET` | JWT署名シークレット | ランダム生成 | 本番○ |
 | `REFRESH_SECRET` | リフレッシュトークンシークレット | ランダム生成 | 本番○ |
 | `FRONTEND_URL` | フロントエンドURL | localhost:3000 | 本番○ |
@@ -188,12 +191,14 @@ lsof -i :8000
 kill -9 <PID>
 ```
 
-#### 2. データベース権限エラー
+#### 2. PostgreSQL接続エラー
 
 ```bash
-# データディレクトリの権限を修正
-chmod 755 data/
-chmod 644 data/fuji-calendar.db
+# PostgreSQLの起動確認
+psql -h localhost -U postgres -d fuji_calendar -c "\l"
+
+# Prismaマイグレーション状態確認
+npx prisma migrate status
 ```
 
 #### 3. Redisの接続エラー
@@ -234,7 +239,10 @@ tail -f logs/app.log
 # 開発環境の完全クリーンアップ
 ./scripts/docker-dev.sh clean
 npm run clean
-rm -rf node_modules data/* logs/*
+rm -rf node_modules logs/*
+
+# データベースのリセット
+npx prisma migrate reset
 
 # 再インストール
 npm install

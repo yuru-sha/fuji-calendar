@@ -30,7 +30,7 @@ const Layout: React.FC = () => {
         boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
       }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 1rem' }}>
-          <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '600' }}>富士山カレンダー</h1>
+          <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '600' }}>ダイヤモンド富士・パール富士カレンダー</h1>
           <nav style={{ marginTop: '0.5rem' }}>
             <Link 
               to="/" 
@@ -97,7 +97,7 @@ const Layout: React.FC = () => {
         padding: '1rem 0'
       }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 1rem' }}>
-          <p style={{ margin: 0 }}>&copy; 2025 富士山カレンダー. All rights reserved.</p>
+          <p style={{ margin: 0 }}>&copy; 2025 ダイヤモンド富士・パール富士カレンダー. All rights reserved.</p>
         </div>
       </footer>
     </div>

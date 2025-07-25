@@ -446,14 +446,11 @@ export class EventCacheService {
     
     const [year, month, day] = jstTimeString.split('/').map(n => parseInt(n));
     
-    // UTC時刻で00:00:00 JSTを表現（UTC時刻では前日の15:00:00）
-    // JST 00:00:00 = UTC 前日 15:00:00
-    const utcDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
-    
-    // JSTとUTCの差は9時間なので、9時間引く
-    utcDate.setUTCHours(utcDate.getUTCHours() - 9);
-    
-    return utcDate;
+    // その日のJST 00:00:00に相当するUTC時刻を作成
+    // JST 2026-01-01 00:00:00 = UTC 2025-12-31 15:00:00
+    // しかしPostgreSQLに保存する際は、JST日付として2026-01-01を保存したい
+    // そのためUTC時刻でも同じ日付（2026-01-01）になるように調整
+    return new Date(Date.UTC(year, month - 1, day, 9, 0, 0, 0)); // UTC 09:00 = JST 18:00（同日）
   }
 }
 

@@ -139,10 +139,10 @@ export class AdminController {
 
       // 富士現象イベントの初期計算（キューに登録）
       const currentYear = new Date().getFullYear();
-      // 当年と翌年のイベントキャッシュを生成
+      // 前年・当年・翌年の3年分のイベントキャッシュを生成
       const jobId = await queueService.scheduleLocationCalculation(
         newLocation.id,
-        currentYear,
+        currentYear - 1,
         currentYear + 1,
         'high',
         `create-location-${newLocation.id}-${Date.now()}`

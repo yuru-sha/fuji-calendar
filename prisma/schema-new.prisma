@@ -1,4 +1,4 @@
-// 富士山カレンダー新スキーマ（5テーブル構成）
+// ダイヤモンド富士・パール富士カレンダー新スキーマ（5テーブル構成）
 
 generator client {
   provider = "prisma-client-js"

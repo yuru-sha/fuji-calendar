@@ -1,7 +1,7 @@
 import { getComponentLogger, StructuredLogger } from '../../shared/utils/logger';
-import { calendarServicePrisma } from './CalendarServicePrisma';
-// import { LocationModel } from '../models/Location'; // PostgreSQL移行により無効化
+
 import { PrismaClientManager } from '../database/prisma';
+import { calendarServicePrisma } from './CalendarServicePrisma';
 
 /**
  * Prismaベースのバックグラウンドジョブスケジューラー
@@ -23,14 +23,11 @@ export class BackgroundJobSchedulerPrisma {
     }
 
     this.isRunning = true;
-    this.logger.info('Prismaバックグラウンドジョブスケジューラー開始');
+    this.logger.info('Prismaバックグラウンドジョブスケジューラー開始（全ての自動ジョブ無効）');
 
-    this.scheduleYearlyCalculation();
-    this.scheduleSystemHealthCheck();
-    this.scheduleDataIntegrityCheck();
-    this.scheduleStatisticsUpdate();
-    this.scheduleYearlyMaintenance();
-    this.scheduleMonthlyMaintenance();
+    // 全ての自動ジョブを無効化
+    // 必要に応じて管理者画面から手動実行
+    this.logger.info('自動ジョブは無効化されています。手動実行のみ可能です。');
   }
 
   stop(): void {

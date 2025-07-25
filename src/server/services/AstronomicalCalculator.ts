@@ -115,8 +115,8 @@ export class AstronomicalCalculatorImpl implements AstronomicalCalculator {
       azimuth: moonHorizontal.azimuth,
       elevation: moonHorizontal.altitude,
       distance: moonEquatorial.dist,
-      phase: moonPhase,
-      illumination: moonIllumination.phase_fraction
+      phase: moonPhase, // 0-360度の月相角度
+      illumination: Math.max(0, Math.min(1, moonIllumination.phase_fraction)) // 0-1の照度率
     };
   }
 

@@ -1,4 +1,4 @@
-# 富士山カレンダー - ダイヤモンド富士・パール富士撮影ガイド
+# ダイヤモンド富士・パール富士カレンダー - ダイヤモンド富士・パール富士撮影ガイド
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/yuru-sha/fuji-calendar)
 
 **バージョン 0.1.0**

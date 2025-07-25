@@ -7,19 +7,38 @@ services:
     ports:
       - "5432:5432"
     environment:
-      - POSTGRES_DB=${DB_NAME:-fuji_calendar}
-      - POSTGRES_USER=${DB_USER:-fuji_user}
-      - POSTGRES_PASSWORD=${DB_PASSWORD:-prod_password_change_me}
-      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --locale=C
-      - TZ=Asia/Tokyo
+      POSTGRES_DB: ${DB_NAME:-fuji_calendar}
+      POSTGRES_USER: ${DB_USER:-fuji_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-prod_password_change_me}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
+      TZ: Asia/Tokyo
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-fuji_user} -d ${DB_NAME:-fuji_calendar}"]
       interval: 30s
       timeout: 5s
       retries: 5
       start_period: 30s
+    networks:
+      - fuji_calendar_network
+
+  # Redis (キューシステム用)
+  redis:
+    image: redis:7-alpine
+    container_name: fuji_calendar_redis
+    restart: unless-stopped
+    expose:
+      - "6379"
+    volumes:
+      - ./data/redis:/data
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
     networks:
       - fuji_calendar_network
 
@@ -34,7 +53,7 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - app_static:/usr/share/nginx/html
+      - ./dist/client:/usr/share/nginx/html:ro
       - ./ssl:/etc/nginx/ssl:ro  # SSL証明書用（オプション）
     depends_on:
       - backend
@@ -56,23 +75,24 @@ services:
     expose:
       - "3000"
     environment:
-      - NODE_ENV=production
-      - PORT=3000
+      NODE_ENV: production
+      PORT: 3000
       # PostgreSQL接続設定
-      - DATABASE_URL=postgresql://${DB_USER:-fuji_user}:${DB_PASSWORD:-prod_password_change_me}@postgres:5432/${DB_NAME:-fuji_calendar}
+      DATABASE_URL: postgresql://${DB_USER:-fuji_user}:${DB_PASSWORD:-prod_password_change_me}@postgres:5432/${DB_NAME:-fuji_calendar}
       # Redis設定
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
       # JWT設定
-      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
-      - REFRESH_SECRET=${REFRESH_SECRET:-your-super-secret-refresh-key-change-in-production}
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      REFRESH_SECRET: ${REFRESH_SECRET:-your-super-secret-refresh-key-change-in-production}
       # その他設定
-      - LOG_LEVEL=${LOG_LEVEL:-info}
-      - ENABLE_FILE_LOGGING=${ENABLE_FILE_LOGGING:-true}
-      - FRONTEND_URL=${FRONTEND_URL:-http://localhost}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      ENABLE_FILE_LOGGING: ${ENABLE_FILE_LOGGING:-true}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+      TZ: Asia/Tokyo
     volumes:
       - ./logs:/app/logs
-      - app_static:/app/dist/client  # ビルド済み静的ファイルを共有
+      - ./dist/client:/app/dist/client  # ビルド済み静的ファイルを共有
     depends_on:
       postgres:
         condition: service_healthy
@@ -87,27 +107,7 @@ services:
     networks:
       - fuji_calendar_network
 
-  # Redis (キューシステム用)
-  redis:
-    image: redis:7-alpine
-    container_name: fuji_calendar_redis
-    restart: unless-stopped
-    expose:
-      - "6379:6379"
-    volumes:
-      - ./data/redis:/data
-    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 3s
-      retries: 3
-    networks:
-      - fuji_calendar_network
-
-volumes:
-  app_static:
-    driver: local
+volumes: {}
 
 networks:
   fuji_calendar_network:

@@ -1,5 +1,7 @@
 import { getUnifiedDatabase, UnifiedDatabase } from '../database/connection-unified';
-import { astronomicalCalculator } from './AstronomicalCalculatorAstronomyEngine';
+import { AstronomicalCalculatorImpl } from './NewAstronomicalCalculator';
+
+const astronomicalCalculator = new AstronomicalCalculatorImpl();
 import { Location } from '../../shared/types';
 import { FUJI_COORDINATES } from '../../shared/types/index';
 import { getComponentLogger, StructuredLogger } from '../../shared/utils/logger';

@@ -3,8 +3,10 @@ import { FUJI_COORDINATES } from '../../shared/types';
 import { getComponentLogger } from '../../shared/utils/logger';
 import { AdminModel } from '../models/Admin';
 import { PrismaClientManager } from '../database/prisma';
-import { astronomicalCalculator } from '../services/AstronomicalCalculatorAstronomyEngine';
+import { AstronomicalCalculatorImpl } from '../services/NewAstronomicalCalculator';
 import { LocationFujiEventService } from '../services/LocationFujiEventService';
+
+const astronomicalCalculator = new AstronomicalCalculatorImpl();
 import * as bcrypt from 'bcrypt';
 
 export class AdminController {

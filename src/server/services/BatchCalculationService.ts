@@ -1,6 +1,8 @@
 import { EventsCacheModel } from '../models/EventsCache';
 import { LocationModel } from '../models/Location';
-import { astronomicalCalculator } from './AstronomicalCalculatorAstronomyEngine';
+import { AstronomicalCalculatorImpl } from './NewAstronomicalCalculator';
+
+const astronomicalCalculator = new AstronomicalCalculatorImpl();
 import { 
   BatchCalculationJob, 
   CacheKeyOptions 

@@ -475,7 +475,7 @@ const MapView: React.FC<MapViewProps> = ({
       />
       
       {/* 凡例は特定の条件でのみ表示 */}
-      {(showDirection && (selectedLocationId || dayEvents?.length > 0)) && (
+      {(showDirection && (selectedLocationId || (dayEvents && dayEvents.length > 0))) && (
         <div className={styles.legend}>
           <h4 className={styles.legendTitle}>凡例</h4>
           <div className={styles.legendItem}>

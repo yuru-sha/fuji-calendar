@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React, { memo, useState } from 'react';
 import { FujiEvent, WeatherInfo, Location } from '../../shared/types';
 import { timeUtils } from '../../shared/utils/timeUtils';
 import { useFavorites } from '../hooks/useFavorites';
@@ -22,6 +22,22 @@ const EventDetail: React.FC<EventDetailProps> = memo(({
   onLocationSelect
 }) => {
   const { isEventFavorite, toggleEventFavorite, isLocationFavorite, toggleLocationFavorite } = useFavorites();
+  const [expandedLocationIds, setExpandedLocationIds] = useState<Set<number>>(() => {
+    // 初期状態では一番上（最初）の地点のみ展開
+    if (events.length > 0) {
+      const firstLocationId = events[0].location.id;
+      return new Set([firstLocationId]);
+    }
+    return new Set();
+  });
+
+  // 初期選択：一番上の地点を自動選択して地図に表示
+  React.useEffect(() => {
+    if (events.length > 0 && !selectedLocationId && onLocationSelect) {
+      const firstLocation = events[0].location;
+      onLocationSelect(firstLocation);
+    }
+  }, [events, selectedLocationId, onLocationSelect]);
   const formatTime = (time: Date): string => {
     return timeUtils.formatJstTime(time);
   };
@@ -96,18 +112,70 @@ const EventDetail: React.FC<EventDetailProps> = memo(({
     }
   };
 
+  const getAccuracyText = (accuracy: 'perfect' | 'excellent' | 'good' | 'fair'): string => {
+    switch (accuracy) {
+      case 'perfect':
+        return '完全一致';
+      case 'excellent':
+        return '非常に高精度';
+      case 'good':
+        return '高精度';
+      case 'fair':
+        return '標準精度';
+      default:
+        return '';
+    }
+  };
+
+  const getAccuracyBadge = (accuracy: 'perfect' | 'excellent' | 'good' | 'fair'): string => {
+    switch (accuracy) {
+      case 'perfect':
+        return styles.accuracyPerfect;
+      case 'excellent':
+        return styles.accuracyExcellent;
+      case 'good':
+        return styles.accuracyGood;
+      case 'fair':
+        return styles.accuracyFair;
+      default:
+        return '';
+    }
+  };
+
 
   const handleGoogleMapsClick = (event: FujiEvent) => {
     const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${event.location.latitude},${event.location.longitude}`;
     window.open(googleMapsUrl, '_blank');
   };
 
-  const handleLocationSelectClick = (location: Location) => {
-    if (onLocationSelect) {
-      const isSelected = selectedLocationId === location.id;
-      onLocationSelect(isSelected ? null : location);
+  // 折りたたみボタンで地図連携も含めて制御
+  const handleLocationToggle = (locationId: number, location: Location) => {
+    const isExpanded = expandedLocationIds.has(locationId);
+    
+    if (isExpanded) {
+      // 折りたたみ：選択解除して地図から除去
+      setExpandedLocationIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(locationId);
+        return newSet;
+      });
+      if (onLocationSelect && selectedLocationId === locationId) {
+        onLocationSelect(null);
+      }
+    } else {
+      // 展開：この地点を選択して地図に表示
+      setExpandedLocationIds(prev => {
+        const newSet = new Set(prev);
+        newSet.add(locationId);
+        return newSet;
+      });
+      if (onLocationSelect) {
+        onLocationSelect(location);
+      }
     }
   };
+
+  // 不要になった関数を削除
 
   return (
     <div className={styles.eventDetail}>
@@ -158,104 +226,188 @@ const EventDetail: React.FC<EventDetailProps> = memo(({
           </div>
         ) : (
           <div className={styles.eventsList}>
-            {events.map((event, index) => (
-              <div key={event.id || index} className={styles.eventItem}>
-                <div className={styles.eventHeader}>
-                  <span className={styles.eventIcon}>
-                    {getEventIcon(event)}
-                  </span>
-                  <h5 className={styles.eventTitle}>
-                    {formatEventTitle(event)}
-                  </h5>
-                  <span className={styles.eventTime}>
-                    {formatTime(event.time)}頃
-                  </span>
-                  <button
-                    className={`${styles.eventScheduleButton} ${isEventFavorite(event.id) ? styles.scheduled : styles.unscheduled}`}
-                    onClick={() => toggleEventFavorite(event)}
-                    title={isEventFavorite(event.id) ? '撮影予定から削除' : '撮影予定に追加'}
-                  >
-                    {isEventFavorite(event.id) ? '📅 予定済み' : '📅 予定に追加'}
-                  </button>
-                </div>
+            {(() => {
+              // 地点ごとにイベントをグループ化
+              const eventsByLocation = events.reduce((acc, event) => {
+                const locationId = event.location.id;
+                if (!acc[locationId]) {
+                  acc[locationId] = [];
+                }
+                acc[locationId].push(event);
+                return acc;
+              }, {} as Record<number, FujiEvent[]>);
 
-                <div className={styles.eventLocation}>
-                  <span className={styles.locationIcon}>📍</span>
-                  <span className={styles.locationText}>
-                    {event.location.prefecture}・{event.location.name}
-                  </span>
-                  <button
-                    className={`${styles.locationFavoriteButton} ${isLocationFavorite(event.location.id) ? styles.favorited : styles.unfavorited}`}
-                    onClick={() => toggleLocationFavorite(event.location)}
-                    title={isLocationFavorite(event.location.id) ? 'お気に入り地点から削除' : 'お気に入り地点に追加'}
-                  >
-                    {isLocationFavorite(event.location.id) ? '⭐' : '☆'}
-                  </button>
-                  <div className={styles.actionButtons}>
-                    {onLocationSelect && (
-                      <button 
-                        className={`${styles.selectLocationButton} ${selectedLocationId === event.location.id ? styles.selected : ''}`}
-                        onClick={() => handleLocationSelectClick(event.location)}
-                        title={selectedLocationId === event.location.id ? '地点選択を解除' : '地点を選択してハイライト'}
-                      >
-                        {selectedLocationId === event.location.id ? '✓ 選択中' : '📍 地点選択'}
-                      </button>
+              return Object.entries(eventsByLocation).map(([locationIdStr, locationEvents]) => {
+                const locationId = parseInt(locationIdStr);
+                const location = locationEvents[0].location;
+                const isExpanded = expandedLocationIds.has(locationId);
+                const isSelected = selectedLocationId === locationId;
+
+                return (
+                  <div key={locationId} className={styles.locationGroup}>
+                    {/* 地点ヘッダー */}
+                    <div className={`${styles.locationHeader} ${isSelected ? styles.selectedLocation : ''}`}>
+                      <div className={styles.locationInfo}>
+                        <span className={styles.locationIcon}>📍</span>
+                        <span className={styles.locationText}>
+                          {location.prefecture}・{location.name}
+                        </span>
+                        {isSelected && (
+                          <span className={styles.selectedBadge}>地図表示中</span>
+                        )}
+                        <button
+                          className={`${styles.locationFavoriteButton} ${isLocationFavorite(location.id) ? styles.favorited : styles.unfavorited}`}
+                          onClick={() => toggleLocationFavorite(location)}
+                          title={isLocationFavorite(location.id) ? 'お気に入り地点から削除' : 'お気に入り地点に追加'}
+                        >
+                          {isLocationFavorite(location.id) ? 'お気に入り済み' : 'お気に入りに追加'}
+                        </button>
+                      </div>
+                      
+                      <div className={styles.locationActions}>
+                        <button
+                          className={`${styles.expandButton} ${isExpanded ? styles.expanded : styles.collapsed}`}
+                          onClick={() => handleLocationToggle(locationId, location)}
+                          title={isExpanded ? '詳細を折りたたむ（地図から除去）' : '詳細を表示（地図に表示）'}
+                        >
+                          {isExpanded ? '▼ 折りたたみ' : '▶️ 表示'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* イベント詳細（展開時のみ表示） */}
+                    {isExpanded && locationEvents.map((event, index) => (
+                      <div key={event.id || index} className={styles.eventItem}>
+                        <div className={styles.eventMainInfo}>
+                          <div className={styles.eventBasicInfo}>
+                            <div className={styles.eventTitleSection}>
+                              <span className={styles.eventIcon}>
+                                {getEventIcon(event)}
+                              </span>
+                              <div className={styles.eventTitleGroup}>
+                                <h5 className={styles.eventTitle}>
+                                  {formatEventTitle(event)}
+                                </h5>
+                                <span className={styles.eventTime}>
+                                  {formatTime(event.time)}頃
+                                </span>
+                              </div>
+                            </div>
+                            
+                            <div className={styles.eventActions}>
+                              <button
+                                className={`${styles.eventScheduleButton} ${isEventFavorite(event.id) ? styles.scheduled : styles.unscheduled}`}
+                                onClick={() => toggleEventFavorite(event)}
+                                title={isEventFavorite(event.id) ? '撮影予定から削除' : '撮影予定に追加'}
+                              >
+                                {isEventFavorite(event.id) ? '📅 予定済み' : '📅 予定に追加'}
+                              </button>
+                              <button 
+                                className={styles.googleMapsButton}
+                                onClick={() => handleGoogleMapsClick(event)}
+                                title="Google Mapsでルート検索"
+                              >
+                                🗺️ ルート検索
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* イベント固有の詳細データ */}
+                          <div className={styles.eventSpecificDetails}>
+                            {event.elevation !== undefined && (
+                              <div className={styles.detailItem}>
+                                <span className={styles.detailLabel}>高度:</span>
+                                <span className={styles.detailValue}>{Math.round(event.elevation)}°</span>
+                              </div>
+                            )}
+                            {event.type === 'pearl' && event.moonPhase !== undefined && (
+                              <div className={styles.detailItem}>
+                                <span className={styles.detailLabel}>月相:</span>
+                                <span className={styles.detailValue}>{(event.moonPhase * 100).toFixed(1)}%</span>
+                              </div>
+                            )}
+                            {event.type === 'pearl' && event.moonIllumination !== undefined && (
+                              <div className={styles.detailItem}>
+                                <span className={styles.detailLabel}>照度:</span>
+                                <span className={styles.detailValue}>{Math.round(event.moonIllumination * 100)}%</span>
+                              </div>
+                            )}
+                            {event.accuracy && (
+                              <div className={styles.detailItem}>
+                                <span className={styles.detailLabel}>精度:</span>
+                                <span className={`${styles.detailValue} ${getAccuracyBadge(event.accuracy)}`}>
+                                  {getAccuracyText(event.accuracy)}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* 地点共通情報（展開時のみ表示） */}
+                    {isExpanded && (
+                      <div className={styles.locationDetails}>
+                        {location.description && (
+                          <div className={styles.locationDescription}>
+                            <p>{location.description}</p>
+                          </div>
+                        )}
+
+                        {/* 撮影地データ */}
+                        <div className={styles.locationDataSection}>
+                          <h6 className={styles.sectionTitle}>📊 撮影地データ</h6>
+                          <div className={styles.locationDataGrid}>
+                            {location.fujiAzimuth !== undefined && (
+                              <div className={styles.detailItem}>
+                                <span className={styles.detailLabel}>富士山の方角:</span>
+                                <span className={styles.detailValue}>
+                                  {getCompassDirection(location.fujiAzimuth)}（{Math.round(location.fujiAzimuth)}°）
+                                </span>
+                              </div>
+                            )}
+                            {location.fujiDistance && (
+                              <div className={styles.detailItem}>
+                                <span className={styles.detailLabel}>富士山まで:</span>
+                                <span className={styles.detailValue}>約{location.fujiDistance.toFixed(1)}km</span>
+                              </div>
+                            )}
+                            <div className={styles.detailItem}>
+                              <span className={styles.detailLabel}>海抜標高:</span>
+                              <span className={styles.detailValue}>約{location.elevation.toFixed(1)}m</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* アクセス情報セクション */}
+                        <div className={styles.accessSection}>
+                          {location.accessInfo && (
+                            <div className={styles.accessInfo}>
+                              <h6 className={styles.accessTitle}>🚗 アクセス情報</h6>
+                              <p>{location.accessInfo}</p>
+                            </div>
+                          )}
+
+                          {location.parkingInfo && (
+                            <div className={styles.parkingInfo}>
+                              <h6 className={styles.parkingTitle}>🅿️ 駐車場情報</h6>
+                              <p>{location.parkingInfo}</p>
+                            </div>
+                          )}
+
+                          {location.warnings && (
+                            <div className={styles.warnings}>
+                              <h6 className={styles.warningsTitle}>⚠️ 注意事項</h6>
+                              <p>{location.warnings}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     )}
-                    <button 
-                      className={styles.googleMapsButton}
-                      onClick={() => handleGoogleMapsClick(event)}
-                    >
-                      ルート検索
-                    </button>
                   </div>
-                </div>
-
-                {event.location.description && (
-                  <div className={styles.eventDescription}>
-                    <p>{event.location.description}</p>
-                  </div>
-                )}
-
-                <div className={styles.eventDetails}>
-                  {event.location.fujiAzimuth !== undefined && (
-                    <div className={styles.detailItem}>
-                      <span className={styles.detailLabel}>富士山の方角:</span>
-                      <span>{getCompassDirection(event.location.fujiAzimuth)}（{Math.round(event.location.fujiAzimuth)}°）</span>
-                    </div>
-                  )}
-                  {event.location.fujiDistance && (
-                    <div className={styles.detailItem}>
-                      <span className={styles.detailLabel}>富士山まで:</span>
-                      <span>約{event.location.fujiDistance.toFixed(1)}km</span>
-                    </div>
-                  )}
-                  {event.elevation !== undefined && (
-                    <div className={styles.detailItem}>
-                      <span className={styles.detailLabel}>高度:</span>
-                      <span>{Math.round(event.elevation)}°</span>
-                    </div>
-                  )}
-                  <div className={styles.detailItem}>
-                    <span className={styles.detailLabel}>海抜標高:</span>
-                    <span>約{event.location.elevation.toFixed(1)}m</span>
-                  </div>
-                </div>
-
-                {event.location.accessInfo && (
-                  <div className={styles.accessInfo}>
-                    <h6 className={styles.accessTitle}>アクセス情報</h6>
-                    <p>{event.location.accessInfo}</p>
-                  </div>
-                )}
-
-                {event.location.warnings && (
-                  <div className={styles.warnings}>
-                    <h6 className={styles.warningsTitle}>⚠️ 注意事項</h6>
-                    <p>{event.location.warnings}</p>
-                  </div>
-                )}
-              </div>
-            ))}
+                );
+              });
+            })()}
           </div>
         )}
       </div>

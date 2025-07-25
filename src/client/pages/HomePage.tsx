@@ -1,16 +1,22 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Location, FujiEvent, CalendarResponse } from '../../shared/types';
+import { useLocation, useSearchParams } from 'react-router-dom';
+import { Location, FujiEvent, CalendarResponse, WeatherInfo } from '../../shared/types';
 import { apiClient } from '../services/apiClient';
 import { timeUtils } from '../../shared/utils/timeUtils';
 import SimpleCalendar from '../components/SimpleCalendar';
 import SimpleMap from '../components/SimpleMap';
 import FilterPanel, { FilterOptions } from '../components/FilterPanel';
 import CameraPanel, { CameraSettings } from '../components/CameraPanel';
+import EventDetail from '../components/EventDetail';
 
 const HomePage: React.FC = () => {
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  
   const [calendarData, setCalendarData] = useState<CalendarResponse | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [dayEvents, setDayEvents] = useState<FujiEvent[]>([]);
+  const [weather, setWeather] = useState<WeatherInfo | undefined>(undefined);
   const [locations, setLocations] = useState<Location[]>([]);
   const [selectedLocationId, setSelectedLocationId] = useState<number | undefined>(undefined);
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>(undefined);
@@ -36,6 +42,52 @@ const HomePage: React.FC = () => {
     aspectRatio: '3:2',
     orientation: 'landscape'
   });
+
+  // URLパラメータから日付や地点IDを処理
+  useEffect(() => {
+    const dateParam = searchParams.get('date');
+    const locationIdParam = searchParams.get('locationId');
+    
+    // お気に入りから遷移した場合の状態を復元
+    if (location.state) {
+      const { selectedDate: stateDate, selectedLocationId: stateLocationId, selectedEventId: stateEventId } = location.state;
+      
+      if (stateDate) {
+        setSelectedDate(new Date(stateDate));
+        setCurrentYear(new Date(stateDate).getFullYear());
+        setCurrentMonth(new Date(stateDate).getMonth() + 1);
+      }
+      
+      if (stateLocationId) {
+        setSelectedLocationId(stateLocationId);
+      }
+      
+      if (stateEventId) {
+        setSelectedEventId(stateEventId);
+      }
+    }
+    // URLパラメータから日付を処理
+    else if (dateParam) {
+      try {
+        const date = new Date(dateParam);
+        if (!isNaN(date.getTime())) {
+          setSelectedDate(date);
+          setCurrentYear(date.getFullYear());
+          setCurrentMonth(date.getMonth() + 1);
+        }
+      } catch (error) {
+        console.warn('Invalid date parameter:', dateParam);
+      }
+    }
+    
+    // URLパラメータから地点IDを処理
+    if (locationIdParam) {
+      const locationId = parseInt(locationIdParam);
+      if (!isNaN(locationId)) {
+        setSelectedLocationId(locationId);
+      }
+    }
+  }, [searchParams, location.state]);
 
   // カレンダーデータを取得
   useEffect(() => {
@@ -71,6 +123,13 @@ const HomePage: React.FC = () => {
     loadLocations();
   }, []);
 
+  // URLパラメータで指定された日付のイベントを自動読み込み
+  useEffect(() => {
+    if (selectedDate && calendarData) {
+      handleDateClick(selectedDate);
+    }
+  }, [selectedDate, calendarData]);
+
   // 月変更ハンドラー
   const handleMonthChange = (year: number, month: number) => {
     setCurrentYear(year);
@@ -86,9 +145,27 @@ const HomePage: React.FC = () => {
       const dateString = timeUtils.formatDateString(date);
       const response = await apiClient.getDayEvents(dateString);
       setDayEvents(response.events || []);
+      
+      // 天気情報を取得（7日間以内の未来日付のみ）
+      const today = new Date();
+      const diffTime = date.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays >= 0 && diffDays <= 7) {
+        try {
+          const weatherResponse = await apiClient.getWeather(dateString);
+          setWeather(weatherResponse);
+        } catch (weatherError) {
+          console.warn('Failed to load weather data:', weatherError);
+          setWeather(undefined);
+        }
+      } else {
+        setWeather(undefined);
+      }
     } catch (error) {
       console.error('Failed to load day events:', error);
       setDayEvents([]);
+      setWeather(undefined);
     } finally {
       setLoading(false);
     }
@@ -216,7 +293,7 @@ const HomePage: React.FC = () => {
             events={calendarData.events}
             onDateClick={handleDateClick}
             onMonthChange={handleMonthChange}
-            selectedDate={selectedDate}
+            selectedDate={selectedDate || undefined}
           />
           
           {selectedDate && (
@@ -250,6 +327,23 @@ const HomePage: React.FC = () => {
               />
             </div>
           )}
+
+          {/* 撮影地詳細情報 */}
+          {selectedDate && filteredEvents.length > 0 && (
+            <EventDetail
+              date={selectedDate}
+              events={filteredEvents}
+              weather={weather}
+              selectedLocationId={selectedLocationId}
+              onLocationSelect={(location) => {
+                if (location) {
+                  setSelectedLocationId(location.id);
+                } else {
+                  setSelectedLocationId(undefined);
+                }
+              }}
+            />
+          )}
         </div>
 
         {/* 右カラム: サイドバー */}
@@ -261,7 +355,7 @@ const HomePage: React.FC = () => {
           top: '1rem',
           alignSelf: 'flex-start',
           maxHeight: 'calc(100vh - 2rem)',
-          overflowY: 'hidden'
+          overflowY: 'auto'
         }}>
           {/* 使い方ガイド */}
           <div style={{
@@ -345,10 +439,10 @@ const HomePage: React.FC = () => {
                 }}>2</span>
                 <div>
                   <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#1e293b', marginBottom: '0.25rem' }}>
-                    地点を確認
+                    撮影地詳細を確認
                   </div>
                   <div style={{ fontSize: '0.75rem', color: '#64748b', lineHeight: '1.4' }}>
-                    地図で撮影地点を確認・選択
+                    下に表示される詳細情報をチェック
                   </div>
                 </div>
               </div>
@@ -377,10 +471,10 @@ const HomePage: React.FC = () => {
                 }}>3</span>
                 <div>
                   <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#1e293b', marginBottom: '0.25rem' }}>
-                    詳細をチェック
+                    地図で位置確認
                   </div>
                   <div style={{ fontSize: '0.75rem', color: '#64748b', lineHeight: '1.4' }}>
-                    イベント詳細で時刻や条件を確認
+                    地図上で撮影地点とルート確認
                   </div>
                 </div>
               </div>
@@ -407,123 +501,183 @@ const HomePage: React.FC = () => {
             </div>
           </div>
 
-          {/* 選択された日の詳細 */}
+          {/* 選択中の情報 */}
           {selectedDate && (
             <div style={{
               backgroundColor: 'white',
-              borderRadius: '8px',
-              padding: '1rem',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+              borderRadius: '12px',
+              padding: '1.5rem',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              border: '1px solid #e5e7eb'
             }}>
-              <h3 style={{ 
-                margin: '0 0 1rem 0',
-                fontSize: '1.125rem',
-                fontWeight: '600',
-                color: '#1f2937'
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                marginBottom: '1rem',
+                paddingBottom: '0.75rem',
+                borderBottom: '1px solid #f3f4f6'
               }}>
-                📅 {selectedDate.toLocaleDateString('ja-JP')}
-              </h3>
-              
-              {loading ? (
-                <div style={{ textAlign: 'center', padding: '2rem' }}>
-                  <div style={{
-                    width: '32px',
-                    height: '32px',
-                    border: '3px solid #e5e7eb',
-                    borderTop: '3px solid #2563eb',
-                    borderRadius: '50%',
-                    animation: 'spin 1s linear infinite',
-                    margin: '0 auto 0.5rem'
-                  }}></div>
-                  <p style={{ color: '#6b7280', fontSize: '0.875rem' }}>読み込み中...</p>
-                </div>
-              ) : filteredEvents.length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  {filteredEvents.map((event, index) => (
-                    <div 
-                      key={index} 
-                      onClick={() => {
-                        setSelectedLocationId(event.location.id);
-                        setSelectedEventId(event.id);
-                      }}
-                      style={{ 
-                        padding: '0.75rem',
-                        backgroundColor: selectedEventId === event.id ? '#e0f2fe' : '#f9fafb',
-                        borderRadius: '6px',
-                        border: selectedEventId === event.id ? '2px solid #0284c7' : '1px solid #e5e7eb',
-                        cursor: 'pointer'
-                      }}>
-                      <div style={{ 
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        marginBottom: '0.5rem'
-                      }}>
-                        <span style={{ fontSize: '1.25rem' }}>
-                          {event.type === 'diamond' ? '☀️' : '🌙'}
-                        </span>
-                        <h4 style={{ 
-                          margin: 0,
-                          fontSize: '0.875rem',
-                          fontWeight: '600',
-                          color: '#1f2937'
-                        }}>
-                          {event.type === 'diamond' ? 'ダイヤモンド富士' : 'パール富士'}
-                          ({event.subType === 'rising' ? '昇る' : '沈む'})
-                        </h4>
-                      </div>
-                      
-                      <div style={{ fontSize: '0.75rem', color: '#6b7280', lineHeight: '1.4' }}>
-                        <p style={{ margin: '0.25rem 0' }}>
-                          ⏰ {event.time.toLocaleTimeString('ja-JP')}
-                        </p>
-                        <p style={{ margin: '0.25rem 0' }}>
-                          📍 {event.location.name} ({event.location.prefecture})
-                        </p>
-                        <p style={{ margin: '0.25rem 0' }}>
-                          ⛰️ 標高: {event.location.elevation}m
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p style={{ 
-                  color: '#6b7280',
-                  fontSize: '0.875rem',
-                  textAlign: 'center',
-                  padding: '1rem'
+                <span style={{ fontSize: '1.5rem', marginRight: '0.5rem' }}>📅</span>
+                <h3 style={{ 
+                  margin: 0,
+                  fontSize: '1.25rem',
+                  fontWeight: '700',
+                  color: '#1f2937'
                 }}>
-                  この日はイベントがありません
-                </p>
-              )}
+                  選択中の情報
+                </h3>
+              </div>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {/* 選択日付 */}
+                <div style={{
+                  padding: '0.75rem',
+                  backgroundColor: '#f0f9ff',
+                  borderRadius: '8px',
+                  border: '1px solid #bae6fd'
+                }}>
+                  <div style={{
+                    fontSize: '0.875rem',
+                    color: '#0369a1',
+                    fontWeight: '600',
+                    marginBottom: '0.25rem'
+                  }}>
+                    選択日付
+                  </div>
+                  <div style={{
+                    fontSize: '1rem',
+                    color: '#0c4a6e',
+                    fontWeight: '500'
+                  }}>
+                    {selectedDate.getFullYear()}年{selectedDate.getMonth() + 1}月{selectedDate.getDate()}日
+                  </div>
+                  <div style={{
+                    fontSize: '0.75rem',
+                    color: '#0369a1',
+                    marginTop: '0.25rem'
+                  }}>
+                    {['日', '月', '火', '水', '木', '金', '土'][selectedDate.getDay()]}曜日
+                  </div>
+                </div>
+
+                {/* 選択地点 */}
+                {selectedLocationId && locations.length > 0 && (() => {
+                  const selectedLocation = locations.find(loc => loc.id === selectedLocationId);
+                  return selectedLocation ? (
+                    <div style={{
+                      padding: '0.75rem',
+                      backgroundColor: '#f0fdf4',
+                      borderRadius: '8px',
+                      border: '1px solid #bbf7d0'
+                    }}>
+                      <div style={{
+                        fontSize: '0.875rem',
+                        color: '#166534',
+                        fontWeight: '600',
+                        marginBottom: '0.25rem'
+                      }}>
+                        選択地点
+                      </div>
+                      <div style={{
+                        fontSize: '1rem',
+                        color: '#14532d',
+                        fontWeight: '500',
+                        marginBottom: '0.25rem'
+                      }}>
+                        {selectedLocation.name}
+                      </div>
+                      <div style={{
+                        fontSize: '0.75rem',
+                        color: '#166534'
+                      }}>
+                        {selectedLocation.prefecture} • 標高{selectedLocation.elevation.toFixed(0)}m
+                      </div>
+                      {selectedLocation.fujiDistance && (
+                        <div style={{
+                          fontSize: '0.75rem',
+                          color: '#166534',
+                          marginTop: '0.25rem'
+                        }}>
+                          富士山まで約{selectedLocation.fujiDistance.toFixed(1)}km
+                        </div>
+                      )}
+                    </div>
+                  ) : null;
+                })()}
+
+                {/* イベント数 */}
+                {filteredEvents.length > 0 && (
+                  <div style={{
+                    padding: '0.75rem',
+                    backgroundColor: '#fef3c7',
+                    borderRadius: '8px',
+                    border: '1px solid #fbbf24'
+                  }}>
+                    <div style={{
+                      fontSize: '0.875rem',
+                      color: '#92400e',
+                      fontWeight: '600',
+                      marginBottom: '0.25rem'
+                    }}>
+                      この日のイベント
+                    </div>
+                    <div style={{
+                      fontSize: '1rem',
+                      color: '#78350f',
+                      fontWeight: '500'
+                    }}>
+                      {filteredEvents.length}件のイベント
+                    </div>
+                    <div style={{
+                      fontSize: '0.75rem',
+                      color: '#92400e',
+                      marginTop: '0.25rem'
+                    }}>
+                      {new Set(filteredEvents.map(e => e.location.id)).size}箇所の撮影地点
+                    </div>
+                  </div>
+                )}
+
+                {/* 天気情報（ある場合） */}
+                {weather && (
+                  <div style={{
+                    padding: '0.75rem',
+                    backgroundColor: '#fefce8',
+                    borderRadius: '8px',
+                    border: '1px solid #fde047'
+                  }}>
+                    <div style={{
+                      fontSize: '0.875rem',
+                      color: '#a16207',
+                      fontWeight: '600',
+                      marginBottom: '0.25rem'
+                    }}>
+                      天気予報
+                    </div>
+                    <div style={{
+                      fontSize: '1rem',
+                      color: '#713f12',
+                      fontWeight: '500',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem'
+                    }}>
+                      <span>{weather.condition === '晴れ' ? '☀️' : weather.condition === '曇り' ? '☁️' : weather.condition === '雨' ? '🌧️' : '❄️'}</span>
+                      {weather.condition}
+                    </div>
+                    <div style={{
+                      fontSize: '0.75rem',
+                      color: '#a16207',
+                      marginTop: '0.25rem'
+                    }}>
+                      撮影条件: {weather.recommendation === 'excellent' ? '最適' : weather.recommendation === 'good' ? '良い' : weather.recommendation === 'fair' ? '可能' : '困難'}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
-          {/* 撮影地点統計 */}
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '8px',
-            padding: '1rem',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-          }}>
-            <h3 style={{ 
-              margin: '0 0 1rem 0',
-              fontSize: '1.125rem',
-              fontWeight: '600',
-              color: '#1f2937'
-            }}>
-              📊 撮影地点情報
-            </h3>
-            <div style={{ fontSize: '0.875rem', color: '#4b5563' }}>
-              <p style={{ margin: '0.5rem 0' }}>
-                🗾 登録地点数: <strong>{locations.length}箇所</strong>
-              </p>
-              <p style={{ margin: '0.5rem 0', fontSize: '0.75rem', color: '#6b7280' }}>
-                ☁️ 天気情報は7日間の予報を表示
-              </p>
-            </div>
-          </div>
         </div>
       </div>
     </div>

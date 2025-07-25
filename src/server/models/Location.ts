@@ -1,6 +1,8 @@
 // import { Database, getDatabase } from '../database/connection'; // PostgreSQL移行により無効化
 import { Location, CreateLocationRequest } from '../../shared/types';
-import { astronomicalCalculator } from '../services/AstronomicalCalculatorAstronomyEngine';
+import { AstronomicalCalculatorImpl } from '../services/NewAstronomicalCalculator';
+
+const astronomicalCalculator = new AstronomicalCalculatorImpl();
 
 export class LocationModel {
   // private db: Database; // PostgreSQL移行により無効化

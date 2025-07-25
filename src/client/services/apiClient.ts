@@ -189,6 +189,12 @@ export class ApiClient {
     return handleResponse(response);
   }
 
+  // 天気情報を取得
+  async getWeather(date: string): Promise<WeatherInfo> {
+    const response = await fetch(`${this.baseUrl}/weather/${date}`);
+    return handleResponse(response);
+  }
+
   // ヘルスチェック
   async healthCheck(): Promise<{ status: string, timestamp: string, version: string }> {
     const response = await fetch(`${this.baseUrl}/health`);

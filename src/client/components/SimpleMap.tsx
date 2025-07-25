@@ -103,7 +103,7 @@ interface SimpleMapProps {
 }
 
 const SimpleMap: React.FC<SimpleMapProps> = ({
-  locations,
+  locations: _locations,
   selectedDate,
   selectedEvents,
   selectedLocationId,
@@ -160,9 +160,10 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
     L.marker([FUJI_COORDINATES.latitude, FUJI_COORDINATES.longitude], { icon: fujiIcon })
       .addTo(map);
 
-    // その日のイベントがある撮影地点のみを表示
+    // イベントがある撮影地点 + propsで渡された全地点を表示
     const eventLocations = selectedEvents?.map(event => event.location) || [];
-    const uniqueEventLocations = eventLocations.filter((location, index, self) => 
+    const allLocations = [..._locations, ...eventLocations];
+    const uniqueEventLocations = allLocations.filter((location, index, self) => 
       index === self.findIndex(l => l.id === location.id)
     );
 
@@ -272,13 +273,9 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
           console.log(`[DEBUG] location.fujiAzimuth vs event.azimuth の差: ${Math.abs(locationToFujiAzimuth - observerToSunMoonAzimuth).toFixed(2)}度`);
           console.log(`[DEBUG] location.fujiAzimuth vs Astronomy Engine計算値 の差: ${Math.abs(locationToFujiAzimuth - calculatedCelestial.azimuth).toFixed(2)}度`);
           
-          const lineDistance = 700000; // 700km in meters
+          // 方位角ラインの描画
           
-          // イベントタイプによる色分け
-          const lineColor = event.type === 'diamond' ? '#fbbf24' : '#a855f7'; // 金色（太陽）、紫（月）
-          const lineOpacity = event.type === 'diamond' ? 0.8 : 0.6;
-          
-          // 2本の線
+          // 2本の方位角ライン
           
           // 1. 撮影地→富士山の線（赤色）
           L.polyline([
@@ -286,30 +283,33 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
             [FUJI_COORDINATES.latitude, FUJI_COORDINATES.longitude]
           ], {
             color: '#ef4444', // 赤色
-            weight: 3,
-            opacity: 0.8,
-            dashArray: '5, 10'
+            weight: 4,
+            opacity: 0.9,
+            dashArray: '10, 5'
           }).addTo(map);
           
-          // 2. 富士山→太陽・月の180度反転方向の線（金色/紫）
-          const fujiToSunMoonAzimuth = event.azimuth; // 富士山→太陽・月の方位角
-          const reverseSunMoonAzimuth = (fujiToSunMoonAzimuth + 180) % 360; // 180度反転
+          // 2. 撮影地→太陽・月方向の線（ゴールド/紫）
+          const celestialAzimuth = calculatedCelestial.azimuth; // Astronomy Engine計算値を使用
+          const celestialDistance = 100000; // 撮影地点から100km先まで
           
-          const reverseSunMoonPoint = getPointAtDistance(
-            FUJI_COORDINATES.latitude,
-            FUJI_COORDINATES.longitude,
-            reverseSunMoonAzimuth,
-            350000 // 富士山から太陽・月の逆方向に350km
+          const celestialPoint = getPointAtDistance(
+            location.latitude,
+            location.longitude,
+            celestialAzimuth,
+            celestialDistance
           );
           
+          // 太陽の場合はゴールド、月の場合は薄い紫
+          const celestialColor = event.type === 'diamond' ? '#fbbf24' : '#c084fc';
+          
           L.polyline([
-            [FUJI_COORDINATES.latitude, FUJI_COORDINATES.longitude],
-            reverseSunMoonPoint
+            [location.latitude, location.longitude],
+            celestialPoint
           ], {
-            color: lineColor,
-            weight: 3,
-            opacity: lineOpacity,
-            dashArray: event.type === 'diamond' ? '8, 4' : '4, 8'
+            color: celestialColor,
+            weight: 4,
+            opacity: event.type === 'diamond' ? 0.9 : 0.7,
+            dashArray: event.type === 'diamond' ? '15, 5' : '8, 8'
           }).addTo(map);
           
         }

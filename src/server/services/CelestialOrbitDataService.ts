@@ -1,7 +1,9 @@
 import { prisma } from '../database/prisma';
 import { CelestialOrbitData, Prisma } from '@prisma/client';
 import { getComponentLogger, StructuredLogger } from '../../shared/utils/logger';
-import { astronomicalCalculator } from './AstronomicalCalculatorAstronomyEngine';
+import { AstronomicalCalculatorImpl } from './NewAstronomicalCalculator';
+
+const astronomicalCalculator = new AstronomicalCalculatorImpl();
 import { FUJI_COORDINATES } from '../../shared/types';
 
 interface CelestialDataPoint {
@@ -230,7 +232,7 @@ export class CelestialOrbitDataService {
           createdAt: new Date(),
           updatedAt: new Date()
         };
-        const sunPosition = await astronomicalCalculator.calculateSunPositionPrecise(utcTime, fujiLocation);
+        const sunPosition = astronomicalCalculator.calculateSunPositionPrecise(utcTime, fujiLocation);
         const sunVisible = sunPosition.elevation > -6; // 薄明を考慮
 
         dataPoints.push({
@@ -247,7 +249,7 @@ export class CelestialOrbitDataService {
         });
 
         // 月データ（標準的な観測地点として富士山を使用）
-        const moonPosition = await astronomicalCalculator.calculateMoonPositionPrecise(utcTime, fujiLocation);
+        const moonPosition = astronomicalCalculator.calculateMoonPositionPrecise(utcTime, fujiLocation);
         const moonVisible = moonPosition.elevation > -2; // 月の場合
         
         // 月相と照度を計算（Astronomy Engineから直接取得）

@@ -1,6 +1,8 @@
 import { getUnifiedDatabase, UnifiedDatabase } from '../database/connection-unified';
-import { astronomicalCalculator } from './AstronomicalCalculatorAstronomyEngine';
+import { AstronomicalCalculatorImpl } from './NewAstronomicalCalculator';
 import { getComponentLogger, StructuredLogger } from '../../shared/utils/logger';
+
+const astronomicalCalculator = new AstronomicalCalculatorImpl();
 
 interface SolarEvent {
   calculationYear: number;

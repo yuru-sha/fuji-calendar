@@ -1,6 +1,8 @@
 import { getUnifiedDatabase, UnifiedDatabase } from '../database/connection-unified';
 import { Location, CreateLocationRequest } from '../../shared/types';
-import { astronomicalCalculator } from '../services/AstronomicalCalculatorAstronomyEngine';
+import { AstronomicalCalculatorImpl } from '../services/NewAstronomicalCalculator';
+
+const astronomicalCalculator = new AstronomicalCalculatorImpl();
 
 export class LocationModel {
   private db: UnifiedDatabase;

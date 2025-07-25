@@ -167,29 +167,62 @@ const SimpleCalendar: React.FC<SimpleCalendarProps> = ({
               backgroundColor: day.events && day.events.events.length > 0 ? '#fef3c7' : 'white',
               textAlign: 'center',
               cursor: 'pointer',
-              minHeight: '60px',
+              minHeight: '70px',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
               opacity: day.isCurrentMonth ? 1 : 0.5,
               border: isSelectedDate(day.date) ? '2px solid #2563eb' : 'none',
-              boxShadow: isToday(day.date) ? 'inset 0 0 0 2px #10b981' : 'none'
+              boxShadow: isToday(day.date) ? 'inset 0 0 0 2px #10b981' : 'none',
+              position: 'relative'
             }}
           >
+            {/* 右上の星印インジケーター */}
+            {day.events && day.events.events.length > 0 && (
+              <div style={{ 
+                position: 'absolute',
+                top: '3px',
+                right: '3px',
+                fontSize: '14px',
+                color: '#f59e0b'
+              }}>
+                ⭐
+              </div>
+            )}
+            
             <div style={{ 
               fontSize: '0.875rem',
               color: day.date.getDay() === 0 ? '#dc2626' : 
-                    day.date.getDay() === 6 ? '#2563eb' : '#374151'
+                    day.date.getDay() === 6 ? '#2563eb' : '#374151',
+              fontWeight: day.events && day.events.events.length > 0 ? '600' : 'normal'
             }}>
               {day.date.getDate()}
             </div>
             
             {day.events && day.events.events.length > 0 && (
-              <div style={{ fontSize: '0.75rem', color: '#92400e' }}>
-                {day.events.events.some(e => e.type === 'diamond') && 
-                  `☀️${day.events.events.filter(e => e.type === 'diamond').length}`}
-                {day.events.events.some(e => e.type === 'pearl') && 
-                  `🌙${day.events.events.filter(e => e.type === 'pearl').length}`}
+              <div style={{ 
+                fontSize: '16px', 
+                color: '#92400e', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                gap: '2px',
+                flexWrap: 'wrap'
+              }}>
+                {day.events.events.some(e => e.type === 'diamond') && (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
+                    ☀️<span style={{ fontSize: '12px', fontWeight: '600' }}>
+                      {day.events.events.filter(e => e.type === 'diamond').length}
+                    </span>
+                  </span>
+                )}
+                {day.events.events.some(e => e.type === 'pearl') && (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
+                    🌙<span style={{ fontSize: '12px', fontWeight: '600' }}>
+                      {day.events.events.filter(e => e.type === 'pearl').length}
+                    </span>
+                  </span>
+                )}
               </div>
             )}
           </div>

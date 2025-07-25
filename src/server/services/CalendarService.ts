@@ -1,5 +1,5 @@
 import { CalendarEvent, CalendarResponse, EventsResponse, FujiEvent, WeatherInfo, Location } from '../../shared/types';
-import { AstronomicalCalculatorAstronomyEngine } from './AstronomicalCalculatorAstronomyEngine';
+import { AstronomicalCalculatorImpl } from './NewAstronomicalCalculator';
 import { LocationModel } from '../models/Location';
 import { EventsCacheModel } from '../models/EventsCache';
 // import { BatchCalculationService } from './BatchCalculationService'; // 無効化
@@ -10,13 +10,13 @@ export class CalendarService {
   private locationModel: LocationModel;
   private cacheModel: EventsCacheModel;
   // private batchService: BatchCalculationService; // 無効化
-  private astronomicalCalculator: AstronomicalCalculatorAstronomyEngine;
+  private astronomicalCalculator: AstronomicalCalculatorImpl;
   private logger: StructuredLogger;
 
   constructor() {
     this.locationModel = new LocationModel();
     this.cacheModel = new EventsCacheModel();
-    this.astronomicalCalculator = new AstronomicalCalculatorAstronomyEngine();
+    this.astronomicalCalculator = new AstronomicalCalculatorImpl();
     // this.batchService = new BatchCalculationService(); // 無効化
     this.logger = getComponentLogger('calendar-service');
   }

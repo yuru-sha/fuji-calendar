@@ -104,9 +104,6 @@ DATABASE_URL="postgresql://fuji_user:prod_password_change_me@localhost:5432/fuji
 
 # 管理者アカウント作成
 DATABASE_URL="postgresql://fuji_user:prod_password_change_me@localhost:5432/fuji_calendar" node scripts/admin/create-admin.js
-
-# 初期データ生成（サンプル地点 + 天体データ）
-DATABASE_URL="postgresql://fuji_user:prod_password_change_me@localhost:5432/fuji_calendar" node scripts/setup-initial-data.js
 ```
 
 ### 3. 本番環境のデプロイ
@@ -197,23 +194,20 @@ scripts/
 
 ## データベース初期設定
 
-### サンプルデータの確認
-
-初回起動時に以下の撮影地点が自動登録されます：
-
-1. 竜ヶ岳（山梨県）
-2. 三ツ峠山（山梨県）
-3. 海ほたるPA（千葉県）
-4. 江の島（神奈川県）
-5. 房総スカイライン鋸山PA（千葉県）
-6. 毛無山（静岡県）
-
 ### 管理者アカウントの作成
 
 ```bash
 # 管理者アカウントを作成（admin/admin123）
 node scripts/admin/create-admin.js
 ```
+
+### 撮影地点の登録
+
+セットアップ完了後、管理者画面から正確な撮影地点データを手動登録してください：
+
+1. **管理者ログイン**: http://localhost:3000 (admin / admin123)
+2. **地点登録**: 管理画面から撮影地点を登録
+3. **データ生成**: 地点登録時に自動でダイヤモンド富士・パール富士のイベントデータが計算されます
 
 ## 設定ファイル
 

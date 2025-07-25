@@ -78,7 +78,6 @@ DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calend
 
 # 3. Initial Setup
 DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" node scripts/admin/create-admin.js          # admin/admin123
-DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" node scripts/setup-initial-data.js          # Sample locations
 
 # 4. Start Application
 docker-compose -f docker-compose.dev.yml up -d

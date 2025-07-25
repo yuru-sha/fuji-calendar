@@ -11,7 +11,7 @@
 ### 超高速セットアップ（ワンライナー）
 ```bash
 # 全て一行で実行
-git clone <repository-url> && cd fuji-calendar && cp .env.example .env && mkdir -p data/postgres data/redis && docker-compose -f docker-compose.dev.yml up postgres -d && sleep 20 && DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" npx prisma migrate deploy && DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" node scripts/admin/create-admin.js && DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" node scripts/setup-initial-data.js && docker-compose -f docker-compose.dev.yml up -d
+git clone <repository-url> && cd fuji-calendar && cp .env.example .env && mkdir -p data/postgres data/redis && docker-compose -f docker-compose.dev.yml up postgres -d && sleep 20 && DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" npx prisma migrate deploy && DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" node scripts/admin/create-admin.js && docker-compose -f docker-compose.dev.yml up -d
 ```
 
 ### 1. リポジトリクローン
@@ -39,9 +39,6 @@ DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calend
 
 # 管理者アカウント作成（admin/admin123）
 DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" node scripts/admin/create-admin.js
-
-# サンプルデータ生成
-DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" node scripts/setup-initial-data.js
 ```
 
 ### 3. アプリケーション起動
@@ -59,16 +56,13 @@ curl http://localhost:3000/api/health
 - **フロントエンド**: http://localhost:3000
 - **管理者ログイン**: admin / admin123
 
-## 📋 初期データ
+## 📋 初期セットアップ後の作業
 
-起動時に6つのサンプル撮影地点が自動登録されます：
+セットアップ完了後、管理者画面で撮影地点を登録してください：
 
-1. **竜ヶ岳**（山梨県） - 富士五湖エリアの定番
-2. **三ツ峠山**（山梨県） - 河口湖を含む絶景
-3. **海ほたるPA**（千葉県） - 東京湾越しのダイヤモンド富士
-4. **江の島**（神奈川県） - 湘南からの夕日富士
-5. **房総スカイライン鋸山PA**（千葉県） - 東京湾の絶景スポット
-6. **毛無山**（静岡県） - 朝霧高原からのパール富士
+1. **管理者ログイン**: http://localhost:3000 (admin / admin123)
+2. **地点登録**: 管理画面から正確な撮影地点データを手動登録
+3. **データ生成**: 地点登録時に自動でダイヤモンド富士・パール富士のイベントデータが計算されます
 
 ## 🛠️ トラブルシューティング
 

@@ -41,7 +41,6 @@ model Location {
   @@map("locations")
 }
 
-
 model LocationFujiEvent {
   id               BigInt    @id @default(autoincrement())
   locationId       Int       @map("location_id")

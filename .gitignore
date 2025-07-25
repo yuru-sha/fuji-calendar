@@ -82,7 +82,8 @@ temp/
 # Claude Code settings
 .claude/settings.local.json
 
-# Fuji Calendar data
-data/
+# Fuji Calendar data (except structure)
+data/*
+!data/.gitkeep
 
 /generated/prisma

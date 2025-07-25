@@ -92,6 +92,9 @@ FRONTEND_URL=https://your-domain.com
 ### 2. 初期セットアップ
 
 ```bash
+# データベースとRedisのデータディレクトリ作成
+mkdir -p data/postgres data/redis
+
 # データベース起動
 docker-compose up postgres -d
 sleep 20  # PostgreSQL起動待ち

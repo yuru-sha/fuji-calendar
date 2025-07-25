@@ -11,7 +11,7 @@
 ### 超高速セットアップ（ワンライナー）
 ```bash
 # 全て一行で実行
-git clone <repository-url> && cd fuji-calendar && cp .env.example .env && docker-compose -f docker-compose.dev.yml up postgres -d && sleep 20 && DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" npx prisma migrate deploy && DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" node scripts/admin/create-admin.js && DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" node scripts/setup-initial-data.js && docker-compose -f docker-compose.dev.yml up -d
+git clone <repository-url> && cd fuji-calendar && cp .env.example .env && mkdir -p data/postgres data/redis && docker-compose -f docker-compose.dev.yml up postgres -d && sleep 20 && DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" npx prisma migrate deploy && DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" node scripts/admin/create-admin.js && DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" node scripts/setup-initial-data.js && docker-compose -f docker-compose.dev.yml up -d
 ```
 
 ### 1. リポジトリクローン
@@ -26,6 +26,9 @@ cd fuji-calendar
 ```bash
 # 環境変数コピー
 cp .env.example .env
+
+# データディレクトリ作成
+mkdir -p data/postgres data/redis
 
 # データベース起動
 docker-compose -f docker-compose.dev.yml up postgres -d

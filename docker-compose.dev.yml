@@ -14,7 +14,6 @@ services:
       - TZ=Asia/Tokyo
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
-      - ./src/server/database/schema-postgres.sql:/docker-entrypoint-initdb.d/01-schema.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U fuji_user -d fuji_calendar"]
       interval: 30s
@@ -83,10 +82,6 @@ services:
     command: npm run dev
     networks:
       - fuji_calendar_network
-
-volumes:
-  postgres_data:
-    driver: local
 
 networks:
   fuji_calendar_network:

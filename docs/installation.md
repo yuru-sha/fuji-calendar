@@ -29,17 +29,18 @@ cd fuji-calendar
 # 環境変数ファイルをコピー
 cp .env.example .env
 
-# データベースマイグレーション実行
+# データベース起動とマイグレーション実行
 docker-compose -f docker-compose.dev.yml up postgres -d
-sleep 10  # PostgreSQL起動待ち
-docker-compose -f docker-compose.dev.yml exec postgres psql -U fuji_user -d fuji_calendar -c "SELECT version();"
-npx prisma migrate deploy
+sleep 15  # PostgreSQL起動待ち
+
+# ローカル接続でマイグレーション実行
+DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" npx prisma migrate deploy
 
 # 管理者アカウント作成
-node scripts/admin/create-admin.js
+DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" node scripts/admin/create-admin.js
 
 # 初期データ生成
-node scripts/setup-initial-data.js
+DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" node scripts/setup-initial-data.js
 ```
 
 ### 3. 開発環境の起動
@@ -93,16 +94,16 @@ FRONTEND_URL=https://your-domain.com
 ```bash
 # データベース起動
 docker-compose up postgres -d
-sleep 15  # PostgreSQL起動待ち
+sleep 20  # PostgreSQL起動待ち
 
-# データベースマイグレーション
-npx prisma migrate deploy
+# データベースマイグレーション（ローカル接続）
+DATABASE_URL="postgresql://fuji_user:prod_password_change_me@localhost:5432/fuji_calendar" npx prisma migrate deploy
 
 # 管理者アカウント作成
-node scripts/admin/create-admin.js
+DATABASE_URL="postgresql://fuji_user:prod_password_change_me@localhost:5432/fuji_calendar" node scripts/admin/create-admin.js
 
 # 初期データ生成（サンプル地点 + 天体データ）
-node scripts/setup-initial-data.js
+DATABASE_URL="postgresql://fuji_user:prod_password_change_me@localhost:5432/fuji_calendar" node scripts/setup-initial-data.js
 ```
 
 ### 3. 本番環境のデプロイ

@@ -73,12 +73,12 @@ cp .env.example .env
 
 # 2. Database Migration
 docker-compose -f docker-compose.dev.yml up postgres -d
-sleep 10
-npx prisma migrate deploy
+sleep 15
+DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" npx prisma migrate deploy
 
 # 3. Initial Setup
-node scripts/admin/create-admin.js          # admin/admin123
-node scripts/setup-initial-data.js          # Sample locations
+DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" node scripts/admin/create-admin.js          # admin/admin123
+DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" node scripts/setup-initial-data.js          # Sample locations
 
 # 4. Start Application
 docker-compose -f docker-compose.dev.yml up -d

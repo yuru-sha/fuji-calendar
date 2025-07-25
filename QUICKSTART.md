@@ -8,6 +8,12 @@
 - Docker 20.10以上 & Docker Compose v2
 - Node.js 18以上（初期設定のみ）
 
+### 超高速セットアップ（ワンライナー）
+```bash
+# 全て一行で実行
+git clone <repository-url> && cd fuji-calendar && cp .env.example .env && docker-compose -f docker-compose.dev.yml up postgres -d && sleep 20 && DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" npx prisma migrate deploy && DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" node scripts/admin/create-admin.js && DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" node scripts/setup-initial-data.js && docker-compose -f docker-compose.dev.yml up -d
+```
+
 ### 1. リポジトリクローン
 
 ```bash
@@ -21,16 +27,18 @@ cd fuji-calendar
 # 環境変数コピー
 cp .env.example .env
 
-# データベース起動 & マイグレーション
+# データベース起動
 docker-compose -f docker-compose.dev.yml up postgres -d
-sleep 10
-npx prisma migrate deploy
+sleep 15
+
+# 環境変数を一時的にローカル接続用に設定してマイグレーション実行
+DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" npx prisma migrate deploy
 
 # 管理者アカウント作成（admin/admin123）
-node scripts/admin/create-admin.js
+DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" node scripts/admin/create-admin.js
 
 # サンプルデータ生成
-node scripts/setup-initial-data.js
+DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" node scripts/setup-initial-data.js
 ```
 
 ### 3. アプリケーション起動
@@ -63,11 +71,28 @@ curl http://localhost:3000/api/health
 
 ### データベース接続エラー
 ```bash
-# PostgreSQL接続テスト
-node scripts/testing/test-postgres-connection.js
+# PostgreSQLコンテナが起動しているか確認
+docker ps | grep postgres
 
-# データベース状態確認
-node scripts/testing/check_db_status.js
+# PostgreSQL接続テスト（ローカルポート経由）
+docker exec $(docker ps --filter name=postgres --format "{{.ID}}") psql -U fuji_user -d fuji_calendar -c "SELECT version();"
+
+# マイグレーション再実行（接続情報を明示）
+DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" npx prisma migrate deploy
+```
+
+### Prismaエラー (P1001: Can't reach database server)
+```bash
+# PostgreSQLが完全に起動するまで待機
+docker-compose -f docker-compose.dev.yml up postgres -d
+sleep 20
+
+# ローカルホスト経由で接続確認
+psql -h localhost -U fuji_user -d fuji_calendar -c "SELECT 1;"
+# パスワード: dev_password_123
+
+# それでもエラーの場合は、コンテナを再起動
+docker-compose -f docker-compose.dev.yml restart postgres
 ```
 
 ### ポート競合エラー

@@ -1,8 +1,8 @@
 import { useReducer, useCallback } from 'react';
-import { CalendarResponse, EventsResponse, FujiEvent, Location } from '../../shared/types';
-import { apiClient, getErrorMessage } from '../services/apiClient';
+import { CalendarResponse, EventsResponse, FujiEvent, Location } from '@/shared/types';
+import { apiClient, getErrorMessage } from '@/client/services/apiClient';
 
-// State型定義
+// State 型定義
 export interface CalendarState {
   calendarData: CalendarResponse | null;
   dayEvents: EventsResponse | null;
@@ -16,7 +16,7 @@ export interface CalendarState {
   currentMonth: number;
 }
 
-// Action型定義
+// Action 型定義
 export type CalendarAction =
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }
@@ -43,7 +43,7 @@ const initialState: CalendarState = {
   currentMonth: new Date().getMonth() + 1,
 };
 
-// Reducer関数
+// Reducer 関数
 function calendarReducer(state: CalendarState, action: CalendarAction): CalendarState {
   switch (action.type) {
     case 'SET_LOADING':
@@ -90,7 +90,7 @@ function calendarReducer(state: CalendarState, action: CalendarAction): Calendar
   }
 }
 
-// Actions型定義
+// Actions 型定義
 export interface UseCalendarActions {
   loadMonthlyCalendar: (year: number, month: number) => Promise<void>;
   loadDayEvents: (date: string) => Promise<void>;
@@ -101,7 +101,7 @@ export interface UseCalendarActions {
   setCurrentDate: (year: number, month: number) => void;
 }
 
-// useCalendar Hook（useReducer版）
+// useCalendar Hook（useReducer 版）
 export function useCalendar(): CalendarState & UseCalendarActions {
   const [state, dispatch] = useReducer(calendarReducer, initialState);
 
@@ -122,7 +122,7 @@ export function useCalendar(): CalendarState & UseCalendarActions {
     dispatch({ type: 'SET_CURRENT_DATE', payload: { year, month } });
   }, []);
 
-  // API呼び出しメソッド
+  // API 呼び出しメソッド
   const loadMonthlyCalendar = useCallback(async (year: number, month: number) => {
     setLoading(true);
     setError(null);

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { CalendarResponse, EventsResponse, FujiEvent, Location } from '../../shared/types';
-import { apiClient, getErrorMessage } from '../services/apiClient';
+import { CalendarResponse, EventsResponse, FujiEvent, Location } from '@/shared/types';
+import { apiClient, getErrorMessage } from '@/client/services/apiClient';
 
 export interface UseCalendarState {
   calendarData: CalendarResponse | null;

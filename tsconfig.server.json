@@ -20,7 +20,9 @@
     "paths": {
       "@/*": ["src/*"],
       "@/shared/*": ["src/shared/*"],
-      "@/server/*": ["src/server/*"]
+      "@/server/*": ["src/server/*"],
+      "@/api": ["src/shared/api"],
+      "@/lib": ["src/server/lib"]
     },
     "declaration": false,
     "sourceMap": false

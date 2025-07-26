@@ -1,9 +1,9 @@
 import React, { useMemo, memo } from 'react';
-import { CalendarEvent, FujiEvent } from '../../shared/types';
-import { timeUtils } from '../../shared/utils/timeUtils';
+import { CalendarEvent, FujiEvent } from '@/shared/types';
+import { timeUtils } from '@/shared/utils/timeUtils';
 import styles from './Calendar.module.css';
-import diamondFujiIcon from '../assets/icons/diamond_fuji_small.png';
-import pearlFujiIcon from '../assets/icons/pearl_fuji_small.png';
+import diamondFujiIcon from '@/client/assets/icons/diamond_fuji_small.png';
+import pearlFujiIcon from '@/client/assets/icons/pearl_fuji_small.png';
 
 interface CalendarProps {
   year: number;
@@ -158,11 +158,11 @@ const Calendar: React.FC<CalendarProps> = memo(({
 
   const formatEventCount = (events: FujiEvent[]): string => {
     if (events.length === 0) return '';
-    if (events.length === 1) return '1件';
+    if (events.length === 1) return '1 件';
     return `${events.length}件`;
   };
 
-  // 年の選択肢を生成（現在年から前後10年）
+  // 年の選択肢を生成（現在年から前後 10 年）
   const generateYearOptions = () => {
     const currentYear = new Date().getFullYear();
     const years = [];
@@ -174,8 +174,8 @@ const Calendar: React.FC<CalendarProps> = memo(({
 
   // 月の選択肢を生成
   const monthNames = [
-    '1月', '2月', '3月', '4月', '5月', '6月',
-    '7月', '8月', '9月', '10月', '11月', '12月'
+    '1 月', '2 月', '3 月', '4 月', '5 月', '6 月',
+    '7 月', '8 月', '9 月', '10 月', '11 月', '12 月'
   ];
 
   return (

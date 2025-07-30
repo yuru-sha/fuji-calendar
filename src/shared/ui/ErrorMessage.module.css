@@ -1,0 +1,71 @@
+/* 共通エラーメッセージ */
+.errorMessage {
+  @apply p-4 rounded-lg border;
+  background-color: #fef2f2;
+  border-color: #fecaca;
+  color: #dc2626;
+}
+
+.error {
+  background-color: #fef2f2;
+  border-color: #fecaca;
+  color: #dc2626;
+}
+
+.warning {
+  background-color: #fefbf2;
+  border-color: #fed7aa;
+  color: #d97706;
+}
+
+.info {
+  background-color: #eff6ff;
+  border-color: #bfdbfe;
+  color: #2563eb;
+}
+
+.header {
+  @apply flex items-center gap-2 mb-2;
+}
+
+.icon {
+  @apply text-lg;
+}
+
+.title {
+  @apply text-sm font-semibold m-0;
+}
+
+.message {
+  @apply text-sm mb-3 m-0;
+}
+
+.retryButton {
+  @apply px-3 py-1 text-sm font-medium rounded border;
+  background-color: transparent;
+  transition: all 0.2s ease;
+}
+
+.error .retryButton {
+  @apply border-red-300 text-red-700;
+}
+
+.error .retryButton:hover {
+  @apply bg-red-50 border-red-400;
+}
+
+.warning .retryButton {
+  @apply border-orange-300 text-orange-700;
+}
+
+.warning .retryButton:hover {
+  @apply bg-orange-50 border-orange-400;
+}
+
+.info .retryButton {
+  @apply border-blue-300 text-blue-700;
+}
+
+.info .retryButton:hover {
+  @apply bg-blue-50 border-blue-400;
+}

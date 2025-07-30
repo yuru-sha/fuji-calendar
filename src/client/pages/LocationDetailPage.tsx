@@ -38,7 +38,7 @@ const LocationDetailPage: React.FC = () => {
         
         setLocation(foundLocation);
         
-        // 今後3ヶ月間のイベントを取得
+        // 今後 3 ヶ月間のイベントを取得
         const today = new Date();
         const events: FujiEvent[] = [];
         
@@ -50,7 +50,7 @@ const LocationDetailPage: React.FC = () => {
               targetDate.getMonth() + 1
             );
             
-            // この地点のイベントのみフィルタリング（FujiEventの型のみ）
+            // この地点のイベントのみフィルタリング（FujiEvent の型のみ）
             const locationEvents = calendarResponse.events.filter(event => 
               'location' in event && (event as any).location.id === foundLocation.id
             ) as unknown as FujiEvent[];
@@ -187,7 +187,7 @@ const LocationDetailPage: React.FC = () => {
           </div>
         </div>
 
-        {/* 2カラムレイアウト */}
+        {/* 2 カラムレイアウト */}
         <div className={styles.content}>
           {/* 左カラム: 地点情報 */}
           <div className={styles.leftColumn}>
@@ -221,7 +221,7 @@ const LocationDetailPage: React.FC = () => {
                   <div className={styles.infoItem}>
                     <span className={styles.infoLabel}>富士山の方角:</span>
                     <span className={styles.infoValue}>
-                      {getCompassDirection(location.fujiAzimuth)}（{Math.round(location.fujiAzimuth)}°）
+                      {location.fujiAzimuth ? `${getCompassDirection(location.fujiAzimuth)}（${Math.round(location.fujiAzimuth)}°）` : '計算中'}
                     </span>
                   </div>
                 )}
@@ -262,7 +262,7 @@ const LocationDetailPage: React.FC = () => {
               
               {upcomingEvents.length === 0 ? (
                 <div className={styles.noEvents}>
-                  <p>今後3ヶ月間に撮影可能なダイヤモンド富士・パール富士はありません。</p>
+                  <p>今後 3 ヶ月間に撮影可能なダイヤモンド富士・パール富士はありません。</p>
                 </div>
               ) : (
                 <div className={styles.eventsList}>

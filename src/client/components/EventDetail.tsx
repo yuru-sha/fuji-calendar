@@ -31,8 +31,8 @@ const EventDetail: React.FC<EventDetailProps> = memo(({
     return new Set();
   });
 
-  // HomePage側で選択管理されるため、ここでの自動選択は不要
-  // （HomePageのhandleDateClickで最初の地点が自動選択される）
+  // HomePage 側で選択管理されるため、ここでの自動選択は不要
+  // （HomePage の handleDateClick で最初の地点が自動選択される）
   const formatTime = (time: Date): string => {
     return timeUtils.formatJstTime(time);
   };
@@ -45,7 +45,7 @@ const EventDetail: React.FC<EventDetailProps> = memo(({
       '西', '西北西', '北西', '北北西'
     ];
     
-    // 方位角を16方位に変換
+    // 方位角を 16 方位に変換
     const index = Math.round(azimuth / 22.5) % 16;
     return directions[index];
   };
@@ -300,7 +300,7 @@ const EventDetail: React.FC<EventDetailProps> = memo(({
                               <button 
                                 className={styles.googleMapsButton}
                                 onClick={() => handleGoogleMapsClick(event)}
-                                title="Google Mapsでルート検索"
+                                title="Google Maps でルート検索"
                               >
                                 🗺️ ルート検索
                               </button>
@@ -357,7 +357,7 @@ const EventDetail: React.FC<EventDetailProps> = memo(({
                               <div className={styles.detailItem}>
                                 <span className={styles.detailLabel}>富士山の方角:</span>
                                 <span className={styles.detailValue}>
-                                  {getCompassDirection(location.fujiAzimuth)}（{Math.round(location.fujiAzimuth)}°）
+                                  {location.fujiAzimuth ? `${getCompassDirection(location.fujiAzimuth)}（${Math.round(location.fujiAzimuth)}°）` : '計算中'}
                                 </span>
                               </div>
                             )}

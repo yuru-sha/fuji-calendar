@@ -52,8 +52,17 @@ export class EventCacheService {
         fujiDistance: loc.fujiDistance ? Number(loc.fujiDistance) : undefined
       }));
 
-      // 年間イベントを計算
-      const events = this.astronomicalCalculator.calculateYearlyEvents(year, locationTyped);
+      // 年間イベントを計算（各地点・各月ごとに実行）
+      const allEvents: Array<{ location: Location; events: FujiEvent[] }> = [];
+      
+      for (const location of locationTyped) {
+        const events = await this.astronomicalCalculator.calculateLocationYearlyEvents(year, location);
+        allEvents.push({ location, events });
+      }
+
+      const events = allEvents.flatMap(item => 
+        item.events.map(event => ({ ...event, location: item.location }))
+      );
 
       // データベースに保存
       const savedEvents = await Promise.all(
@@ -152,7 +161,7 @@ export class EventCacheService {
       });
 
       // 月間イベントを計算
-      const events = this.astronomicalCalculator.calculateMonthlyEvents(year, month, [locationTyped]);
+      const events = await this.astronomicalCalculator.calculateMonthlyEvents(year, month, [locationTyped]);
 
       // データベースに保存
       const savedEvents = await Promise.all(
@@ -252,9 +261,9 @@ export class EventCacheService {
       });
 
       // その日のイベントを計算
-      const date = new Date(year, month - 1, day, 12, 0, 0, 0); // JST正午基準
-      const diamondEvents = this.astronomicalCalculator.calculateDiamondFuji(date, [locationTyped]);
-      const pearlEvents = this.astronomicalCalculator.calculatePearlFuji(date, [locationTyped]);
+      const date = new Date(year, month - 1, day, 12, 0, 0, 0); // JST 正午基準
+      const diamondEvents = await this.astronomicalCalculator.calculateDiamondFuji(date, [locationTyped]);
+      const pearlEvents = await this.astronomicalCalculator.calculatePearlFuji(date, [locationTyped]);
       const events = [...diamondEvents, ...pearlEvents];
 
       // データベースに保存
@@ -351,7 +360,7 @@ export class EventCacheService {
       });
 
       // 年間イベントを計算
-      const events = this.astronomicalCalculator.calculateLocationYearlyEvents(year, locationTyped);
+      const events = await this.astronomicalCalculator.calculateLocationYearlyEvents(year, locationTyped);
 
       // データベースに保存
       const savedEvents = await Promise.all(
@@ -409,7 +418,7 @@ export class EventCacheService {
   }
 
   /**
-   * イベントタイプをEnum値にマッピング
+   * イベントタイプを Enum 値にマッピング
    */
   private getEventType(event: FujiEvent): 'diamond_sunrise' | 'diamond_sunset' | 'pearl_moonrise' | 'pearl_moonset' {
     if (event.type === 'diamond') {
@@ -420,7 +429,7 @@ export class EventCacheService {
   }
 
   /**
-   * 精度レベルをEnum値にマッピング
+   * 精度レベルを Enum 値にマッピング
    */
   private mapAccuracy(accuracy?: 'perfect' | 'excellent' | 'good' | 'fair'): 'perfect' | 'excellent' | 'good' | 'fair' | null {
     switch (accuracy) {
@@ -433,10 +442,10 @@ export class EventCacheService {
   }
 
   /**
-   * JST時刻から日付のみを抽出してJST基準の日付オブジェクトを作成
+   * JST 時刻から日付のみを抽出して JST 基準の日付オブジェクトを作成
    */
   private createJstDateOnly(jstDateTime: Date): Date {
-    // JST時刻の年月日を取得
+    // JST 時刻の年月日を取得
     const jstTimeString = jstDateTime.toLocaleString('ja-JP', {
       timeZone: 'Asia/Tokyo',
       year: 'numeric',
@@ -446,10 +455,10 @@ export class EventCacheService {
     
     const [year, month, day] = jstTimeString.split('/').map(n => parseInt(n));
     
-    // その日のJST 00:00:00に相当するUTC時刻を作成
+    // その日の JST 00:00:00 に相当する UTC 時刻を作成
     // JST 2026-01-01 00:00:00 = UTC 2025-12-31 15:00:00
-    // しかしPostgreSQLに保存する際は、JST日付として2026-01-01を保存したい
-    // そのためUTC時刻でも同じ日付（2026-01-01）になるように調整
+    // しかし PostgreSQL に保存する際は、JST 日付として 2026-01-01 を保存したい
+    // そのため UTC 時刻でも同じ日付（2026-01-01）になるように調整
     return new Date(Date.UTC(year, month - 1, day, 9, 0, 0, 0)); // UTC 09:00 = JST 18:00（同日）
   }
 }

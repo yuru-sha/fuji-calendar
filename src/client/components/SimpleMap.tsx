@@ -5,7 +5,7 @@ import * as Astronomy from 'astronomy-engine';
 import { Location, FujiEvent, FUJI_COORDINATES } from '../../shared/types';
 import { CameraSettings } from './CameraPanel';
 
-// Leafletのアイコン設定を修正
+// Leaflet のアイコン設定を修正
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl: unknown })._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -69,7 +69,7 @@ const getPointAtDistance = (lat: number, lng: number, bearing: number, distance:
   return [newLatRad * (180 / Math.PI), newLngRad * (180 / Math.PI)];
 };
 
-// Astronomy Engineを使用した高精度な天体位置計算
+// Astronomy Engine を使用した高精度な天体位置計算
 const calculateSunPosition = (date: Date, latitude: number, longitude: number, elevation: number = 0): { azimuth: number; elevation: number } => {
   const observer = new Astronomy.Observer(latitude, longitude, elevation);
   const sunEquatorial = Astronomy.Equator(Astronomy.Body.Sun, date, observer, true, true);
@@ -160,10 +160,9 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
     L.marker([FUJI_COORDINATES.latitude, FUJI_COORDINATES.longitude], { icon: fujiIcon })
       .addTo(map);
 
-    // イベントがある撮影地点 + propsで渡された全地点を表示
+    // その日にイベントがある地点のみを表示
     const eventLocations = selectedEvents?.map(event => event.location) || [];
-    const allLocations = [..._locations, ...eventLocations];
-    const uniqueEventLocations = allLocations.filter((location, index, self) => 
+    const uniqueEventLocations = eventLocations.filter((location, index, self) => 
       index === self.findIndex(l => l.id === location.id)
     );
 
@@ -248,7 +247,7 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
       // 選択された地点の方位角ラインのみ表示
       if (isSelected && hasEvents) {
 
-        // 選択されたイベントIDがある場合はそのイベントのみ、なければ最初のイベント
+        // 選択されたイベント ID がある場合はそのイベントのみ、なければ最初のイベント
         const targetEvent = selectedEventId 
           ? locationEvents.find(e => e.id === selectedEventId)
           : locationEvents[0];
@@ -258,24 +257,24 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
           const locationToFujiAzimuth = location.fujiAzimuth || 0; // 撮影地点から富士山への方位角
           const observerToSunMoonAzimuth = event.azimuth; // 撮影地点から見た太陽・月の方位角（イベントデータから取得）
           
-          // Astronomy Engineを使用したリアルタイム天体位置計算（高精度）
+          // Astronomy Engine を使用したリアルタイム天体位置計算（高精度）
           const calculatedSun = calculateSunPosition(event.time, location.latitude, location.longitude, location.elevation);
           const calculatedMoon = calculateMoonPosition(event.time, location.latitude, location.longitude, location.elevation);
           const calculatedCelestial = event.type === 'diamond' ? calculatedSun : calculatedMoon;
           
-          // デバッグ用ログ（Astronomy Engine高精度計算）
+          // デバッグ用ログ（Astronomy Engine 高精度計算）
           console.log(`[DEBUG] Location: ${location.name} (標高: ${location.elevation}m)`);
           console.log(`[DEBUG] Event ID: ${event.id}, Type: ${event.type}, Time: ${event.time}`);
           console.log(`[DEBUG] 撮影地点→富士山の方位角: ${locationToFujiAzimuth.toFixed(2)}度`);
-          console.log(`[DEBUG] イベントデータのazimuth: ${observerToSunMoonAzimuth.toFixed(2)}度`);
-          console.log(`[DEBUG] Astronomy Engine計算${event.type === 'diamond' ? '太陽' : '月'}の方位角: ${calculatedCelestial.azimuth.toFixed(2)}度`);
-          console.log(`[DEBUG] Astronomy Engine計算${event.type === 'diamond' ? '太陽' : '月'}の高度: ${calculatedCelestial.elevation.toFixed(2)}度`);
+          console.log(`[DEBUG] イベントデータの azimuth: ${observerToSunMoonAzimuth.toFixed(2)}度`);
+          console.log(`[DEBUG] Astronomy Engine 計算${event.type === 'diamond' ? '太陽' : '月'}の方位角: ${calculatedCelestial.azimuth.toFixed(2)}度`);
+          console.log(`[DEBUG] Astronomy Engine 計算${event.type === 'diamond' ? '太陽' : '月'}の高度: ${calculatedCelestial.elevation.toFixed(2)}度`);
           console.log(`[DEBUG] location.fujiAzimuth vs event.azimuth の差: ${Math.abs(locationToFujiAzimuth - observerToSunMoonAzimuth).toFixed(2)}度`);
-          console.log(`[DEBUG] location.fujiAzimuth vs Astronomy Engine計算値 の差: ${Math.abs(locationToFujiAzimuth - calculatedCelestial.azimuth).toFixed(2)}度`);
+          console.log(`[DEBUG] location.fujiAzimuth vs Astronomy Engine 計算値 の差: ${Math.abs(locationToFujiAzimuth - calculatedCelestial.azimuth).toFixed(2)}度`);
           
           // 方位角ラインの描画
           
-          // 2本の方位角ライン
+          // 2 本の方位角ライン
           
           // 1. 撮影地→富士山の線（赤色）
           L.polyline([
@@ -289,8 +288,8 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
           }).addTo(map);
           
           // 2. 撮影地→太陽・月方向の線（ゴールド/紫）
-          const celestialAzimuth = calculatedCelestial.azimuth; // Astronomy Engine計算値を使用
-          const celestialDistance = 100000; // 撮影地点から100km先まで
+          const celestialAzimuth = calculatedCelestial.azimuth; // Astronomy Engine 計算値を使用
+          const celestialDistance = 100000; // 撮影地点から 100km 先まで
           
           const celestialPoint = getPointAtDistance(
             location.latitude,

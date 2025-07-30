@@ -5,21 +5,52 @@ import { getComponentLogger } from '../../shared/utils/logger';
 
 import { batchCalculationService } from './BatchCalculationService';
 
-import { HistoricalEventsModel } from '../models/HistoricalEvents';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 const logger = getComponentLogger('queue-service');
 
-// Redis接続設定
+// Redis 接続設定
 const redisConfig = {
   host: process.env.REDIS_HOST || 'localhost',
   port: parseInt(process.env.REDIS_PORT || '6379'),
   retryDelayOnFailover: 100,
   enableReadyCheck: false,
   maxRetriesPerRequest: null,
+  connectTimeout: 5000,
+  lazyConnect: true
 };
 
-// Redis接続インスタンス
-const redisConnection = new IORedis(redisConfig);
+// Redis 接続インスタンス
+let redisConnection: IORedis | null = null;
+
+// Redis 無効化フラグをチェック
+if (process.env.DISABLE_REDIS !== 'true') {
+  redisConnection = new IORedis(redisConfig);
+
+  // Redis 接続エラーハンドリング
+  redisConnection.on('error', (error) => {
+    logger.error('Redis 接続エラー', error);
+  });
+
+  redisConnection.on('connect', () => {
+    logger.info('Redis 接続成功', {
+      host: redisConfig.host,
+      port: redisConfig.port
+    });
+  });
+
+  redisConnection.on('ready', () => {
+    logger.info('Redis 準備完了');
+  });
+
+  redisConnection.on('close', () => {
+    logger.warn('Redis 接続クローズ');
+  });
+} else {
+  logger.info('Redis 無効化フラグにより、Redis 接続をスキップします');
+}
 
 export interface LocationCalculationJob {
   locationId: number;
@@ -55,35 +86,77 @@ export interface HistoricalCalculationJob {
 }
 
 export class QueueService {
-  private locationQueue: Queue<LocationCalculationJob>;
-  private monthlyQueue: Queue<MonthlyCalculationJob>;
-  private dailyQueue: Queue<DailyCalculationJob>;
-  private historicalQueue: Queue<HistoricalCalculationJob>;
-  // BatchCalculationServiceはシングルトンを使用
-  private historicalModel: HistoricalEventsModel;
+  private locationQueue!: Queue<LocationCalculationJob>;
+  private monthlyQueue!: Queue<MonthlyCalculationJob>;
+  private dailyQueue!: Queue<DailyCalculationJob>;
+  private historicalQueue!: Queue<HistoricalCalculationJob>;
+  // BatchCalculationService はシングルトンを使用
+  // Prisma を使用するため、historicalModel プロパティは削除
   private workers: Worker[] = [];
+  private isRedisAvailable: boolean = false;
 
   constructor() {
-    // キューの初期化
-    this.locationQueue = new Queue('location-calculation', { connection: redisConnection });
-    this.monthlyQueue = new Queue('monthly-calculation', { connection: redisConnection });
-    this.dailyQueue = new Queue('daily-calculation', { connection: redisConnection });
-    this.historicalQueue = new Queue('historical-calculation', { connection: redisConnection });
-    
-    // BatchCalculationServiceはシングルトンを使用
-    this.historicalModel = new HistoricalEventsModel();
-    
-    // 起動時に全キューをクリア
-    this.clearAllQueues();
-    
-    this.initializeWorkers();
-    
-    logger.info('Queue service initialized', {
-      queues: ['location-calculation', 'monthly-calculation', 'daily-calculation', 'historical-calculation']
-    });
+    try {
+      // Redis が無効化されている場合はキューを初期化しない
+      if (!redisConnection) {
+        this.isRedisAvailable = false;
+        // Prisma を使用するため削除
+        logger.info('Queue service initialized (Redis disabled, direct execution mode)');
+        return;
+      }
+
+      // キューの初期化
+      this.locationQueue = new Queue('location-calculation', { connection: redisConnection || undefined });
+      this.monthlyQueue = new Queue('monthly-calculation', { connection: redisConnection || undefined });
+      this.dailyQueue = new Queue('daily-calculation', { connection: redisConnection || undefined });
+      this.historicalQueue = new Queue('historical-calculation', { connection: redisConnection || undefined });
+      
+      // BatchCalculationService はシングルトンを使用
+      // Prisma を使用するため削除
+      
+      // 起動時に全キューをクリア
+      this.clearAllQueues();
+      
+      this.initializeWorkers();
+      
+      logger.info('Queue service initialized', {
+        queues: ['location-calculation', 'monthly-calculation', 'daily-calculation', 'historical-calculation']
+      });
+    } catch (error) {
+      logger.error('Queue service initialization failed', error);
+      this.isRedisAvailable = false;
+    }
+  }
+
+  /**
+   * Redis 接続状態をテスト
+   */
+  async testRedisConnection(): Promise<boolean> {
+    // 環境変数で Redis が無効化されている場合、または Redis 接続が null の場合
+    if (process.env.DISABLE_REDIS === 'true' || !redisConnection) {
+      this.isRedisAvailable = false;
+      logger.info('Redis 無効化フラグが設定されています（直接実行モード）');
+      return false;
+    }
+
+    try {
+      await redisConnection.ping();
+      this.isRedisAvailable = true;
+      logger.info('Redis 接続テスト成功');
+      return true;
+    } catch (error) {
+      this.isRedisAvailable = false;
+      logger.warn('Redis 接続テスト失敗', error);
+      return false;
+    }
   }
 
   private async clearAllQueues(): Promise<void> {
+    if (!this.isRedisAvailable) {
+      logger.info('Redis 利用不可のためキューのクリアをスキップ');
+      return;
+    }
+    
     try {
       await Promise.all([
         this.locationQueue.obliterate({ force: true }),
@@ -94,6 +167,7 @@ export class QueueService {
       logger.info('起動時に全キューをクリアしました');
     } catch (error) {
       logger.warn('キューのクリアに失敗しました', error);
+      this.isRedisAvailable = false;
     }
   }
 
@@ -103,8 +177,8 @@ export class QueueService {
       'location-calculation',
       this.processLocationCalculation.bind(this),
       {
-        connection: redisConnection,
-        concurrency: 1, // 同時実行1件のみ
+        connection: redisConnection || undefined,
+        concurrency: 1, // 同時実行 1 件のみ
         removeOnComplete: { count: 10 },
         removeOnFail: { count: 50 },
       }
@@ -115,8 +189,8 @@ export class QueueService {
       'monthly-calculation',
       this.processMonthlyCalculation.bind(this),
       {
-        connection: redisConnection,
-        concurrency: 2, // 同時実行2件
+        connection: redisConnection || undefined,
+        concurrency: 2, // 同時実行 2 件
         removeOnComplete: { count: 50 },
         removeOnFail: { count: 100 },
       }
@@ -127,8 +201,8 @@ export class QueueService {
       'daily-calculation',
       this.processDailyCalculation.bind(this),
       {
-        connection: redisConnection,
-        concurrency: 4, // 同時実行4件
+        connection: redisConnection || undefined,
+        concurrency: 4, // 同時実行 4 件
         removeOnComplete: { count: 100 },
         removeOnFail: { count: 100 },
       }
@@ -139,8 +213,8 @@ export class QueueService {
       'historical-calculation',
       this.processHistoricalCalculation.bind(this),
       {
-        connection: redisConnection,
-        concurrency: 1, // 同時実行1件のみ
+        connection: redisConnection || undefined,
+        concurrency: 1, // 同時実行 1 件のみ
         removeOnComplete: { count: 5 },
         removeOnFail: { count: 20 },
       }
@@ -185,29 +259,45 @@ export class QueueService {
     priority: 'high' | 'medium' | 'low' = 'medium',
     requestId?: string
   ): Promise<string> {
-    const job = await this.locationQueue.add(
-      'calculate-location',
-      {
+    // Redis が利用できない場合は直接実行
+    if (!this.isRedisAvailable) {
+      logger.warn('Redis 利用不可のため、地点計算を直接実行します', {
         locationId,
         startYear,
         endYear,
         priority,
-        requestId,
-      },
-      {
-        priority: this.getPriorityValue(priority),
-        attempts: 3,
-        backoff: {
-          type: 'exponential',
-          delay: 5000,
-        },
-        removeOnComplete: { count: 5 },
-        removeOnFail: { count: 10 },
-      }
-    );
+        requestId
+      });
+      
+      // 非同期で直接実行
+      this.executeLocationCalculationDirectly(locationId, startYear, endYear, requestId);
+      return `direct-${locationId}-${Date.now()}`;
+    }
 
-    logger.info('Location calculation job scheduled', {
-      jobId: job.id,
+    try {
+      const job = await this.locationQueue.add(
+        'calculate-location',
+        {
+          locationId,
+          startYear,
+          endYear,
+          priority,
+          requestId,
+        },
+        {
+          priority: this.getPriorityValue(priority),
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 5000,
+          },
+          removeOnComplete: { count: 5 },
+          removeOnFail: { count: 10 },
+        }
+      );
+
+      logger.info('Location calculation job scheduled', {
+        jobId: job.id,
       locationId,
       startYear,
       endYear,
@@ -215,7 +305,84 @@ export class QueueService {
       requestId,
     });
 
-    return job.id!;
+      return job.id!;
+    } catch (error) {
+      logger.error('Failed to schedule location calculation job', error);
+      // フォールバックとして直接実行
+      this.executeLocationCalculationDirectly(locationId, startYear, endYear, requestId);
+      return `direct-fallback-${locationId}-${Date.now()}`;
+    }
+  }
+
+  /**
+   * Redis 利用不可時の直接実行
+   */
+  private executeLocationCalculationDirectly(
+    locationId: number,
+    startYear: number,
+    endYear: number,
+    requestId?: string
+  ): void {
+    // 非同期で実行（エラーが発生してもメインフローに影響しない）
+    this.processLocationCalculationDirectly(locationId, startYear, endYear, requestId).catch((error) => {
+      logger.error('Direct location calculation failed', {
+        locationId,
+        startYear,
+        endYear,
+        requestId,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    });
+  }
+
+  /**
+   * 実際の直接計算処理
+   */
+  private async processLocationCalculationDirectly(
+    locationId: number,
+    startYear: number,
+    endYear: number,
+    requestId?: string
+  ): Promise<void> {
+    logger.info('Starting direct location calculation', {
+      locationId,
+      startYear,
+      endYear,
+      requestId
+    });
+
+    try {
+      // processLocationCalculation メソッドと同じ処理を実行
+      for (let year = startYear; year <= endYear; year++) {
+        logger.debug('Processing year in direct calculation', {
+          locationId,
+          year,
+          requestId
+        });
+
+        // 年間計算（月ごとに分割）
+        for (let month = 1; month <= 12; month++) {
+          await batchCalculationService.calculateMonthlyEvents(year, month, [locationId]);
+        }
+      }
+
+      logger.info('Direct location calculation completed', {
+        locationId,
+        startYear,
+        endYear,
+        requestId,
+        totalYears: endYear - startYear + 1
+      });
+    } catch (error) {
+      logger.error('Direct location calculation error', {
+        locationId,
+        startYear,
+        endYear,
+        requestId,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      throw error;
+    }
   }
 
   /**
@@ -467,8 +634,9 @@ export class QueueService {
           await batchCalculationService.calculateMonthlyEvents(year, month, [locationId]);
         }
 
-        // 計算結果をhistoricalテーブルに保存
-        await this.historicalModel.archiveEventsFromCache(year);
+        // 計算結果を historical テーブルに保存
+        // TODO: Prisma ベースでのアーカイブ機能を実装
+        // await this.archiveEventsFromCache(year);
 
         processedYears++;
 
@@ -667,10 +835,12 @@ export class QueueService {
         }),
       ]);
 
-      // Redis接続の切断
-      await redisConnection.quit().catch(err => {
-        logger.error('Failed to close Redis connection', err);
-      });
+      // Redis 接続の切断
+      if (redisConnection) {
+        await redisConnection.quit().catch(err => {
+          logger.error('Failed to close Redis connection', err);
+        });
+      }
       
       logger.info('Queue service shutdown completed');
     } catch (error) {

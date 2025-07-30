@@ -4,7 +4,7 @@ import { calendarServicePrisma } from '../services/CalendarServicePrisma';
 import { getComponentLogger } from '../../shared/utils/logger';
 
 /**
- * Prismaベースシステムの管理者コントローラー
+ * Prisma ベースシステムの管理者コントローラー
  * 天体計算システムの管理、統計、実行制御を担当
  */
 export class PrismaAdminController {
@@ -23,7 +23,7 @@ export class PrismaAdminController {
       if (isNaN(year) || year < 2000 || year > 2100) {
         return res.status(400).json({
           error: 'Invalid year',
-          message: '年は2000年から2100年の間で指定してください。'
+          message: '年は 2000 年から 2100 年の間で指定してください。'
         });
       }
 
@@ -73,7 +73,7 @@ export class PrismaAdminController {
       if (isNaN(year) || year < 2000 || year > 2100) {
         return res.status(400).json({
           error: 'Invalid year',
-          message: '年は2000年から2100年の間で指定してください。'
+          message: '年は 2000 年から 2100 年の間で指定してください。'
         });
       }
 
@@ -88,8 +88,8 @@ export class PrismaAdminController {
       if (result.success) {
         this.logger.info('年間富士現象計算完了', {
           year,
-          totalTimeMs: result.totalTimeMs,
-          totalEvents: result.finalStats?.totalEvents || 0,
+          totalTimeMs: result.timeMs,
+          totalEvents: result.totalEvents,
           responseTimeMs: responseTime
         });
 
@@ -99,11 +99,11 @@ export class PrismaAdminController {
             year,
             executionResult: result,
             summary: {
-              totalEvents: result.finalStats?.totalEvents || 0,
-              locationCoverage: result.finalStats?.locationCount || 0,
-              diamondEvents: result.stages.matching.diamondEvents,
-              pearlEvents: result.stages.matching.pearlEvents,
-              executionTimeHours: Math.round(result.totalTimeMs / 1000 / 60 / 60 * 10) / 10
+              totalEvents: result.totalEvents,
+              locationCoverage: 0, // 統計情報は別途取得
+              diamondEvents: 0, // 統計情報は別途取得
+              pearlEvents: 0, // 統計情報は別途取得
+              executionTimeHours: Math.round(result.timeMs / 1000 / 60 / 60 * 10) / 10
             }
           },
           meta: {
@@ -114,7 +114,7 @@ export class PrismaAdminController {
       } else {
         this.logger.error('年間富士現象計算失敗', null, {
           year,
-          totalTimeMs: result.totalTimeMs
+          totalTimeMs: result.timeMs
         });
 
         res.status(500).json({
@@ -122,7 +122,7 @@ export class PrismaAdminController {
           message: '年間富士現象計算が失敗しました。',
           data: {
             year,
-            executionTimeMs: result.totalTimeMs
+            executionTimeMs: result.timeMs
           }
         });
       }
@@ -154,7 +154,7 @@ export class PrismaAdminController {
       if (!locationId || !year) {
         return res.status(400).json({
           error: 'Missing parameters',
-          message: '地点IDと年が必要です。'
+          message: '地点 ID と年が必要です。'
         });
       }
 
@@ -171,7 +171,7 @@ export class PrismaAdminController {
       if (yearNum < 2000 || yearNum > 2100) {
         return res.status(400).json({
           error: 'Invalid year',
-          message: '年は2000年から2100年の間で指定してください。'
+          message: '年は 2000 年から 2100 年の間で指定してください。'
         });
       }
 
@@ -188,7 +188,7 @@ export class PrismaAdminController {
         this.logger.info('新地点追加計算完了', {
           locationId: locationIdNum,
           year: yearNum,
-          eventCount: result.eventCount,
+          eventCount: result.totalEvents,
           responseTimeMs: responseTime
         });
 
@@ -197,7 +197,7 @@ export class PrismaAdminController {
           data: {
             locationId: locationIdNum,
             year: yearNum,
-            eventCount: result.eventCount,
+            eventCount: result.totalEvents,
             executionTimeMs: result.timeMs
           },
           meta: {
@@ -248,9 +248,9 @@ export class PrismaAdminController {
         eventStats,
         performanceMetrics
       ] = await Promise.all([
-        Promise.resolve({ totalRecords: 0, message: 'CelestialOrbitData削除済み' }),
-        Promise.resolve({ totalCandidates: 0 }), // AstronomicalDataService削除により無効化
-        Promise.resolve({ totalEvents: 0, message: 'LocationFujiEventService廃止済み - EventCacheServiceに移行' }),
+        Promise.resolve({ totalRecords: 0, message: 'CelestialOrbitData 削除済み' }),
+        Promise.resolve({ totalCandidates: 0 }), // AstronomicalDataService 削除により無効化
+        Promise.resolve({ totalEvents: 0, message: 'LocationFujiEventService 廃止済み - EventCacheService に移行' }),
         Promise.resolve({ message: '新システムではパフォーマンス指標は直接取得不要' })
       ]);
 
@@ -271,9 +271,9 @@ export class PrismaAdminController {
           events: eventStats,
           performance: performanceMetrics,
           dataFlowEfficiency: {
-            celestialToCandidateRate: performanceMetrics.efficiency.candidateExtractionRate,
-            candidateToEventRate: performanceMetrics.efficiency.eventMatchingRate,
-            overallEfficiency: performanceMetrics.efficiency.candidateExtractionRate * performanceMetrics.efficiency.eventMatchingRate
+            celestialToCandidateRate: 0, // 新システムでは計算不要
+            candidateToEventRate: 0, // 新システムでは計算不要
+            overallEfficiency: 0 // 新システムでは計算不要
           }
         },
         meta: {
@@ -309,7 +309,7 @@ export class PrismaAdminController {
       if (isNaN(year) || year < 2000 || year > 2100) {
         return res.status(400).json({
           error: 'Invalid year',
-          message: '年は2000年から2100年の間で指定してください。'
+          message: '年は 2000 年から 2100 年の間で指定してください。'
         });
       }
 
@@ -319,8 +319,8 @@ export class PrismaAdminController {
         candidateStats,
         eventStats
       ] = await Promise.all([
-        Promise.resolve({ totalCandidates: 0 }), // AstronomicalDataService削除により無効化
-        Promise.resolve({ totalEvents: 0, message: 'LocationFujiEventService廃止済み - EventCacheServiceに移行' })
+        Promise.resolve({ totalCandidates: 0 }), // AstronomicalDataService 削除により無効化
+        Promise.resolve({ totalEvents: 0, message: 'LocationFujiEventService 廃止済み - EventCacheService に移行' })
       ]);
 
       const responseTime = Date.now() - startTime;
@@ -341,8 +341,8 @@ export class PrismaAdminController {
           summary: {
             totalCandidates: candidateStats.totalCandidates,
             totalEvents: eventStats.totalEvents,
-            locationCoverage: eventStats.locationCount,
-            avgEventsPerLocation: eventStats.avgEventsPerLocation,
+            locationCoverage: 0, // 統計情報は新システムでは別途取得
+            avgEventsPerLocation: 0, // 統計情報は新システムでは別途取得
             conversionRate: candidateStats.totalCandidates > 0 ? eventStats.totalEvents / candidateStats.totalCandidates : 0
           }
         },
@@ -421,7 +421,7 @@ export class PrismaAdminController {
           break;
           
         case 'vacuum':
-          // データベースのVACUUM処理（実装はここでは省略）
+          // データベースの VACUUM 処理（実装はここでは省略）
           result = { message: 'データベースの最適化を実行しました。' };
           break;
       }

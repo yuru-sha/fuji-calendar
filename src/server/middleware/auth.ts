@@ -1,6 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { AdminModel } from '../models/Admin';
+import { PrismaClient } from '@prisma/client';
+import { getComponentLogger } from '../../shared/utils/logger';
+
+const prisma = new PrismaClient();
+const logger = getComponentLogger('auth-middleware');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
@@ -33,7 +37,9 @@ export const authenticateAdmin = async (req: Request, res: Response, next: NextF
     const decoded = jwt.verify(token, JWT_SECRET) as any;
     
     // 管理者の存在確認
-    const admin = await AdminModel.findById(decoded.adminId);
+    const admin = await prisma.admin.findUnique({
+      where: { id: decoded.adminId }
+    });
     if (!admin) {
       return res.status(401).json({
         success: false,
@@ -52,7 +58,7 @@ export const authenticateAdmin = async (req: Request, res: Response, next: NextF
     next();
 
   } catch (error) {
-    console.error('Authentication error:', error);
+    logger.error('Authentication error:', error);
     
     if (error instanceof jwt.JsonWebTokenError) {
       return res.status(401).json({
@@ -78,7 +84,7 @@ export const authenticateAdmin = async (req: Request, res: Response, next: NextF
   }
 };
 
-// クライアントIPアドレスを取得するヘルパー関数
+// クライアント IP アドレスを取得するヘルパー関数
 export const getClientIP = (req: Request): string => {
   return (
     (req.headers['x-forwarded-for'] as string)?.split(',')[0] ||

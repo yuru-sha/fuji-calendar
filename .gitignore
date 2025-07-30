@@ -87,3 +87,6 @@ data/*
 !data/.gitkeep
 
 /generated/prisma
+
+# Serena directories and files
+.serena/

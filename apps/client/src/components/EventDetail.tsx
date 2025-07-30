@@ -3,9 +3,8 @@ import { FujiEvent, WeatherInfo, Location } from '@fuji-calendar/types';
 import { timeUtils } from '@fuji-calendar/utils';
 import { useFavorites } from '../hooks/useFavorites';
 import { Icon } from './icons/IconMap';
+import { Sun, Moon } from 'lucide-react';
 import styles from './EventDetail.module.css';
-import diamondFujiIcon from '../assets/icons/diamond_fuji_small.png';
-import pearlFujiIcon from '../assets/icons/pearl_fuji_small.png';
 
 interface EventDetailProps {
   date: Date;
@@ -59,8 +58,8 @@ const EventDetail: React.FC<EventDetailProps> = memo(({
 
   const getEventIcon = (event: FujiEvent): JSX.Element => {
     return event.type === 'diamond' 
-      ? <img src={diamondFujiIcon} alt="ダイヤモンド富士" className={styles.eventIcon} loading="lazy" />
-      : <img src={pearlFujiIcon} alt="パール富士" className={styles.eventIcon} loading="lazy" />;
+      ? <Sun className={`${styles.eventIcon} text-orange-500`} />
+      : <Moon className={`${styles.eventIcon} text-blue-500`} />;
   };
 
   const getWeatherIcon = (condition: string): JSX.Element => {

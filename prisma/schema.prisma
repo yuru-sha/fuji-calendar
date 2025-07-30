@@ -33,7 +33,7 @@ model Location {
   createdAt     DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   parkingInfo   String?             @map("parking_info")
-  events        LocationFujiEvent[]
+  events        LocationEvent[]
 
   @@index([fujiAzimuth, fujiElevation])
   @@index([latitude, longitude], map: "idx_locations_coords")
@@ -41,7 +41,7 @@ model Location {
   @@map("locations")
 }
 
-model LocationFujiEvent {
+model LocationEvent {
   id               BigInt    @id @default(autoincrement())
   locationId       Int       @map("location_id")
   eventDate        DateTime  @map("event_date") @db.Date
@@ -63,7 +63,7 @@ model LocationFujiEvent {
   @@index([eventDate], map: "idx_event_date")
   @@index([eventType, eventDate], map: "idx_event_type_date")
   @@index([qualityScore(sort: Desc)], map: "idx_quality_score")
-  @@map("location_fuji_events")
+  @@map("location_events")
 }
 
 enum EventType {

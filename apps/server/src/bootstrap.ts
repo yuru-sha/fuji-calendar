@@ -1,8 +1,13 @@
 import { Express } from 'express';
 import path from 'path';
 import { getComponentLogger } from '@fuji-calendar/utils';
+import { queueService } from './services/QueueService';
+import BackgroundJobSchedulerPrisma from './services/BackgroundJobSchedulerPrisma';
 
 const logger = getComponentLogger('bootstrap');
+
+// スケジューラーのインスタンス
+let backgroundScheduler: BackgroundJobSchedulerPrisma | null = null;
 
 export interface BootstrapConfig {
   app: Express;
@@ -16,7 +21,27 @@ export class Bootstrap {
   static async initialize(): Promise<void> {
     logger.info('アプリケーション初期化開始');
     
-    // 簡略化された初期化処理
+    // QueueService の Redis 接続テスト
+    try {
+      const redisConnected = await queueService.testRedisConnection();
+      if (redisConnected) {
+        logger.info('QueueService Redis 接続成功');
+      } else {
+        logger.warn('QueueService Redis 接続失敗 - 直接実行モードで動作');
+      }
+    } catch (error) {
+      logger.warn('QueueService 初期化エラー', error);
+    }
+
+    // BackgroundJobSchedulerPrisma の開始
+    try {
+      backgroundScheduler = new BackgroundJobSchedulerPrisma();
+      backgroundScheduler.start();
+      logger.info('BackgroundJobSchedulerPrisma 開始完了');
+    } catch (error) {
+      logger.warn('BackgroundJobSchedulerPrisma 開始エラー', error);
+    }
+    
     logger.info('アプリケーション初期化完了');
   }
 
@@ -47,6 +72,25 @@ export class Bootstrap {
    */
   static async shutdown(): Promise<void> {
     logger.info('グレースフルシャットダウン開始');
+    
+    // QueueService の終了処理
+    try {
+      await queueService.shutdown();
+      logger.info('QueueService シャットダウン完了');
+    } catch (error) {
+      logger.error('QueueService シャットダウンエラー', error);
+    }
+
+    // BackgroundJobSchedulerPrisma の停止
+    try {
+      if (backgroundScheduler) {
+        backgroundScheduler.stop();
+        logger.info('BackgroundJobSchedulerPrisma 停止完了');
+      }
+    } catch (error) {
+      logger.error('BackgroundJobSchedulerPrisma 停止エラー', error);
+    }
+    
     logger.info('グレースフルシャットダウン完了');
   }
 

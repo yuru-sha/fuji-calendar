@@ -1,5 +1,5 @@
 import { CalendarEvent, CalendarResponse, EventsResponse, FujiEvent, WeatherInfo, Location } from '@fuji-calendar/types';
-import { PrismaClient, LocationFujiEvent } from '@prisma/client';
+import { PrismaClient, LocationEvent } from '@prisma/client';
 import { PrismaClientManager } from '../database/prisma';
 import { AstronomicalCalculatorImpl } from './AstronomicalCalculator';
 import { EventAggregationService } from './EventAggregationService';
@@ -57,7 +57,7 @@ export class CalendarServicePrisma {
       
       // 各地点からイベントを取得（Prisma 直接アクセス）
       for (const location of locations) {
-        const locationEvents = await this.prisma.locationFujiEvent.findMany({
+        const locationEvents = await this.prisma.locationEvent.findMany({
           where: {
             locationId: location.id,
             eventTime: {
@@ -70,7 +70,7 @@ export class CalendarServicePrisma {
           }
         });
         
-        // LocationFujiEvent を FujiEvent に変換
+        // LocationEvent を FujiEvent に変換
         const convertedEvents = locationEvents.map(event => this.convertToFujiEvent(event, location));
         allEvents.push(...convertedEvents);
       }
@@ -133,7 +133,7 @@ export class CalendarServicePrisma {
       
       // 各地点からその日のイベントを取得（Prisma 直接アクセス）
       for (const location of locations) {
-        const locationEvents = await this.prisma.locationFujiEvent.findMany({
+        const locationEvents = await this.prisma.locationEvent.findMany({
           where: {
             locationId: location.id,
             eventTime: {
@@ -146,7 +146,7 @@ export class CalendarServicePrisma {
           }
         });
         
-        // LocationFujiEvent を FujiEvent に変換
+        // LocationEvent を FujiEvent に変換
         const convertedEvents = locationEvents.map(event => this.convertToFujiEvent(event, location));
         allEvents.push(...convertedEvents);
       }
@@ -197,7 +197,7 @@ export class CalendarServicePrisma {
 
       // 各地点から今後のイベントを取得（Prisma 直接アクセス）
       for (const location of locations) {
-        const locationEvents = await this.prisma.locationFujiEvent.findMany({
+        const locationEvents = await this.prisma.locationEvent.findMany({
           where: {
             locationId: location.id,
             eventTime: {
@@ -210,7 +210,7 @@ export class CalendarServicePrisma {
           }
         });
         
-        // LocationFujiEvent を FujiEvent に変換
+        // LocationEvent を FujiEvent に変換
         const convertedEvents = locationEvents.map(event => this.convertToFujiEvent(event, location));
         allEvents.push(...convertedEvents);
       }
@@ -245,7 +245,7 @@ export class CalendarServicePrisma {
       const startDate = new Date(year, 0, 1);
       const endDate = new Date(year + 1, 0, 1);
 
-      const locationEvents = await this.prisma.locationFujiEvent.findMany({
+      const locationEvents = await this.prisma.locationEvent.findMany({
         where: {
           locationId: locationId,
           eventTime: {
@@ -283,7 +283,7 @@ export class CalendarServicePrisma {
 
       // 各地点からその月のイベントを取得（Prisma 直接アクセス）
       for (const location of locations) {
-        const locationEvents = await this.prisma.locationFujiEvent.findMany({
+        const locationEvents = await this.prisma.locationEvent.findMany({
           where: {
             locationId: location.id,
             eventTime: {
@@ -296,7 +296,7 @@ export class CalendarServicePrisma {
           }
         });
         
-        // LocationFujiEvent を FujiEvent に変換
+        // LocationEvent を FujiEvent に変換
         const convertedEvents = locationEvents.map(event => this.convertToFujiEvent(event, location));
         allEvents.push(...convertedEvents);
       }
@@ -333,7 +333,7 @@ export class CalendarServicePrisma {
 
       // 各地点から期間内のイベントを取得（Prisma 直接アクセス）
       for (const location of locations) {
-        const locationEvents = await this.prisma.locationFujiEvent.findMany({
+        const locationEvents = await this.prisma.locationEvent.findMany({
           where: {
             locationId: location.id,
             eventTime: {
@@ -346,7 +346,7 @@ export class CalendarServicePrisma {
           }
         });
         
-        // LocationFujiEvent を FujiEvent に変換
+        // LocationEvent を FujiEvent に変換
         const convertedEvents = locationEvents.map(event => this.convertToFujiEvent(event, location));
         allEvents.push(...convertedEvents);
       }
@@ -369,9 +369,9 @@ export class CalendarServicePrisma {
   }
 
   /**
-   * LocationFujiEvent を FujiEvent に変換
+   * LocationEvent を FujiEvent に変換
    */
-  private convertToFujiEvent(event: LocationFujiEvent, location: Location): FujiEvent {
+  private convertToFujiEvent(event: LocationEvent, location: Location): FujiEvent {
     // EventType を FujiEvent の type と subType に変換
     let type: 'diamond' | 'pearl';
     let subType: 'sunrise' | 'sunset' | 'rising' | 'setting';
@@ -534,7 +534,7 @@ export class CalendarServicePrisma {
       await prisma.$queryRaw`SELECT 1`;
       
       // 年間データ存在チェック
-      const eventCount = await prisma.locationFujiEvent.count({
+      const eventCount = await prisma.locationEvent.count({
         where: { calculationYear: year }
       });
       

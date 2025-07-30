@@ -264,8 +264,34 @@ const HomePage: React.FC = () => {
         if (!matchesFilter) return false;
       }
 
-      // 特別イベントフィルター（現在は基本のイベントのみなので、将来の拡張用）
-      // TODO: 実際の日食・月食・スーパームーンデータが利用可能になったら実装
+      // 特別イベントフィルター
+      const hasSpecialEventFilter = filters.specialEvents.solarEclipse || 
+                                   filters.specialEvents.lunarEclipse || 
+                                   filters.specialEvents.supermoon;
+      
+      if (hasSpecialEventFilter) {
+        // 現在は基本的なダイヤモンド富士・パール富士のみなので、
+        // 特別イベントフィルターが有効な場合は結果を制限
+        // 将来的には実際の日食・月食・スーパームーンデータと照合
+        
+        // 月相データがある場合の簡易的な判定（スーパームーン近似）
+        if (filters.specialEvents.supermoon && event.type === 'pearl' && event.moonIllumination !== undefined) {
+          // 満月に近い場合（照度 90% 以上）をスーパームーン近似として扱う
+          if (event.moonIllumination >= 0.9) {
+            return true;
+          }
+        }
+        
+        // 日食・月食は現在データがないため除外
+        if (filters.specialEvents.solarEclipse || filters.specialEvents.lunarEclipse) {
+          return false;
+        }
+        
+        // スーパームーンのみの場合で条件に合わない場合は除外
+        if (filters.specialEvents.supermoon && (event.type !== 'pearl' || !event.moonIllumination || event.moonIllumination < 0.9)) {
+          return false;
+        }
+      }
       
       return true;
     });
@@ -521,7 +547,7 @@ const HomePage: React.FC = () => {
                 fontWeight: '500'
               }}>
                 <Icon name="lightbulb" size={16} />
-                <span><Icon name="sun" size={14} style={{ display: 'inline', marginRight: '2px' }} />ダイヤモンド富士 <Icon name="moon" size={14} style={{ display: 'inline', marginLeft: '4px', marginRight: '2px' }} />パール富士のアイコンで種類を確認できます</span>
+                <span><Icon name="sun" size={14} style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '2px' }} />ダイヤモンド富士、<Icon name="moon" size={14} style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: '4px', marginRight: '2px' }} />パール富士のアイコンで種類を確認できます</span>
               </div>
             </div>
           </div>

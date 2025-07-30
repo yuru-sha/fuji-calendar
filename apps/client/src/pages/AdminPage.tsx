@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { flushSync } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Location } from '@fuji-calendar/types';
 import { APP_CONFIG } from '@fuji-calendar/shared';
@@ -67,6 +68,7 @@ const AdminPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPrefecture, setFilterPrefecture] = useState('');
   const [activeView, setActiveView] = useState<'dashboard' | 'locations' | 'events' | 'queue' | 'users' | 'data' | 'settings'>('dashboard');
+
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [showLocationForm, setShowLocationForm] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -193,7 +195,10 @@ const AdminPage: React.FC = () => {
 
       const response = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...authService.getAuthHeaders()
+        },
         credentials: 'include',
         body: JSON.stringify(formData)
       });
@@ -201,12 +206,19 @@ const AdminPage: React.FC = () => {
       if (response.ok) {
         await loadLocations();
         resetForm();
-        setShowLocationForm(false);
+        // React の状態更新を同期的に実行し、適切な状態管理を行う
+        flushSync(() => {
+          setShowLocationForm(false);
+          setActiveView('locations');
+        });
       } else if (response.status === 401) {
         navigate('/admin/login');
+      } else {
+        const errorData = await response.text();
+        console.error('地点保存エラー:', response.status, response.statusText, errorData);
       }
     } catch (error) {
-      console.error('Failed to save location:', error);
+      console.error('地点保存エラー:', error);
     } finally {
       setLoading(false);
     }
@@ -218,11 +230,16 @@ const AdminPage: React.FC = () => {
     try {
       const response = await fetch(`/api/admin/locations/${location.id}`, {
         method: 'DELETE',
+        headers: {
+          ...authService.getAuthHeaders()
+        },
         credentials: 'include'
       });
 
       if (response.ok) {
         await loadLocations();
+        // 削除後は撮影地点管理画面に留まる
+        setActiveView('locations');
       } else if (response.status === 401) {
         navigate('/admin/login');
       }
@@ -346,6 +363,8 @@ const AdminPage: React.FC = () => {
         }
         alert(message);
         await loadLocations(); // リストを更新
+        // インポート後は撮影地点管理画面に留まる
+        setActiveView('locations');
       } else {
         throw new Error(result.message || 'インポートに失敗しました');
       }

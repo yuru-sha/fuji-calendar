@@ -30,7 +30,7 @@ export class EventController {
       const endDate = new Date(year, month, 0);
 
       // イベントデータを取得
-      const events = await this.prisma.locationFujiEvent.findMany({
+      const events = await this.prisma.locationEvent.findMany({
         where: {
           eventDate: {
             gte: startDate,
@@ -58,7 +58,7 @@ export class EventController {
         eventsByDate.get(dateKey)!.push(this.formatEvent(event));
       });
 
-      // CalendarEvent形式に変換
+      // CalendarEvent 形式に変換
       const calendarEvents: CalendarEvent[] = [];
       eventsByDate.forEach((dayEvents, dateStr) => {
         const types = new Set(dayEvents.map(e => e.type));
@@ -108,13 +108,13 @@ export class EventController {
         res.status(400).json({
           success: false,
           error: 'Invalid date',
-          message: '有効な日付を指定してください。(YYYY-MM-DD形式)'
+          message: '有効な日付を指定してください。(YYYY-MM-DD 形式)'
         });
         return;
       }
 
       // その日のイベントを取得
-      const events = await this.prisma.locationFujiEvent.findMany({
+      const events = await this.prisma.locationEvent.findMany({
         where: {
           eventDate: targetDate
         },
@@ -161,7 +161,7 @@ export class EventController {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      const events = await this.prisma.locationFujiEvent.findMany({
+      const events = await this.prisma.locationEvent.findMany({
         where: {
           eventDate: {
             gte: today
@@ -212,7 +212,7 @@ export class EventController {
         res.status(400).json({
           success: false,
           error: 'Invalid parameters',
-          message: '有効な地点IDと年を指定してください。'
+          message: '有効な地点 ID と年を指定してください。'
         });
         return;
       }
@@ -220,7 +220,7 @@ export class EventController {
       const startDate = new Date(year, 0, 1);
       const endDate = new Date(year, 11, 31);
 
-      const events = await this.prisma.locationFujiEvent.findMany({
+      const events = await this.prisma.locationEvent.findMany({
         where: {
           locationId,
           eventDate: {
@@ -285,7 +285,7 @@ export class EventController {
       const endDate = new Date(year, 11, 31);
 
       // 年間統計
-      const totalEvents = await this.prisma.locationFujiEvent.count({
+      const totalEvents = await this.prisma.locationEvent.count({
         where: {
           eventDate: {
             gte: startDate,
@@ -294,7 +294,7 @@ export class EventController {
         }
       });
 
-      const diamondEvents = await this.prisma.locationFujiEvent.count({
+      const diamondEvents = await this.prisma.locationEvent.count({
         where: {
           eventDate: {
             gte: startDate,
@@ -306,7 +306,7 @@ export class EventController {
         }
       });
 
-      const pearlEvents = await this.prisma.locationFujiEvent.count({
+      const pearlEvents = await this.prisma.locationEvent.count({
         where: {
           eventDate: {
             gte: startDate,
@@ -324,7 +324,7 @@ export class EventController {
         const monthStart = new Date(year, month - 1, 1);
         const monthEnd = new Date(year, month, 0);
 
-        const monthTotal = await this.prisma.locationFujiEvent.count({
+        const monthTotal = await this.prisma.locationEvent.count({
           where: {
             eventDate: {
               gte: monthStart,
@@ -333,7 +333,7 @@ export class EventController {
           }
         });
 
-        const monthDiamond = await this.prisma.locationFujiEvent.count({
+        const monthDiamond = await this.prisma.locationEvent.count({
           where: {
             eventDate: {
               gte: monthStart,
@@ -345,7 +345,7 @@ export class EventController {
           }
         });
 
-        const monthPearl = await this.prisma.locationFujiEvent.count({
+        const monthPearl = await this.prisma.locationEvent.count({
           where: {
             eventDate: {
               gte: monthStart,
@@ -393,10 +393,10 @@ export class EventController {
   }
 
   /**
-   * Prismaの LocationFujiEvent を API の FujiEvent 型に変換
+   * Prisma の LocationEvent を API の FujiEvent 型に変換
    */
   private formatEvent(event: any): FujiEvent {
-    // eventTypeを変換
+    // eventType を変換
     const getEventTypeAndSubType = (eventType: string) => {
       switch (eventType) {
         case 'diamond_sunrise':

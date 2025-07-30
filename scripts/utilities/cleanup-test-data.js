@@ -14,7 +14,7 @@ async function cleanupTestData() {
 
     // 1. 間違ったテストデータを特定
     console.log('1. 間違ったテストデータを検索');
-    const wrongEvents = await prisma.locationFujiEvent.findMany({
+    const wrongEvents = await prisma.locationEvent.findMany({
       where: {
         OR: [
           {
@@ -28,12 +28,12 @@ async function cleanupTestData() {
             // 方位角が明らかに間違っているもの（120°など）
             AND: [
               { locationId: 6 },
-              { azimuth: { lt: 200 } }, // 富津岬は273°付近のはず
+              { azimuth: { lt: 200 } }, // 富津岬は 273°付近のはず
               { eventType: { in: ['diamond_sunrise', 'diamond_sunset'] } }
             ]
           },
           {
-            // 2025年7月15日 7:30のテストデータ（手動作成）
+            // 2025 年 7 月 15 日 7:30 のテストデータ（手動作成）
             eventTime: new Date('2025-07-15T07:30:00.000Z')
           }
         ]
@@ -58,7 +58,7 @@ async function cleanupTestData() {
 
     // 2. 削除確認
     console.log('\n2. 間違ったデータを削除します...');
-    const deleteResult = await prisma.locationFujiEvent.deleteMany({
+    const deleteResult = await prisma.locationEvent.deleteMany({
       where: {
         id: {
           in: wrongEvents.map(e => e.id)
@@ -70,7 +70,7 @@ async function cleanupTestData() {
 
     // 3. 正しいデータの確認
     console.log('\n3. 富津岬の正しいダイヤモンド富士データ:');
-    const correctEvents = await prisma.locationFujiEvent.findMany({
+    const correctEvents = await prisma.locationEvent.findMany({
       where: {
         locationId: 6,
         eventType: 'diamond_sunset', // 富津岬では日の入りのみ可能
@@ -91,7 +91,7 @@ async function cleanupTestData() {
     }
 
     console.log('\n📊 データクリーンアップ完了');
-    console.log('   今後は実際のAstronomicalCalculatorが生成する正確なデータのみが保存されます');
+    console.log('   今後は実際の AstronomicalCalculator が生成する正確なデータのみが保存されます');
 
     await prisma.$disconnect();
 

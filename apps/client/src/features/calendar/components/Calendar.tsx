@@ -1,9 +1,8 @@
 import React, { useMemo, memo } from 'react';
 import { CalendarEvent, FujiEvent } from '@fuji-calendar/types';
 import { timeUtils } from '@fuji-calendar/utils';
+import { Sun, Moon } from 'lucide-react';
 import styles from './Calendar.module.css';
-import diamondFujiIcon from '../../../assets/icons/diamond_fuji_small.png';
-import pearlFujiIcon from '../../../assets/icons/pearl_fuji_small.png';
 
 interface CalendarProps {
   year: number;
@@ -141,14 +140,14 @@ const Calendar: React.FC<CalendarProps> = memo(({
   const getEventIcon = (eventType?: 'diamond' | 'pearl' | 'both'): JSX.Element | string => {
     switch (eventType) {
       case 'diamond':
-        return <img src={diamondFujiIcon} alt="ダイヤモンド富士" className={styles.eventIcon} loading="lazy" />;
+        return <Sun className={`${styles.eventIcon} text-orange-500`} />;
       case 'pearl':
-        return <img src={pearlFujiIcon} alt="パール富士" className={styles.eventIcon} loading="lazy" />;
+        return <Moon className={`${styles.eventIcon} text-blue-500`} />;
       case 'both':
         return (
           <div className={styles.bothIcons}>
-            <img src={diamondFujiIcon} alt="ダイヤモンド富士" className={styles.eventIconSmall} loading="lazy" />
-            <img src={pearlFujiIcon} alt="パール富士" className={styles.eventIconSmall} loading="lazy" />
+            <Sun className={`${styles.eventIconSmall} text-orange-500`} />
+            <Moon className={`${styles.eventIconSmall} text-blue-500`} />
           </div>
         );
       default:

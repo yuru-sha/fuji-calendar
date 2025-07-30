@@ -1,5 +1,6 @@
 import { getComponentLogger, StructuredLogger } from '@fuji-calendar/utils';
 import { calendarServicePrisma } from './CalendarServicePrisma';
+import { PrismaClientManager } from '../database/prisma';
 
 /**
  * Prisma ベースのバックグラウンドジョブスケジューラー
@@ -9,6 +10,7 @@ export class BackgroundJobSchedulerPrisma {
   private logger: StructuredLogger;
   private scheduledJobs: Map<string, NodeJS.Timeout> = new Map();
   private isRunning: boolean = false;
+  private prisma = PrismaClientManager.getInstance();
 
   constructor() {
     this.logger = getComponentLogger('background-scheduler-prisma');
@@ -21,11 +23,20 @@ export class BackgroundJobSchedulerPrisma {
     }
 
     this.isRunning = true;
-    this.logger.info('Prisma バックグラウンドジョブスケジューラー開始（全ての自動ジョブ無効）');
+    this.logger.info('Prisma バックグラウンドジョブスケジューラー開始');
 
-    // 全ての自動ジョブを無効化
-    // 必要に応じて管理者画面から手動実行
-    this.logger.info('自動ジョブは無効化されています。手動実行のみ可能です。');
+    // 重要なスケジューラージョブを有効化
+    this.scheduleYearlyCalculation();      // 12 月に翌々年データ作成
+    this.scheduleYearlyMaintenance();      // 年次メンテナンス（過去データアーカイブ含む）
+    this.scheduleSystemHealthCheck();      // システム健康状態チェック
+    
+    this.logger.info('主要スケジューラージョブを有効化しました', {
+      enabledJobs: [
+        'yearly-calculation (12 月 1 日)',
+        'yearly-maintenance (12 月 15 日、1 月 2 日、3 月 1 日)',
+        'system-health-check (毎日)'
+      ]
+    });
   }
 
   stop(): void {
@@ -322,19 +333,46 @@ export class BackgroundJobSchedulerPrisma {
   }
 
   /**
-   * 年次アーカイブメンテナンス実行
+   * 年次アーカイブメンテナンス実行（3 年以上古いデータを削除）
    */
   async performYearlyArchive(): Promise<void> {
     try {
       this.logger.info('年次アーカイブメンテナンス開始');
       
       const currentYear = new Date().getFullYear();
-      const archiveYear = currentYear - 3; // 3 年前のデータをアーカイブ対象
+      const cutoffYear = currentYear - 3; // 3 年以上前のデータを削除
       
-      // アーカイブ処理の実装（ここでは統計ログのみ）
+      // 古い location_events データを削除
+      const deletedEventsCount = await this.prisma.locationEvent.deleteMany({
+        where: {
+          calculationYear: {
+            lt: cutoffYear
+          }
+        }
+      });
+      
+      this.logger.info('古いイベントデータ削除完了', {
+        deletedEventsCount: deletedEventsCount.count,
+        cutoffYear,
+        currentYear
+      });
+      
+      // データベース統計を確認
+      const totalEvents = await this.prisma.locationEvent.count();
+      const recentEvents = await this.prisma.locationEvent.count({
+        where: {
+          calculationYear: {
+            gte: cutoffYear
+          }
+        }
+      });
+      
       this.logger.info('年次アーカイブメンテナンス完了', {
         currentYear,
-        archiveYear
+        cutoffYear,
+        deletedEvents: deletedEventsCount.count,
+        totalEventsRemaining: totalEvents,
+        recentEventsCount: recentEvents
       });
       
     } catch (error) {

@@ -31,7 +31,7 @@ export class EventCacheService {
       this.logger.info('年間キャッシュ生成開始', { year });
 
       // 既存データを削除
-      await prisma.locationFujiEvent.deleteMany({
+      await prisma.locationEvent.deleteMany({
         where: { calculationYear: year }
       });
 
@@ -67,7 +67,7 @@ export class EventCacheService {
       // データベースに保存
       const savedEvents = await Promise.all(
         events.map(event => 
-          prisma.locationFujiEvent.create({
+          prisma.locationEvent.create({
             data: {
               locationId: event.location.id,
               eventDate: this.createJstDateOnly(event.time),
@@ -149,7 +149,7 @@ export class EventCacheService {
       const monthStart = new Date(year, month - 1, 1);
       const monthEnd = new Date(year, month, 0, 23, 59, 59, 999);
       
-      await prisma.locationFujiEvent.deleteMany({
+      await prisma.locationEvent.deleteMany({
         where: { 
           locationId: locationId,
           calculationYear: year,
@@ -166,7 +166,7 @@ export class EventCacheService {
       // データベースに保存
       const savedEvents = await Promise.all(
         events.map(event => 
-          prisma.locationFujiEvent.create({
+          prisma.locationEvent.create({
             data: {
               locationId: event.location.id,
               eventDate: this.createJstDateOnly(event.time),
@@ -249,7 +249,7 @@ export class EventCacheService {
       const dayStart = new Date(year, month - 1, day, 0, 0, 0, 0);
       const dayEnd = new Date(year, month - 1, day, 23, 59, 59, 999);
       
-      await prisma.locationFujiEvent.deleteMany({
+      await prisma.locationEvent.deleteMany({
         where: { 
           locationId: locationId,
           calculationYear: year,
@@ -269,7 +269,7 @@ export class EventCacheService {
       // データベースに保存
       const savedEvents = await Promise.all(
         events.map(event => 
-          prisma.locationFujiEvent.create({
+          prisma.locationEvent.create({
             data: {
               locationId: event.location.id,
               eventDate: this.createJstDateOnly(event.time),
@@ -352,7 +352,7 @@ export class EventCacheService {
       };
 
       // 既存データを削除
-      await prisma.locationFujiEvent.deleteMany({
+      await prisma.locationEvent.deleteMany({
         where: { 
           locationId: locationId,
           calculationYear: year 
@@ -365,7 +365,7 @@ export class EventCacheService {
       // データベースに保存
       const savedEvents = await Promise.all(
         events.map(event => 
-          prisma.locationFujiEvent.create({
+          prisma.locationEvent.create({
             data: {
               locationId: event.location.id,
               eventDate: this.createJstDateOnly(event.time),

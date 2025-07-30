@@ -2,11 +2,14 @@ import { Request, Response } from 'express';
 import { PrismaClientManager } from '../database/prisma';
 import { getComponentLogger } from '@fuji-calendar/utils';
 import { Location } from '@fuji-calendar/types';
+import { queueService } from '../services/QueueService';
+import { AstronomicalCalculatorImpl } from '../services/AstronomicalCalculator';
 
 const logger = getComponentLogger('LocationController');
 
 export class LocationController {
   private prisma = PrismaClientManager.getInstance();
+  private astronomicalCalculator = new AstronomicalCalculatorImpl();
 
   /**
    * 全ての撮影地点を取得
@@ -134,6 +137,26 @@ export class LocationController {
       const distance = this.calculateDistance(latitude, longitude, fujiLat, fujiLng);
       const azimuth = this.calculateAzimuth(latitude, longitude, fujiLat, fujiLng);
 
+      // 仮の地点オブジェクトを作成して富士山への仰角を計算
+      const tempLocation: Location = {
+        id: 0,
+        name,
+        prefecture,
+        latitude: parseFloat(latitude),
+        longitude: parseFloat(longitude),
+        elevation: parseFloat(elevation),
+        description,
+        accessInfo,
+        parkingInfo,
+        fujiDistance: distance,
+        fujiAzimuth: azimuth,
+        fujiElevation: 0, // 仮の値
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      
+      const fujiElevation = this.astronomicalCalculator.calculateElevationToFuji(tempLocation);
+
       const location = await this.prisma.location.create({
         data: {
           name,
@@ -145,7 +168,8 @@ export class LocationController {
           accessInfo,
           parkingInfo,
           fujiDistance: distance,
-          fujiAzimuth: azimuth
+          fujiAzimuth: azimuth,
+          fujiElevation: fujiElevation
         }
       });
 
@@ -155,10 +179,34 @@ export class LocationController {
         prefecture: location.prefecture
       });
 
+      // 天体計算キューにジョブを追加（当年と翌年のデータを作成）
+      try {
+        const currentYear = new Date().getFullYear();
+        const jobId = await queueService.scheduleLocationCalculation(
+          location.id,
+          currentYear,
+          currentYear + 1,
+          'high', // 新規地点は高優先度
+          `location-create-${location.id}`
+        );
+        
+        logger.info('天体計算ジョブ登録成功', {
+          locationId: location.id,
+          jobId,
+          startYear: currentYear,
+          endYear: currentYear + 1
+        });
+      } catch (queueError) {
+        logger.warn('天体計算ジョブ登録失敗（地点作成は成功）', {
+          error: queueError,
+          locationId: location.id
+        });
+      }
+
       res.status(201).json({
         success: true,
         location: this.formatLocation(location),
-        message: '撮影地点が正常に作成されました。'
+        message: '撮影地点が正常に作成されました。天体計算を開始します。'
       });
     } catch (error) {
       logger.error('撮影地点作成エラー', error);
@@ -218,6 +266,38 @@ export class LocationController {
         updateData.elevation = parseFloat(elevation);
       }
 
+      // 座標や標高が変更された場合は富士山への仰角を再計算
+      const coordinatesChanged = latitude !== undefined || longitude !== undefined || elevation !== undefined;
+      if (coordinatesChanged) {
+        // 現在の地点データを取得
+        const currentLocation = await this.prisma.location.findUnique({
+          where: { id }
+        });
+
+        if (currentLocation) {
+          // 更新後の値を使用して仮の地点オブジェクトを作成
+          const tempLocation: Location = {
+            id: currentLocation.id,
+            name: name || currentLocation.name,
+            prefecture: prefecture || currentLocation.prefecture,
+            latitude: latitude !== undefined ? parseFloat(latitude) : currentLocation.latitude,
+            longitude: longitude !== undefined ? parseFloat(longitude) : currentLocation.longitude,
+            elevation: elevation !== undefined ? parseFloat(elevation) : currentLocation.elevation,
+            description: description !== undefined ? description : currentLocation.description,
+            accessInfo: accessInfo !== undefined ? accessInfo : currentLocation.accessInfo,
+            parkingInfo: parkingInfo !== undefined ? parkingInfo : currentLocation.parkingInfo,
+            fujiDistance: updateData.fujiDistance || currentLocation.fujiDistance,
+            fujiAzimuth: updateData.fujiAzimuth || currentLocation.fujiAzimuth,
+            fujiElevation: 0, // 仮の値
+            createdAt: currentLocation.createdAt,
+            updatedAt: new Date()
+          };
+
+          const fujiElevation = this.astronomicalCalculator.calculateElevationToFuji(tempLocation);
+          updateData.fujiElevation = fujiElevation;
+        }
+      }
+
       const location = await this.prisma.location.update({
         where: { id },
         data: updateData
@@ -228,10 +308,38 @@ export class LocationController {
         locationName: location.name
       });
 
+      // 座標や標高が変更された場合、天体計算を再実行
+      if (coordinatesChanged) {
+        try {
+          const currentYear = new Date().getFullYear();
+          const jobId = await queueService.scheduleLocationCalculation(
+            id,
+            currentYear,
+            currentYear + 1,
+            'medium', // 更新は中優先度
+            `location-update-${id}`
+          );
+          
+          logger.info('座標変更による天体計算ジョブ登録成功', {
+            locationId: id,
+            jobId,
+            startYear: currentYear,
+            endYear: currentYear + 1
+          });
+        } catch (queueError) {
+          logger.warn('天体計算ジョブ登録失敗（地点更新は成功）', {
+            error: queueError,
+            locationId: id
+          });
+        }
+      }
+
       res.json({
         success: true,
         location: this.formatLocation(location),
-        message: '撮影地点が正常に更新されました。'
+        message: coordinatesChanged 
+          ? '撮影地点が正常に更新されました。天体計算を再実行します。'
+          : '撮影地点が正常に更新されました。'
       });
     } catch (error) {
       logger.error('撮影地点更新エラー', error, {
@@ -287,7 +395,7 @@ export class LocationController {
   }
 
   /**
-   * 撮影地点データをJSON形式でエクスポート
+   * 撮影地点データを JSON 形式でエクスポート
    */
   async exportLocations(req: Request, res: Response): Promise<void> {
     try {
@@ -315,7 +423,7 @@ export class LocationController {
   }
 
   /**
-   * JSON形式の撮影地点データをインポート（重複データはスキップ）
+   * JSON 形式の撮影地点データをインポート（重複データはスキップ）
    */
   async importLocations(req: Request, res: Response): Promise<void> {
     try {
@@ -336,7 +444,7 @@ export class LocationController {
         res.status(400).json({
           success: false,
           error: 'Invalid data format',
-          message: '配列形式のJSONが必要です。'
+          message: '配列形式の JSON が必要です。'
         });
         return;
       }
@@ -386,6 +494,26 @@ export class LocationController {
           const distance = this.calculateDistance(locationData.latitude, locationData.longitude, fujiLat, fujiLng);
           const azimuth = this.calculateAzimuth(locationData.latitude, locationData.longitude, fujiLat, fujiLng);
 
+          // 仮の地点オブジェクトを作成して富士山への仰角を計算
+          const tempLocation: Location = {
+            id: 0,
+            name: locationData.name,
+            prefecture: locationData.prefecture,
+            latitude: parseFloat(locationData.latitude),
+            longitude: parseFloat(locationData.longitude),
+            elevation: parseFloat(locationData.elevation),
+            description: locationData.description || null,
+            accessInfo: locationData.accessInfo || null,
+            parkingInfo: locationData.parkingInfo || null,
+            fujiDistance: distance,
+            fujiAzimuth: azimuth,
+            fujiElevation: 0, // 仮の値
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
+
+          const fujiElevation = this.astronomicalCalculator.calculateElevationToFuji(tempLocation);
+
           // 新しい地点を作成
           const newLocation = await this.prisma.location.create({
             data: {
@@ -398,9 +526,28 @@ export class LocationController {
               accessInfo: locationData.accessInfo || null,
               parkingInfo: locationData.parkingInfo || null,
               fujiDistance: distance,
-              fujiAzimuth: azimuth
+              fujiAzimuth: azimuth,
+              fujiElevation: fujiElevation
             }
           });
+
+          // 天体計算キューにジョブを追加
+          try {
+            const currentYear = new Date().getFullYear();
+            await queueService.scheduleLocationCalculation(
+              newLocation.id,
+              currentYear,
+              currentYear + 1,
+              'low', // インポートは低優先度
+              `location-import-${newLocation.id}`
+            );
+          } catch (queueError) {
+            logger.warn('インポート地点の天体計算ジョブ登録失敗', {
+              error: queueError,
+              locationId: newLocation.id,
+              locationName: newLocation.name
+            });
+          }
 
           // 既存リストに追加（後続の重複チェック用）
           existingLocations.push({

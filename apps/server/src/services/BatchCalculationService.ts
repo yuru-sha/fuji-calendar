@@ -403,7 +403,7 @@ export class BatchCalculationService {
       // 月別進捗を取得（簡易版）
       const monthlyProgress = [];
       for (let month = 1; month <= 12; month++) {
-        const eventCount = await this.prisma.locationFujiEvent.count({
+        const eventCount = await this.prisma.locationEvent.count({
           where: {
             calculationYear: currentYear,
             eventTime: {

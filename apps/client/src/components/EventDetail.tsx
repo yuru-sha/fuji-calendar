@@ -172,12 +172,8 @@ const EventDetail: React.FC<EventDetailProps> = memo(({
         onLocationSelect(null);
       }
     } else {
-      // 展開：この地点を選択して地図に表示
-      setExpandedLocationIds(prev => {
-        const newSet = new Set(prev);
-        newSet.add(locationId);
-        return newSet;
-      });
+      // 展開：この地点のみを選択して地図に表示（他は全て閉じる）
+      setExpandedLocationIds(new Set([locationId]));
       if (onLocationSelect) {
         onLocationSelect(location);
       }

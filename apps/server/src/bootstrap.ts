@@ -1,7 +1,8 @@
 import { Express } from 'express';
 import path from 'path';
 import { getComponentLogger } from '@fuji-calendar/utils';
-import { queueService } from './services/QueueService';
+import { DIContainer } from './di/DIContainer';
+import { QueueService } from './services/interfaces/QueueService';
 import BackgroundJobSchedulerPrisma from './services/BackgroundJobSchedulerPrisma';
 
 const logger = getComponentLogger('bootstrap');
@@ -18,11 +19,12 @@ export class Bootstrap {
   /**
    * アプリケーションの初期化
    */
-  static async initialize(): Promise<void> {
+  static async initialize(container: DIContainer): Promise<void> {
     logger.info('アプリケーション初期化開始');
     
     // QueueService の Redis 接続テスト
     try {
+      const queueService = container.resolve<QueueService>('QueueService');
       const redisConnected = await queueService.testRedisConnection();
       if (redisConnected) {
         logger.info('QueueService Redis 接続成功');
@@ -48,11 +50,11 @@ export class Bootstrap {
   /**
    * サーバーの起動
    */
-  static async startServer(config: BootstrapConfig): Promise<void> {
+  static async startServer(config: BootstrapConfig, container: DIContainer): Promise<void> {
     const { app, port } = config;
 
     try {
-      await this.initialize();
+      await this.initialize(container);
 
       app.listen(Number(port), () => {
         logger.info('サーバー起動完了', {
@@ -70,13 +72,16 @@ export class Bootstrap {
   /**
    * グレースフルシャットダウン
    */
-  static async shutdown(): Promise<void> {
+  static async shutdown(container?: DIContainer): Promise<void> {
     logger.info('グレースフルシャットダウン開始');
     
     // QueueService の終了処理
     try {
-      await queueService.shutdown();
-      logger.info('QueueService シャットダウン完了');
+      if (container) {
+        const queueService = container.resolve<QueueService>('QueueService');
+        await queueService.shutdown();
+        logger.info('QueueService シャットダウン完了');
+      }
     } catch (error) {
       logger.error('QueueService シャットダウンエラー', error);
     }

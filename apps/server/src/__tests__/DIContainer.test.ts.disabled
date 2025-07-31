@@ -1,0 +1,168 @@
+import { DIContainer } from '../di/DIContainer';
+import { ServiceRegistry } from '../di/ServiceRegistry';
+
+describe('DIContainer', () => {
+  let container: DIContainer;
+
+  beforeEach(() => {
+    container = new DIContainer();
+  });
+
+  afterEach(() => {
+    container.clear();
+  });
+
+  it('should register and resolve transient services', () => {
+    // Arrange
+    class TestService {
+      public value = Math.random();
+    }
+
+    // Act
+    container.register('TestService', () => new TestService());
+    const instance1 = container.resolve<TestService>('TestService');
+    const instance2 = container.resolve<TestService>('TestService');
+
+    // Assert
+    expect(instance1).toBeInstanceOf(TestService);
+    expect(instance2).toBeInstanceOf(TestService);
+    expect(instance1.value).not.toBe(instance2.value); // Different instances
+  });
+
+  it('should register and resolve singleton services', () => {
+    // Arrange
+    class TestService {
+      public value = Math.random();
+    }
+
+    // Act
+    container.registerSingleton('TestService', () => new TestService());
+    const instance1 = container.resolve<TestService>('TestService');
+    const instance2 = container.resolve<TestService>('TestService');
+
+    // Assert
+    expect(instance1).toBeInstanceOf(TestService);
+    expect(instance2).toBeInstanceOf(TestService);
+    expect(instance1.value).toBe(instance2.value); // Same instance
+    expect(instance1).toBe(instance2); // Same reference
+  });
+
+  it('should support dependency injection in singleton factories', () => {
+    // Arrange
+    class DatabaseService {
+      public connectionString = 'test-db';
+    }
+
+    class UserService {
+      constructor(private db: DatabaseService) {}
+      
+      public getConnectionString(): string {
+        return this.db.connectionString;
+      }
+    }
+
+    // Act
+    container.registerSingleton('DatabaseService', () => new DatabaseService());
+    container.registerSingleton('UserService', (container) => {
+      const db = container.resolve<DatabaseService>('DatabaseService');
+      return new UserService(db);
+    });
+
+    const userService = container.resolve<UserService>('UserService');
+
+    // Assert
+    expect(userService.getConnectionString()).toBe('test-db');
+  });
+
+  it('should throw error for unregistered services', () => {
+    // Act & Assert
+    expect(() => {
+      container.resolve('NonExistentService');
+    }).toThrow('Service not found: NonExistentService');
+  });
+
+  it('should check if service is registered', () => {
+    // Arrange
+    container.register('TestService', () => ({}));
+
+    // Act & Assert
+    expect(container.has('TestService')).toBe(true);
+    expect(container.has('NonExistentService')).toBe(false);
+  });
+
+  it('should clear singletons', () => {
+    // Arrange
+    class TestService {
+      public value = Math.random();
+    }
+
+    container.registerSingleton('TestService', () => new TestService());
+    const instance1 = container.resolve<TestService>('TestService');
+
+    // Act
+    container.clearSingletons();
+    const instance2 = container.resolve<TestService>('TestService');
+
+    // Assert
+    expect(instance1.value).not.toBe(instance2.value); // Different instances after clear
+  });
+
+  it('should get registered services list', () => {
+    // Arrange
+    container.register('TransientService', () => ({}));
+    container.registerSingleton('SingletonService', () => ({}));
+
+    // Act
+    const services = container.getRegisteredServices();
+
+    // Assert
+    expect(services.transient).toContain('TransientService');
+    expect(services.singleton).toContain('SingletonService');
+  });
+});
+
+describe('ServiceRegistry', () => {
+  let container: DIContainer;
+
+  beforeEach(() => {
+    container = new DIContainer();
+  });
+
+  afterEach(() => {
+    container.clear();
+  });
+
+  it('should configure all services without errors', () => {
+    // Act & Assert
+    expect(() => {
+      ServiceRegistry.configure(container);
+    }).not.toThrow();
+  });
+
+  it('should validate dependencies successfully', () => {
+    // Arrange
+    ServiceRegistry.configure(container);
+
+    // Act
+    const isValid = ServiceRegistry.validateDependencies(container);
+
+    // Assert
+    expect(isValid).toBe(true);
+  });
+
+  it('should register all expected services', () => {
+    // Arrange
+    ServiceRegistry.configure(container);
+
+    // Act
+    const services = container.getRegisteredServices();
+
+    // Assert
+    expect(services.singleton).toContain('LocationRepository');
+    expect(services.singleton).toContain('AstronomicalCalculator');
+    expect(services.singleton).toContain('EventService');
+    expect(services.singleton).toContain('LocationService');
+    expect(services.singleton).toContain('QueueService');
+    expect(services.transient).toContain('LocationController');
+  });
+});

@@ -228,7 +228,7 @@ const LocationDetailPage: React.FC = () => {
             </div>
 
             {/* アクセス情報 */}
-            {(location.accessInfo || location.parkingInfo || location.warnings) && (
+            {(location.accessInfo || location.parkingInfo || location.description) && (
               <div className={styles.infoCard}>
                 <h2 className={styles.cardTitle}>ℹ️ アクセス・注意事項</h2>
                 
@@ -246,10 +246,10 @@ const LocationDetailPage: React.FC = () => {
                   </div>
                 )}
                 
-                {location.warnings && (
+                {location.description && (
                   <div className={styles.warnings}>
                     <h3 className={styles.warningsTitle}>⚠️ 注意事項</h3>
-                    <p>{location.warnings}</p>
+                    <p>{location.description}</p>
                   </div>
                 )}
               </div>

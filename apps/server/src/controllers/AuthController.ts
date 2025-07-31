@@ -3,9 +3,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { PrismaClientManager } from '../database/prisma';
 import { getComponentLogger } from '@fuji-calendar/utils';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
-const JWT_EXPIRES_IN = '24h';
+import { AUTH_CONFIG } from '../config/auth';
 
 export class AuthController {
   private logger = getComponentLogger('auth-controller');
@@ -63,8 +61,8 @@ export class AuthController {
           username: admin.username,
           role: 'admin'
         },
-        JWT_SECRET,
-        { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions
+        AUTH_CONFIG.JWT_SECRET,
+        { expiresIn: AUTH_CONFIG.JWT_EXPIRES_IN } as jwt.SignOptions
       );
 
       this.logger.info('ログイン成功', { username, adminId: admin.id });
@@ -105,7 +103,7 @@ export class AuthController {
         });
       }
 
-      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      const decoded = jwt.verify(token, AUTH_CONFIG.JWT_SECRET) as any;
       
       // 管理者の存在確認
       const prisma = PrismaClientManager.getInstance();
@@ -201,8 +199,7 @@ export class AuthController {
       }
 
       // 新しいパスワードのハッシュ化
-      const saltRounds = 10;
-      const newPasswordHash = await bcrypt.hash(newPassword, saltRounds);
+      const newPasswordHash = await bcrypt.hash(newPassword, AUTH_CONFIG.BCRYPT_SALT_ROUNDS);
 
       // パスワード更新
       await prisma.admin.update({

@@ -247,13 +247,24 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
       // 選択された地点の方位角ラインのみ表示
       if (isSelected && hasEvents) {
 
-        // 選択されたイベント ID がある場合はそのイベントのみ、なければ最初のイベント
-        const targetEvent = selectedEventId 
-          ? locationEvents.find(e => e.id === selectedEventId)
-          : locationEvents[0];
+        // 同日に複数イベントがある場合は全て表示
+        const eventsToShow = selectedEventId 
+          ? locationEvents.filter(e => e.id === selectedEventId)
+          : locationEvents;
         
-        if (targetEvent) {
-          const event = targetEvent;
+        // まず撮影地→富士山の線を1本だけ描画（赤色）
+        L.polyline([
+          [location.latitude, location.longitude],
+          [FUJI_COORDINATES.latitude, FUJI_COORDINATES.longitude]
+        ], {
+          color: '#ef4444', // 赤色
+          weight: 4,
+          opacity: 0.9,
+          dashArray: '10, 5'
+        }).addTo(map);
+        
+        // 各イベントごとに太陽・月への線を描画
+        eventsToShow.forEach((event, index) => {
           const locationToFujiAzimuth = location.fujiAzimuth || 0; // 撮影地点から富士山への方位角
           const observerToSunMoonAzimuth = event.azimuth; // 撮影地点から見た太陽・月の方位角（イベントデータから取得）
           
@@ -272,22 +283,7 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
           console.log(`[DEBUG] location.fujiAzimuth vs event.azimuth の差: ${Math.abs(locationToFujiAzimuth - observerToSunMoonAzimuth).toFixed(2)}度`);
           console.log(`[DEBUG] location.fujiAzimuth vs Astronomy Engine 計算値 の差: ${Math.abs(locationToFujiAzimuth - calculatedCelestial.azimuth).toFixed(2)}度`);
           
-          // 方位角ラインの描画
-          
-          // 2 本の方位角ライン
-          
-          // 1. 撮影地→富士山の線（赤色）
-          L.polyline([
-            [location.latitude, location.longitude],
-            [FUJI_COORDINATES.latitude, FUJI_COORDINATES.longitude]
-          ], {
-            color: '#ef4444', // 赤色
-            weight: 4,
-            opacity: 0.9,
-            dashArray: '10, 5'
-          }).addTo(map);
-          
-          // 2. 撮影地→太陽・月方向の線（ゴールド/紫）
+          // 撮影地→太陽・月方向の線（ゴールド/紫）
           const celestialAzimuth = calculatedCelestial.azimuth; // Astronomy Engine 計算値を使用
           const celestialDistance = 350000; // 撮影地点から 350km 先まで
           
@@ -310,8 +306,7 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
             opacity: event.type === 'diamond' ? 0.9 : 0.7,
             dashArray: event.type === 'diamond' ? '15, 5' : '8, 8'
           }).addTo(map);
-          
-        }
+        });
 
         // 画角表示
         if (cameraSettings.showAngles && location.fujiAzimuth) {

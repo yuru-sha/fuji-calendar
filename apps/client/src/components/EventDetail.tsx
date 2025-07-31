@@ -50,6 +50,20 @@ const EventDetail: React.FC<EventDetailProps> = memo(({
     return directions[index];
   };
 
+  const getMoonPhaseName = (moonPhase: number): { name: string; emoji: string } => {
+    // moonPhase は 0-360 度の値なので正規化
+    const normalizedPhase = ((moonPhase % 360) + 360) % 360;
+    
+    if (normalizedPhase < 22.5 || normalizedPhase >= 337.5) return { name: '新月', emoji: '🌑' };
+    if (normalizedPhase < 67.5) return { name: '三日月', emoji: '🌒' };
+    if (normalizedPhase < 112.5) return { name: '上弦の月', emoji: '🌓' };
+    if (normalizedPhase < 157.5) return { name: '十三夜月', emoji: '🌔' };
+    if (normalizedPhase < 202.5) return { name: '満月', emoji: '🌕' };
+    if (normalizedPhase < 247.5) return { name: '十六夜月', emoji: '🌖' };
+    if (normalizedPhase < 292.5) return { name: '下弦の月', emoji: '🌗' };
+    return { name: '二十六夜月', emoji: '🌘' };
+  };
+
   const formatEventTitle = (event: FujiEvent): string => {
     const typeLabel = event.type === 'diamond' ? 'ダイヤモンド富士' : 'パール富士';
     const subTypeLabel = event.subType === 'rising' ? '昇る' : '沈む';
@@ -297,12 +311,12 @@ const EventDetail: React.FC<EventDetailProps> = memo(({
                               >
                                 {isEventFavorite(event.id) ? (
                                   <>
-                                    <Icon name="calendar" size={14} style={{ marginRight: '4px' }} />
+                                    <Icon name="calendar" size={14} />
                                     予定済み
                                   </>
                                 ) : (
                                   <>
-                                    <Icon name="calendar" size={14} style={{ marginRight: '4px' }} />
+                                    <Icon name="calendar" size={14} />
                                     予定に追加
                                   </>
                                 )}
@@ -312,7 +326,7 @@ const EventDetail: React.FC<EventDetailProps> = memo(({
                                 onClick={() => handleGoogleMapsClick(event)}
                                 title="Google Maps でルート検索"
                               >
-                                <Icon name="map" size={14} style={{ marginRight: '4px' }} />
+                                <Icon name="map" size={14} />
                                 ルート検索
                               </button>
                             </div>
@@ -326,16 +340,21 @@ const EventDetail: React.FC<EventDetailProps> = memo(({
                                 <span className={styles.detailValue}>{Math.round(event.elevation)}°</span>
                               </div>
                             )}
-                            {event.type === 'pearl' && event.moonPhase !== undefined && (
+                            {event.type === 'pearl' && event.moonPhase !== undefined ? (
                               <div className={styles.detailItem}>
                                 <span className={styles.detailLabel}>月相:</span>
-                                <span className={styles.detailValue}>{event.moonPhase.toFixed(1)}°</span>
+                                <span className={styles.detailValue}>
+                                  {getMoonPhaseName(event.moonPhase).emoji} {getMoonPhaseName(event.moonPhase).name}
+                                  {event.moonIllumination !== undefined && (
+                                    <small style={{ marginLeft: '8px', opacity: 0.7 }}>
+                                      ({Math.round(event.moonIllumination * 100)}%)
+                                    </small>
+                                  )}
+                                </span>
                               </div>
-                            )}
-                            {event.type === 'pearl' && event.moonIllumination !== undefined && (
+                            ) : (
                               <div className={styles.detailItem}>
-                                <span className={styles.detailLabel}>照度:</span>
-                                <span className={styles.detailValue}>{Math.round(event.moonIllumination * 100)}%</span>
+                                {/* ダイヤモンド富士用の空カラム（レイアウト統一のため） */}
                               </div>
                             )}
                             {event.accuracy && (
@@ -363,10 +382,22 @@ const EventDetail: React.FC<EventDetailProps> = memo(({
                         {/* 撮影地データ */}
                         <div className={styles.locationDataSection}>
                           <h6 className={styles.sectionTitle}>
-                            <Icon name="data" size={14} style={{ marginRight: '4px' }} />
+                            <Icon name="data" size={14} />
                             撮影地データ
                           </h6>
                           <div className={styles.locationDataGrid}>
+                            <div className={styles.detailItem}>
+                              <span className={styles.detailLabel}>緯度:</span>
+                              <span className={styles.detailValue}>{location.latitude.toFixed(6)}°</span>
+                            </div>
+                            <div className={styles.detailItem}>
+                              <span className={styles.detailLabel}>経度:</span>
+                              <span className={styles.detailValue}>{location.longitude.toFixed(6)}°</span>
+                            </div>
+                            <div className={styles.detailItem}>
+                              <span className={styles.detailLabel}>海抜標高:</span>
+                              <span className={styles.detailValue}>約{location.elevation.toFixed(1)}m</span>
+                            </div>
                             {location.fujiAzimuth !== undefined && (
                               <div className={styles.detailItem}>
                                 <span className={styles.detailLabel}>富士山の方角:</span>
@@ -381,10 +412,6 @@ const EventDetail: React.FC<EventDetailProps> = memo(({
                                 <span className={styles.detailValue}>約{(location.fujiDistance / 1000).toFixed(1)}km</span>
                               </div>
                             )}
-                            <div className={styles.detailItem}>
-                              <span className={styles.detailLabel}>海抜標高:</span>
-                              <span className={styles.detailValue}>約{location.elevation.toFixed(1)}m</span>
-                            </div>
                           </div>
                         </div>
 
@@ -393,7 +420,7 @@ const EventDetail: React.FC<EventDetailProps> = memo(({
                           {location.accessInfo && (
                             <div className={styles.accessInfo}>
                               <h6 className={styles.accessTitle}>
-                                <Icon name="car" size={14} style={{ marginRight: '4px' }} />
+                                <Icon name="car" size={14} />
                                 アクセス情報
                               </h6>
                               <p>{location.accessInfo}</p>
@@ -403,20 +430,20 @@ const EventDetail: React.FC<EventDetailProps> = memo(({
                           {location.parkingInfo && (
                             <div className={styles.parkingInfo}>
                               <h6 className={styles.parkingTitle}>
-                                <Icon name="parking" size={14} style={{ marginRight: '4px' }} />
+                                <Icon name="parking" size={14} />
                                 駐車場情報
                               </h6>
                               <p>{location.parkingInfo}</p>
                             </div>
                           )}
 
-                          {location.warnings && (
+                          {location.description && (
                             <div className={styles.warnings}>
                               <h6 className={styles.warningsTitle}>
-                                <Icon name="warning" size={14} style={{ marginRight: '4px' }} />
+                                <Icon name="warning" size={14} />
                                 注意事項
                               </h6>
-                              <p>{location.warnings}</p>
+                              <p>{location.description}</p>
                             </div>
                           )}
                         </div>

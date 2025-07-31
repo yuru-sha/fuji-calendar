@@ -14,9 +14,19 @@ export class SeasonCalculator {
     const month = date.getMonth() + 1; // 1-12
     const day = date.getDate();
 
+    // 冬季シーズン：12 月中旬～1 月上旬（年末年始）
+    const winterStartThisYear = this.createDateInYear(date.getFullYear(), 12, 15);
+    const winterEndThisYear = this.createDateInYear(date.getFullYear(), 12, 31);
+    const winterStartNextYear = this.createDateInYear(date.getFullYear(), 1, 1);
+    const winterEndNextYear = this.createDateInYear(date.getFullYear(), 1, 10);
+
     // 春季シーズン：2 月中旬～4 月末
     const springStart = this.createDateInYear(date.getFullYear(), 2, 15);
     const springEnd = this.createDateInYear(date.getFullYear(), 4, 30);
+
+    // 夏季シーズン：6 月中旬～7 月上旬
+    const summerStart = this.createDateInYear(date.getFullYear(), 6, 15);
+    const summerEnd = this.createDateInYear(date.getFullYear(), 7, 10);
 
     // 秋季シーズン：8 月中旬～10 月末
     const autumnStart = this.createDateInYear(date.getFullYear(), 8, 15);
@@ -24,19 +34,24 @@ export class SeasonCalculator {
 
     const currentDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
+    const isWinterSeason = (currentDate >= winterStartThisYear && currentDate <= winterEndThisYear) ||
+                          (currentDate >= winterStartNextYear && currentDate <= winterEndNextYear);
     const isSpringSeason = currentDate >= springStart && currentDate <= springEnd;
+    const isSummerSeason = currentDate >= summerStart && currentDate <= summerEnd;
     const isAutumnSeason = currentDate >= autumnStart && currentDate <= autumnEnd;
 
     this.logger.debug('ダイアモンド富士シーズン判定', {
       date: date.toISOString().split('T')[0],
       month,
       day,
+      isWinterSeason,
       isSpringSeason,
+      isSummerSeason,
       isAutumnSeason,
-      isDiamondSeason: isSpringSeason || isAutumnSeason
+      isDiamondSeason: isWinterSeason || isSpringSeason || isSummerSeason || isAutumnSeason
     });
 
-    return isSpringSeason || isAutumnSeason;
+    return isWinterSeason || isSpringSeason || isSummerSeason || isAutumnSeason;
   }
 
   /**
@@ -44,7 +59,7 @@ export class SeasonCalculator {
    */
   getDiamondFujiSeasonMessage(date: Date): string {
     if (!this.isDiamondFujiSeason(date)) {
-      return 'ダイアモンド富士の撮影シーズンではありません（2 月中旬～4 月末、8 月中旬～10 月末が最適）';
+      return 'ダイアモンド富士の撮影シーズンではありません（12 月中旬～1 月上旬、2 月中旬～4 月末、6 月中旬～7 月上旬、8 月中旬～10 月末が最適）';
     }
 
     const month = date.getMonth() + 1;

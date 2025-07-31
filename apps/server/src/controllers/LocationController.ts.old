@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { PrismaClientManager } from '../database/prisma';
 import { getComponentLogger } from '@fuji-calendar/utils';
 import { Location } from '@fuji-calendar/types';
-import { queueService } from '../services/QueueService';
+// queueService は DIContainer 経由で注入されるため直接インポートは不要
 import { AstronomicalCalculatorImpl } from '../services/AstronomicalCalculator';
 
 const logger = getComponentLogger('LocationController');
@@ -181,6 +181,11 @@ export class LocationController {
 
       // 天体計算キューにジョブを追加（当年と翌年のデータを作成）
       try {
+        logger.info('天体計算ジョブ登録開始', {
+          locationId: location.id,
+          queueServiceAvailable: !!queueService
+        });
+
         const currentYear = new Date().getFullYear();
         const jobId = await queueService.scheduleLocationCalculation(
           location.id,
@@ -197,8 +202,9 @@ export class LocationController {
           endYear: currentYear + 1
         });
       } catch (queueError) {
-        logger.warn('天体計算ジョブ登録失敗（地点作成は成功）', {
-          error: queueError,
+        logger.error('天体計算ジョブ登録失敗（地点作成は成功）', {
+          error: queueError instanceof Error ? queueError.message : queueError,
+          stack: queueError instanceof Error ? queueError.stack : undefined,
           locationId: location.id
         });
       }
@@ -311,6 +317,11 @@ export class LocationController {
       // 座標や標高が変更された場合、天体計算を再実行
       if (coordinatesChanged) {
         try {
+          logger.info('座標変更による天体計算ジョブ登録開始', {
+            locationId: id,
+            queueServiceAvailable: !!queueService
+          });
+
           const currentYear = new Date().getFullYear();
           const jobId = await queueService.scheduleLocationCalculation(
             id,
@@ -327,8 +338,9 @@ export class LocationController {
             endYear: currentYear + 1
           });
         } catch (queueError) {
-          logger.warn('天体計算ジョブ登録失敗（地点更新は成功）', {
-            error: queueError,
+          logger.error('天体計算ジョブ登録失敗（地点更新は成功）', {
+            error: queueError instanceof Error ? queueError.message : queueError,
+            stack: queueError instanceof Error ? queueError.stack : undefined,
             locationId: id
           });
         }

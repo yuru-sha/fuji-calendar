@@ -43,6 +43,27 @@ const SimpleCalendar: React.FC<SimpleCalendarProps> = ({
     return dayCalendarEvents.some(calendarEvent => calendarEvent.events && calendarEvent.events.length > 0);
   };
 
+  // 月相から月齢を計算（0-360 度 → 0-29.5 日）
+  const calculateMoonAge = (moonPhase: number): number => {
+    const normalizedPhase = ((moonPhase % 360) + 360) % 360;
+    return (normalizedPhase / 360) * 29.5;
+  };
+
+  // 日付の月齢を取得
+  const getMoonAge = (day: number): number | null => {
+    const dateStr = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+    const dayCalendarEvents = events.filter(event => event.date.toISOString().startsWith(dateStr));
+    
+    for (const calendarEvent of dayCalendarEvents) {
+      for (const event of calendarEvent.events) {
+        if (event.type === 'pearl' && event.moonPhase !== undefined) {
+          return calculateMoonAge(event.moonPhase);
+        }
+      }
+    }
+    return null;
+  };
+
   // 日付のイベント詳細を取得
   const getEventDetails = (day: number) => {
     const dateStr = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
@@ -141,20 +162,31 @@ const SimpleCalendar: React.FC<SimpleCalendarProps> = ({
                 <span className="text-sm font-medium">{day}</span>
                 {(() => {
                   const eventDetails = getEventDetails(day);
-                  if (eventDetails.total === 0) return null;
+                  const moonAge = getMoonAge(day);
                   
                   return (
-                    <div className="flex items-center gap-1 mt-0.5">
-                      {eventDetails.diamond > 0 && (
-                        <div className="flex items-center">
-                          <Icon name="sun" size={12} className="text-orange-500" />
-                          <span className="text-xs font-bold ml-0.5 text-orange-600">{eventDetails.diamond}</span>
+                    <div className="flex flex-col items-center gap-0.5 mt-0.5">
+                      {/* イベントアイコン */}
+                      {eventDetails.total > 0 && (
+                        <div className="flex items-center gap-1">
+                          {eventDetails.diamond > 0 && (
+                            <div className="flex items-center">
+                              <Icon name="sun" size={12} className="text-orange-500" />
+                              <span className="text-xs font-bold ml-0.5 text-orange-600">{eventDetails.diamond}</span>
+                            </div>
+                          )}
+                          {eventDetails.pearl > 0 && (
+                            <div className="flex items-center">
+                              <Icon name="moon" size={12} className="text-blue-500" />
+                              <span className="text-xs font-bold ml-0.5 text-blue-600">{eventDetails.pearl}</span>
+                            </div>
+                          )}
                         </div>
                       )}
-                      {eventDetails.pearl > 0 && (
-                        <div className="flex items-center">
-                          <Icon name="moon" size={12} className="text-blue-500" />
-                          <span className="text-xs font-bold ml-0.5 text-blue-600">{eventDetails.pearl}</span>
+                      {/* 月齢表示 */}
+                      {moonAge !== null && (
+                        <div className="text-xs text-gray-500" style={{ fontSize: '10px', lineHeight: 1 }}>
+                          月齢{moonAge.toFixed(1)}
                         </div>
                       )}
                     </div>

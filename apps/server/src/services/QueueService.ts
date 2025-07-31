@@ -1,851 +1,438 @@
 import { Queue, Worker, Job } from 'bullmq';
 import IORedis from 'ioredis';
-
 import { getComponentLogger } from '@fuji-calendar/utils';
-
-import { batchCalculationService } from './BatchCalculationService';
-
+import { EventService } from './interfaces/EventService';
+import { QueueService as IQueueService } from './interfaces/QueueService';
 
 const logger = getComponentLogger('queue-service');
 
-// Redis 接続設定
-const redisConfig = {
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-  retryDelayOnFailover: 100,
-  enableReadyCheck: false,
-  maxRetriesPerRequest: null,
-  connectTimeout: 5000,
-  lazyConnect: true
-};
+/**
+ * リファクタリング後の QueueService
+ * 依存注入パターンを使用して循環依存を解消
+ */
+export class QueueService implements IQueueService {
+  private redis: IORedis | null = null;
+  private eventCalculationQueue: Queue | null = null;
+  private worker: Worker | null = null;
+  private eventService: EventService | null = null;
 
-// Redis 接続インスタンス
-let redisConnection: IORedis | null = null;
-
-// Redis 無効化フラグをチェック
-if (process.env.DISABLE_REDIS !== 'true') {
-  redisConnection = new IORedis(redisConfig);
-
-  // Redis 接続エラーハンドリング
-  redisConnection.on('error', (error) => {
-    logger.error('Redis 接続エラー', error);
-  });
-
-  redisConnection.on('connect', () => {
-    logger.info('Redis 接続成功', {
-      host: redisConfig.host,
-      port: redisConfig.port
-    });
-  });
-
-  redisConnection.on('ready', () => {
-    logger.info('Redis 準備完了');
-  });
-
-  redisConnection.on('close', () => {
-    logger.warn('Redis 接続クローズ');
-  });
-} else {
-  logger.info('Redis 無効化フラグにより、Redis 接続をスキップします');
-}
-
-export interface LocationCalculationJob {
-  locationId: number;
-  startYear: number;
-  endYear: number;
-  priority: 'high' | 'medium' | 'low';
-  requestId?: string;
-}
-
-export interface MonthlyCalculationJob {
-  locationId: number;
-  year: number;
-  month: number;
-  priority: 'high' | 'medium' | 'low';
-  requestId?: string;
-}
-
-export interface DailyCalculationJob {
-  locationId: number;
-  year: number;
-  month: number;
-  day: number;
-  priority: 'high' | 'medium' | 'low';
-  requestId?: string;
-}
-
-export interface HistoricalCalculationJob {
-  locationId: number;
-  startYear: number;
-  endYear: number;
-  priority: 'high' | 'medium' | 'low';
-  requestId?: string;
-}
-
-export class QueueService {
-  private locationQueue!: Queue<LocationCalculationJob>;
-  private monthlyQueue!: Queue<MonthlyCalculationJob>;
-  private dailyQueue!: Queue<DailyCalculationJob>;
-  private historicalQueue!: Queue<HistoricalCalculationJob>;
-  // BatchCalculationService はシングルトンを使用
-  // Prisma を使用するため、historicalModel プロパティは削除
-  private workers: Worker[] = [];
-  private isRedisAvailable: boolean = false;
-
-  constructor() {
-    try {
-      // Redis が無効化されている場合はキューを初期化しない
-      if (!redisConnection) {
-        this.isRedisAvailable = false;
-        // Prisma を使用するため削除
-        logger.info('Queue service initialized (Redis disabled, direct execution mode)');
-        return;
-      }
-
-      // キューの初期化
-      this.locationQueue = new Queue('location-calculation', { connection: redisConnection || undefined });
-      this.monthlyQueue = new Queue('monthly-calculation', { connection: redisConnection || undefined });
-      this.dailyQueue = new Queue('daily-calculation', { connection: redisConnection || undefined });
-      this.historicalQueue = new Queue('historical-calculation', { connection: redisConnection || undefined });
-      
-      // BatchCalculationService はシングルトンを使用
-      // Prisma を使用するため削除
-      
-      // 起動時に全キューをクリア
-      this.clearAllQueues();
-      
-      this.initializeWorkers();
-      
-      logger.info('Queue service initialized', {
-        queues: ['location-calculation', 'monthly-calculation', 'daily-calculation', 'historical-calculation']
-      });
-    } catch (error) {
-      logger.error('Queue service initialization failed', error);
-      this.isRedisAvailable = false;
-    }
+  constructor(eventService: EventService | null = null) {
+    this.eventService = eventService;
+    this.initializeRedis();
   }
 
   /**
-   * Redis 接続状態をテスト
+   * EventService を後から注入（循環依存対策）
    */
-  async testRedisConnection(): Promise<boolean> {
-    // 環境変数で Redis が無効化されている場合、または Redis 接続が null の場合
-    if (process.env.DISABLE_REDIS === 'true' || !redisConnection) {
-      this.isRedisAvailable = false;
-      logger.info('Redis 無効化フラグが設定されています（直接実行モード）');
-      return false;
-    }
-
-    try {
-      await redisConnection.ping();
-      this.isRedisAvailable = true;
-      logger.info('Redis 接続テスト成功');
-      return true;
-    } catch (error) {
-      this.isRedisAvailable = false;
-      logger.warn('Redis 接続テスト失敗', error);
-      return false;
-    }
+  setEventService(eventService: EventService): void {
+    this.eventService = eventService;
+    logger.info('EventService 注入完了', {
+      hasEventService: !!eventService
+    });
   }
 
-  private async clearAllQueues(): Promise<void> {
-    if (!this.isRedisAvailable) {
-      logger.info('Redis 利用不可のためキューのクリアをスキップ');
+  /**
+   * Redis 接続の初期化
+   */
+  private initializeRedis(): void {
+    // Redis 無効化フラグをチェック
+    if (process.env.DISABLE_REDIS === 'true') {
+      logger.info('Redis 無効化モード: キューシステムは無効化されます');
       return;
     }
-    
-    try {
-      await Promise.all([
-        this.locationQueue.obliterate({ force: true }),
-        this.monthlyQueue.obliterate({ force: true }),
-        this.dailyQueue.obliterate({ force: true }),
-        this.historicalQueue.obliterate({ force: true })
-      ]);
-      logger.info('起動時に全キューをクリアしました');
-    } catch (error) {
-      logger.warn('キューのクリアに失敗しました', error);
-      this.isRedisAvailable = false;
-    }
-  }
 
-  private initializeWorkers(): void {
-    // 地点全体計算ワーカー（低並行度）
-    const locationWorker = new Worker(
-      'location-calculation',
-      this.processLocationCalculation.bind(this),
-      {
-        connection: redisConnection || redisConfig,
-        concurrency: 1, // 同時実行 1 件のみ
-        removeOnComplete: { count: 10 },
-        removeOnFail: { count: 50 },
-      }
-    );
+    const redisConfig = {
+      host: process.env.REDIS_HOST || 'localhost',
+      port: parseInt(process.env.REDIS_PORT || '6379'),
+      retryDelayOnFailover: 100,
+      enableReadyCheck: false,
+      maxRetriesPerRequest: null,
+      connectTimeout: 5000,
+      lazyConnect: false  // 即座に接続を確立
+    };
 
-    // 月間計算ワーカー（中並行度）
-    const monthlyWorker = new Worker(
-      'monthly-calculation',
-      this.processMonthlyCalculation.bind(this),
-      {
-        connection: redisConnection || redisConfig,
-        concurrency: 2, // 同時実行 2 件
-        removeOnComplete: { count: 50 },
-        removeOnFail: { count: 100 },
-      }
-    );
+    this.redis = new IORedis(redisConfig);
 
-    // 日別計算ワーカー（高並行度）
-    const dailyWorker = new Worker(
-      'daily-calculation',
-      this.processDailyCalculation.bind(this),
-      {
-        connection: redisConnection || redisConfig,
-        concurrency: 4, // 同時実行 4 件
-        removeOnComplete: { count: 100 },
-        removeOnFail: { count: 100 },
-      }
-    );
+    // Redis 接続エラーハンドリング
+    this.redis.on('error', (error) => {
+      logger.error('Redis 接続エラー', error);
+    });
 
-    // 過去データ計算ワーカー（低並行度、長時間ジョブ）
-    const historicalWorker = new Worker(
-      'historical-calculation',
-      this.processHistoricalCalculation.bind(this),
-      {
-        connection: redisConnection || redisConfig,
-        concurrency: 1, // 同時実行 1 件のみ
-        removeOnComplete: { count: 5 },
-        removeOnFail: { count: 20 },
-      }
-    );
-
-    this.workers = [locationWorker, monthlyWorker, dailyWorker, historicalWorker];
-
-    // ワーカーイベントリスナー
-    this.workers.forEach((worker) => {
-      worker.on('completed', (job) => {
-        logger.info('Job completed', {
-          jobId: job.id,
-          queue: worker.name,
-          duration: job.finishedOn! - job.processedOn!,
-        });
+    this.redis.on('connect', () => {
+      logger.info('Redis 接続成功', {
+        host: redisConfig.host,
+        port: redisConfig.port
       });
+    });
 
-      worker.on('failed', (job, err) => {
-        logger.error('Job failed', err, {
-          jobId: job?.id,
-          queue: worker.name,
-          attempts: job?.attemptsMade,
-        });
-      });
-
-      worker.on('stalled', (jobId) => {
-        logger.warn('Job stalled', {
-          jobId,
-          queue: worker.name,
-        });
-      });
+    this.redis.on('ready', () => {
+      logger.info('Redis 準備完了 - キューシステム初期化開始');
+      // Redis 準備完了後にキューを初期化
+      this.initializeQueue();
     });
   }
 
   /**
-   * 新しい地点の全期間計算をキューに追加
+   * キューの初期化
    */
-  async scheduleLocationCalculation(
-    locationId: number,
-    startYear: number = new Date().getFullYear(),
-    endYear: number = new Date().getFullYear() + 2,
-    priority: 'high' | 'medium' | 'low' = 'medium',
-    requestId?: string
-  ): Promise<string> {
-    // Redis が利用できない場合は直接実行
-    if (!this.isRedisAvailable) {
-      logger.warn('Redis 利用不可のため、地点計算を直接実行します', {
-        locationId,
-        startYear,
-        endYear,
-        priority,
-        requestId
-      });
-      
-      // 非同期で直接実行
-      this.executeLocationCalculationDirectly(locationId, startYear, endYear, requestId);
-      return `direct-${locationId}-${Date.now()}`;
+  private initializeQueue(): void {
+    if (!this.redis) {
+      logger.warn('Redis が無効のため、キューシステムを初期化しません');
+      return;
     }
 
     try {
-      const job = await this.locationQueue.add(
-        'calculate-location',
-        {
-          locationId,
-          startYear,
-          endYear,
-          priority,
-          requestId,
-        },
-        {
-          priority: this.getPriorityValue(priority),
+      // イベント計算キューを作成
+      this.eventCalculationQueue = new Queue('event-calculation', {
+        connection: this.redis,
+        defaultJobOptions: {
+          removeOnComplete: 10,
+          removeOnFail: 5,
           attempts: 3,
           backoff: {
             type: 'exponential',
-            delay: 5000,
+            delay: 2000,
           },
-          removeOnComplete: { count: 5 },
-          removeOnFail: { count: 10 },
+        },
+      });
+
+      // ワーカーを作成
+      this.worker = new Worker(
+        'event-calculation',
+        this.processJob.bind(this),
+        { 
+          connection: this.redis,
+          concurrency: 2 // 同時実行数を制限
         }
       );
 
-      logger.info('Location calculation job scheduled', {
-        jobId: job.id,
-      locationId,
-      startYear,
-      endYear,
-      priority,
-      requestId,
-    });
+      logger.info('ワーカー作成完了', { queueName: 'event-calculation', concurrency: 2 });
 
-      return job.id!;
+      // ワーカーイベントハンドラー
+      this.worker.on('active', (job: Job) => {
+        logger.info('ジョブアクティブ', {
+          jobId: job.id,
+          jobName: job.name,
+          jobData: job.data
+        });
+      });
+      
+      this.worker.on('completed', (job: Job) => {
+        logger.info('ジョブ完了', {
+          jobId: job.id,
+          jobName: job.name,
+          processingTime: job.processedOn ? Date.now() - job.processedOn : undefined
+        });
+      });
+
+      this.worker.on('failed', (job: Job | undefined, error: Error) => {
+        logger.error('ジョブ失敗', error, {
+          jobId: job?.id,
+          jobName: job?.name,
+          attemptsMade: job?.attemptsMade,
+          maxAttempts: job?.opts.attempts
+        });
+      });
+
+      this.worker.on('ready', () => {
+        logger.info('ワーカー準備完了', { 
+          queueName: 'event-calculation',
+          hasEventService: !!this.eventService
+        });
+      });
+
+      this.worker.on('error', (error: Error) => {
+        logger.error('ワーカーエラー', error);
+      });
+
+      logger.info('キューシステム初期化完了');
     } catch (error) {
-      logger.error('Failed to schedule location calculation job', error);
-      // フォールバックとして直接実行
-      this.executeLocationCalculationDirectly(locationId, startYear, endYear, requestId);
-      return `direct-fallback-${locationId}-${Date.now()}`;
+      logger.error('キューシステム初期化エラー', error);
+    }
+  }
+
+
+  /**
+   * 月間天体計算をスケジュール
+   */
+  async scheduleMonthlyCalculation(
+    year: number,
+    month: number,
+    locationIds: number[],
+    priority: 'low' | 'normal' | 'high' = 'normal'
+  ): Promise<string | null> {
+    if (!this.eventCalculationQueue) {
+      logger.warn('キューが無効のため、月間計算をスケジュールできません', { year, month });
+      return null;
+    }
+
+    try {
+      const job = await this.eventCalculationQueue.add(
+        'monthly-calculation',
+        {
+          type: 'monthly-calculation',
+          year,
+          month,
+          locationIds,
+          timestamp: new Date().toISOString()
+        },
+        {
+          priority: priority === 'high' ? 10 : priority === 'normal' ? 5 : 1,
+          jobId: `monthly-${year}-${month}`,
+          delay: 0
+        }
+      );
+
+      logger.info('月間計算ジョブ登録', {
+        jobId: job.id,
+        year,
+        month,
+        locationCount: locationIds.length,
+        priority
+      });
+
+      return job.id || null;
+    } catch (error) {
+      logger.error('月間計算ジョブ登録エラー', error, { year, month });
+      return null;
     }
   }
 
   /**
-   * Redis 利用不可時の直接実行
+   * キューのジョブを処理
    */
-  private executeLocationCalculationDirectly(
-    locationId: number,
-    startYear: number,
-    endYear: number,
-    requestId?: string
-  ): void {
-    // 非同期で実行（エラーが発生してもメインフローに影響しない）
-    this.processLocationCalculationDirectly(locationId, startYear, endYear, requestId).catch((error) => {
-      logger.error('Direct location calculation failed', {
-        locationId,
-        startYear,
-        endYear,
-        requestId,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-    });
-  }
+  private async processJob(job: Job): Promise<any> {
+    const { type, ...data } = job.data;
 
-  /**
-   * 実際の直接計算処理
-   */
-  private async processLocationCalculationDirectly(
-    locationId: number,
-    startYear: number,
-    endYear: number,
-    requestId?: string
-  ): Promise<void> {
-    logger.info('Starting direct location calculation', {
-      locationId,
-      startYear,
-      endYear,
-      requestId
+    logger.info('ジョブ処理開始', {
+      jobId: job.id,
+      jobName: job.name,
+      type,
+      data,
+      hasEventService: !!this.eventService
     });
 
     try {
-      // processLocationCalculation メソッドと同じ処理を実行
-      for (let year = startYear; year <= endYear; year++) {
-        logger.debug('Processing year in direct calculation', {
-          locationId,
-          year,
-          requestId
-        });
-
-        // 年間計算（月ごとに分割）
-        for (let month = 1; month <= 12; month++) {
-          await batchCalculationService.calculateMonthlyEvents(year, month, [locationId]);
-        }
+      switch (type) {
+        case 'location':
+        case 'location-calculation':
+          return await this.processLocationCalculation(data);
+        
+        case 'monthly':
+        case 'monthly-calculation':
+          return await this.processMonthlyCalculation(data);
+        
+        default:
+          throw new Error(`Unknown job type: ${type}`);
       }
-
-      logger.info('Direct location calculation completed', {
-        locationId,
-        startYear,
-        endYear,
-        requestId,
-        totalYears: endYear - startYear + 1
-      });
     } catch (error) {
-      logger.error('Direct location calculation error', {
-        locationId,
-        startYear,
-        endYear,
-        requestId,
-        error: error instanceof Error ? error.message : 'Unknown error'
+      logger.error('ジョブ処理エラー', error, {
+        jobId: job.id,
+        type,
+        data
       });
       throw error;
     }
-  }
-
-  /**
-   * 月間計算をキューに追加
-   */
-  async scheduleMonthlyCalculation(
-    locationId: number,
-    year: number,
-    month: number,
-    priority: 'high' | 'medium' | 'low' = 'high',
-    requestId?: string
-  ): Promise<string> {
-    const job = await this.monthlyQueue.add(
-      'calculate-monthly',
-      {
-        locationId,
-        year,
-        month,
-        priority,
-        requestId,
-      },
-      {
-        priority: this.getPriorityValue(priority),
-        attempts: 2,
-        backoff: {
-          type: 'exponential',
-          delay: 2000,
-        },
-        removeOnComplete: { count: 20 },
-        removeOnFail: { count: 20 },
-      }
-    );
-
-    logger.info('Monthly calculation job scheduled', {
-      jobId: job.id,
-      locationId,
-      year,
-      month,
-      priority,
-      requestId,
-    });
-
-    return job.id!;
-  }
-
-  /**
-   * 日別計算をキューに追加
-   */
-  async scheduleDailyCalculation(
-    locationId: number,
-    year: number,
-    month: number,
-    day: number,
-    priority: 'high' | 'medium' | 'low' = 'high',
-    requestId?: string
-  ): Promise<string> {
-    const job = await this.dailyQueue.add(
-      'calculate-daily',
-      {
-        locationId,
-        year,
-        month,
-        day,
-        priority,
-        requestId,
-      },
-      {
-        priority: this.getPriorityValue(priority),
-        attempts: 2,
-        backoff: {
-          type: 'fixed',
-          delay: 1000,
-        },
-        removeOnComplete: { count: 50 },
-        removeOnFail: 50,
-      }
-    );
-
-    logger.info('Daily calculation job scheduled', {
-      jobId: job.id,
-      locationId,
-      year,
-      month,
-      day,
-      priority,
-      requestId,
-    });
-
-    return job.id!;
   }
 
   /**
    * 地点計算ジョブの処理
    */
-  private async processLocationCalculation(job: Job<LocationCalculationJob>): Promise<void> {
-    const { locationId, startYear, endYear, requestId } = job.data;
+  private async processLocationCalculation(data: {
+    locationId: number;
+    startYear: number;
+    endYear: number;
+  }): Promise<any> {
+    const { locationId, startYear, endYear } = data;
+    logger.info('地点計算処理開始', { locationId, startYear, endYear });
     
-    logger.info('Starting location calculation', {
-      jobId: job.id,
-      locationId,
-      startYear,
-      endYear,
-      requestId,
-    });
-
-    try {
-      // 年毎に分割して実行
-      for (let year = startYear; year <= endYear; year++) {
-        await job.updateProgress({
-          currentYear: year,
-          totalYears: endYear - startYear + 1,
-          completedYears: year - startYear,
-        });
-
-        // 年間計算（月ごとに分割）
-        for (let month = 1; month <= 12; month++) {
-          await batchCalculationService.calculateMonthlyEvents(year, month, [locationId]);
-        }
-        
-        logger.info('Year calculation completed', {
-          jobId: job.id,
-          locationId,
-          year,
-          progress: `${year - startYear + 1}/${endYear - startYear + 1}`,
-        });
-      }
-
-      logger.info('Location calculation completed', {
-        jobId: job.id,
-        locationId,
-        totalYears: endYear - startYear + 1,
-      });
-
-    } catch (error) {
-      logger.error('Location calculation failed', error, {
-        jobId: job.id,
+    if (!this.eventService) {
+      logger.error('EventService が注入されていません', {
         locationId,
         startYear,
-        endYear,
+        endYear
       });
-      throw error;
+      throw new Error('EventService is not injected');
     }
+    
+    const results = [];
+
+    for (let year = startYear; year <= endYear; year++) {
+      logger.info('年間計算開始', { locationId, year });
+      const result = await this.eventService.generateLocationCache(locationId, year);
+      logger.info('年間計算完了', { locationId, year, success: result.success });
+      results.push(result);
+    }
+
+    return {
+      success: results.every(r => r.success),
+      results,
+      totalEvents: results.reduce((sum, r) => sum + r.eventsGenerated, 0)
+    };
   }
 
   /**
    * 月間計算ジョブの処理
    */
-  private async processMonthlyCalculation(job: Job<MonthlyCalculationJob>): Promise<void> {
-    const { locationId, year, month, requestId } = job.data;
+  private async processMonthlyCalculation(data: {
+    year: number;
+    month: number;
+    locationIds: number[];
+  }): Promise<any> {
+    const { year, month, locationIds } = data;
     
-    logger.info('Starting monthly calculation', {
-      jobId: job.id,
-      locationId,
-      year,
-      month,
-      requestId,
-    });
+    if (!this.eventService) {
+      logger.error('EventService が注入されていません', {
+        year,
+        month,
+        locationIds
+      });
+      throw new Error('EventService is not injected');
+    }
+    
+    const result = await this.eventService.calculateMonthlyEvents(year, month, locationIds);
+    
+    return {
+      success: result.success,
+      eventsGenerated: result.eventsGenerated,
+      processingTime: result.processingTime,
+      errors: result.errors
+    };
+  }
+
+  /**
+   * キューの統計情報を取得
+   */
+  async getQueueStats(): Promise<any> {
+    if (!this.eventCalculationQueue) {
+      return { enabled: false };
+    }
 
     try {
-      await batchCalculationService.calculateMonthlyEvents(year, month, [locationId]);
-      
-      logger.info('Monthly calculation completed', {
-        jobId: job.id,
-        locationId,
-        year,
-        month,
-      });
+      const waiting = await this.eventCalculationQueue.getWaiting();
+      const active = await this.eventCalculationQueue.getActive();
+      const completed = await this.eventCalculationQueue.getCompleted();
+      const failed = await this.eventCalculationQueue.getFailed();
 
+      return {
+        enabled: true,
+        waiting: waiting.length,
+        active: active.length,
+        completed: completed.length,
+        failed: failed.length
+      };
     } catch (error) {
-      logger.error('Monthly calculation failed', error, {
-        jobId: job.id,
-        locationId,
-        year,
-        month,
-      });
-      throw error;
+      logger.error('キュー統計取得エラー', error);
+      return { enabled: true, error: 'Failed to get stats' };
     }
   }
 
   /**
-   * 日別計算ジョブの処理
+   * Redis 接続テスト
    */
-  private async processDailyCalculation(job: Job<DailyCalculationJob>): Promise<void> {
-    const { locationId, year, month, day, requestId } = job.data;
-    
-    logger.info('Starting daily calculation', {
-      jobId: job.id,
-      locationId,
-      year,
-      month,
-      day,
-      requestId,
-    });
+  async testRedisConnection(): Promise<boolean> {
+    if (!this.redis) {
+      logger.warn('Redis が無効化されています');
+      return false;
+    }
 
     try {
-      await batchCalculationService.calculateDayEvents(year, month, day, [locationId]);
-      
-      logger.info('Daily calculation completed', {
-        jobId: job.id,
-        locationId,
-        year,
-        month,
-        day,
-      });
-
+      await this.redis.ping();
+      logger.debug('Redis ping 成功');
+      return true;
     } catch (error) {
-      logger.error('Daily calculation failed', error, {
-        jobId: job.id,
-        locationId,
-        year,
-        month,
-        day,
-      });
-      throw error;
+      logger.error('Redis ping 失敗', error);
+      return false;
     }
   }
 
   /**
-   * 過去データ計算ジョブの処理
+   * 地点計算ジョブをスケジュール
    */
-  private async processHistoricalCalculation(job: Job<HistoricalCalculationJob>): Promise<void> {
-    const { locationId, startYear, endYear, requestId } = job.data;
-    
-    logger.info('Starting historical calculation', {
-      jobId: job.id,
-      locationId,
-      startYear,
-      endYear,
-      yearSpan: endYear - startYear + 1,
-      requestId,
-    });
-
-    try {
-      let processedYears = 0;
-      const totalYears = endYear - startYear + 1;
-
-      // 年毎に分割して実行（古い年から新しい年へ）
-      for (let year = startYear; year <= endYear; year++) {
-        await job.updateProgress({
-          currentYear: year,
-          totalYears,
-          processedYears,
-          phase: 'calculating'
-        });
-
-        // その年のデータを計算
-        // 年間計算（月ごとに分割）
-        for (let month = 1; month <= 12; month++) {
-          await batchCalculationService.calculateMonthlyEvents(year, month, [locationId]);
-        }
-
-        // 計算結果を historical テーブルに保存
-        // TODO: Prisma ベースでのアーカイブ機能を実装
-        // await this.archiveEventsFromCache(year);
-
-        processedYears++;
-
-        logger.info('Historical year calculation completed', {
-          jobId: job.id,
-          locationId,
-          year,
-          progress: `${processedYears}/${totalYears}`,
-        });
-
-        // 進捗更新
-        await job.updateProgress({
-          currentYear: year,
-          totalYears,
-          processedYears,
-          phase: 'archived'
-        });
-      }
-
-      logger.info('Historical calculation completed', {
-        jobId: job.id,
-        locationId,
-        startYear,
-        endYear,
-        totalYears,
-      });
-
-    } catch (error) {
-      logger.error('Historical calculation failed', error, {
-        jobId: job.id,
-        locationId,
-        startYear,
-        endYear,
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * 過去データ計算をキューに追加
-   */
-  async scheduleHistoricalCalculation(
+  async scheduleLocationCalculation(
     locationId: number,
     startYear: number,
     endYear: number,
-    priority: 'high' | 'medium' | 'low' = 'low',
-    requestId?: string
-  ): Promise<string> {
-    const job = await this.historicalQueue.add(
-      'calculate-historical',
-      {
+    priority: 'low' | 'normal' | 'high' = 'normal'
+  ): Promise<string | null> {
+    if (!this.eventCalculationQueue) {
+      logger.warn('キューが初期化されていません - ジョブをスケジュールできません');
+      return null;
+    }
+
+    try {
+      const jobData = {
+        type: 'location',
         locationId,
         startYear,
-        endYear,
-        priority,
-        requestId,
-      },
-      {
-        priority: this.getPriorityValue(priority),
-        attempts: 2,
-        backoff: {
-          type: 'exponential',
-          delay: 10000,
-        },
-        removeOnComplete: { count: 3 },
-        removeOnFail: { count: 10 },
-        // 長時間ジョブのためタイムアウトを長く設定
-        jobId: `historical-${locationId}-${startYear}-${endYear}`,
-      }
-    );
+        endYear
+      };
 
-    logger.info('Historical calculation job scheduled', {
-      jobId: job.id,
-      locationId,
-      startYear,
-      endYear,
-      yearSpan: endYear - startYear + 1,
-      priority,
-      requestId,
-    });
+      const job = await this.eventCalculationQueue.add(
+        'calculate-location-events',
+        jobData,
+        {
+          priority: this.getPriority(priority),
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 2000
+          }
+        }
+      );
 
-    return job.id!;
+      logger.info('地点計算ジョブ追加成功', {
+        jobId: job.id,
+        locationId,
+        years: `${startYear}-${endYear}`,
+        priority
+      });
+
+      return job.id?.toString() || null;
+    } catch (error) {
+      logger.error('地点計算ジョブ追加エラー', {
+        locationId,
+        years: `${startYear}-${endYear}`,
+        error
+      });
+      return null;
+    }
   }
 
   /**
    * 優先度を数値に変換
    */
-  private getPriorityValue(priority: 'high' | 'medium' | 'low'): number {
+  private getPriority(priority: 'low' | 'normal' | 'high'): number {
     switch (priority) {
       case 'high': return 10;
-      case 'medium': return 5;
+      case 'normal': return 5;
       case 'low': return 1;
       default: return 5;
     }
   }
 
   /**
-   * キューの状態を取得
-   */
-  async getQueueStats(): Promise<{
-    location: any;
-    monthly: any;
-    daily: any;
-    historical: any;
-  }> {
-    try {
-      const [locationStats, monthlyStats, dailyStats, historicalStats] = await Promise.all([
-        this.locationQueue.getJobCounts().catch(err => {
-          logger.error('Failed to get location queue stats', err);
-          return { waiting: 0, active: 0, completed: 0, failed: 0 };
-        }),
-        this.monthlyQueue.getJobCounts().catch(err => {
-          logger.error('Failed to get monthly queue stats', err);
-          return { waiting: 0, active: 0, completed: 0, failed: 0 };
-        }),
-        this.dailyQueue.getJobCounts().catch(err => {
-          logger.error('Failed to get daily queue stats', err);
-          return { waiting: 0, active: 0, completed: 0, failed: 0 };
-        }),
-        this.historicalQueue.getJobCounts().catch(err => {
-          logger.error('Failed to get historical queue stats', err);
-          return { waiting: 0, active: 0, completed: 0, failed: 0 };
-        }),
-      ]);
-
-      return {
-        location: locationStats,
-        monthly: monthlyStats,
-        daily: dailyStats,
-        historical: historicalStats,
-      };
-    } catch (error) {
-      logger.error('Failed to get queue statistics', error);
-      throw new Error('キューの状態取得に失敗しました');
-    }
-  }
-
-  /**
-   * 特定ジョブの進捗を取得
-   */
-  async getJobProgress(jobId: string, queueType: 'location' | 'monthly' | 'daily' | 'historical'): Promise<any> {
-    let queue: Queue;
-    switch (queueType) {
-      case 'location': queue = this.locationQueue; break;
-      case 'monthly': queue = this.monthlyQueue; break;
-      case 'daily': queue = this.dailyQueue; break;
-      case 'historical': queue = this.historicalQueue; break;
-      default: throw new Error(`Unknown queue type: ${queueType}`);
-    }
-
-    const job = await queue.getJob(jobId);
-    if (!job) {
-      return null;
-    }
-
-    return {
-      id: job.id,
-      progress: job.progress,
-      state: await job.getState(),
-      createdAt: job.timestamp,
-      processedAt: job.processedOn,
-      finishedAt: job.finishedOn,
-      failedReason: job.failedReason,
-      attemptsMade: job.attemptsMade,
-    };
-  }
-
-  /**
-   * サービス終了時のクリーンアップ
+   * リソースの解放
    */
   async shutdown(): Promise<void> {
-    logger.info('Shutting down queue service');
-    
-    try {
-      // ワーカーの停止（個別にエラーハンドリング）
-      const workerClosePromises = this.workers.map(worker => 
-        worker.close().catch(err => {
-          logger.error('Failed to close worker', err);
-        })
-      );
-      await Promise.all(workerClosePromises);
-      
-      // キューの停止（個別にエラーハンドリング）
-      await Promise.all([
-        this.locationQueue.close().catch(err => {
-          logger.error('Failed to close location queue', err);
-        }),
-        this.monthlyQueue.close().catch(err => {
-          logger.error('Failed to close monthly queue', err);
-        }),
-        this.dailyQueue.close().catch(err => {
-          logger.error('Failed to close daily queue', err);
-        }),
-        this.historicalQueue.close().catch(err => {
-          logger.error('Failed to close historical queue', err);
-        }),
-      ]);
+    logger.info('QueueService シャットダウン開始');
 
-      // Redis 接続の切断
-      if (redisConnection) {
-        await redisConnection.quit().catch(err => {
-          logger.error('Failed to close Redis connection', err);
-        });
-      }
-      
-      logger.info('Queue service shutdown completed');
-    } catch (error) {
-      logger.error('Error during queue service shutdown', error);
-      throw error;
+    if (this.worker) {
+      await this.worker.close();
+      this.worker = null;
     }
+
+    if (this.eventCalculationQueue) {
+      await this.eventCalculationQueue.close();
+      this.eventCalculationQueue = null;
+    }
+
+    if (this.redis) {
+      await this.redis.quit();
+      this.redis = null;
+    }
+
+    logger.info('QueueService シャットダウン完了');
   }
 }
 
-// シングルトンインスタンス
-export const queueService = new QueueService();

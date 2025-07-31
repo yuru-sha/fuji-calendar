@@ -1,5 +1,7 @@
-// 共通型定義
+// 共通型定義をインポート
+export * from './common';
 
+// 詳細な Location インターフェース
 export interface Location {
   id: number;
   name: string;
@@ -9,12 +11,12 @@ export interface Location {
   elevation: number;
   description?: string | null;
   accessInfo?: string | null;
-  warnings?: string;
   parkingInfo?: string | null;    // 駐車場情報
   // 富士山への事前計算値（高速化のため）
   fujiAzimuth?: number | null;    // 富士山への方位角（度）
   fujiElevation?: number | null;  // 富士山頂への仰角（度）
   fujiDistance?: number | null;   // 富士山までの距離（km）
+  measurementNotes?: string | null; // 測定メモ（ユーザー入力）
   createdAt: Date;
   updatedAt: Date;
 }
@@ -39,7 +41,7 @@ export interface CalendarEvent {
   events: FujiEvent[];
 }
 
-// API response用の型（日付文字列版）
+// API response 用の型（日付文字列版）
 export interface CalendarEventResponse {
   date: string;
   type: 'diamond' | 'pearl' | 'both';
@@ -198,7 +200,10 @@ export interface CreateLocationRequest {
   elevation: number;
   description?: string;
   accessInfo?: string;
-  warnings?: string;
+  fujiAzimuth?: number;
+  fujiElevation?: number;
+  fujiDistance?: number;
+  measurementNotes?: string;
 }
 
 export interface LocationRequestBody {
@@ -247,28 +252,18 @@ export interface ApiError {
 export interface SunPosition {
   azimuth: number;
   elevation: number;
-  distance: number; // 地球からの距離（AU単位）
+  distance: number; // 地球からの距離（AU 単位）
 }
 
 export interface MoonPosition {
   azimuth: number;
   elevation: number;
-  distance: number; // 地球からの距離（AU単位）
+  distance: number; // 地球からの距離（AU 単位）
   phase: number; // 0-1 (0: 新月, 0.5: 満月)
   illumination: number; // 照度（0-1）
 }
 
-// 富士山の座標定数（剣ヶ峰）
-// 国土地理院公式データ: 35°21'38" N, 138°43'39" E
-export const FUJI_COORDINATES = {
-  latitude: 35.3605556,   // 35°21'38" = 35.3605556°
-  longitude: 138.7275,    // 138°43'39" = 138.7275°
-  elevation: 3776         // 剣ヶ峰の標高（最高地点）
-} as const;
-
-// JST関連定数
-export const JST_TIMEZONE = 'Asia/Tokyo';
-export const JST_OFFSET = 9; // UTC+9
+// 富士山座標と JST 定数は common.ts から継承
 
 // 統計関連型
 export interface MonthlyStats {
@@ -283,7 +278,8 @@ export interface CalendarStats {
   totalEvents: number;
   diamondEvents: number;
   pearlEvents: number;
-  monthlyBreakdown: MonthlyStats[];
+  activeLocations: number;
+  monthlyBreakdown?: MonthlyStats[];
 }
 
 // お気に入り機能関連の型定義
@@ -293,19 +289,19 @@ export interface FavoriteLocation {
   prefecture: string;
   latitude: number;
   longitude: number;
-  addedAt: string; // ISO文字列
+  addedAt: string; // ISO 文字列
 }
 
 export interface FavoriteEvent {
   id: string;
   type: 'diamond' | 'pearl';
   subType: string;
-  time: string; // ISO文字列
+  time: string; // ISO 文字列
   locationId: number;
   locationName: string;
   azimuth: number;
   elevation: number;
-  addedAt: string; // ISO文字列
+  addedAt: string; // ISO 文字列
 }
 
 export interface Favorites {

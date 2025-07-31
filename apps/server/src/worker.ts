@@ -4,7 +4,7 @@
  * 富士カレンダー キューワーカープロセス
  * 
  * このファイルは独立したワーカープロセスとして実行され、
- * BullMQキューから天体計算ジョブを取得して処理します。
+ * BullMQ キューから天体計算ジョブを取得して処理します。
  * 
  * 使用方法:
  * npm run worker
@@ -12,17 +12,25 @@
  * node dist/server/worker.js
  */
 
-import { queueService } from './services/QueueService';
+import { DIContainer } from './di/DIContainer';
+import { ServiceRegistry } from './di/ServiceRegistry';
+import { QueueService } from './services/interfaces/QueueService';
 import { getComponentLogger } from '@fuji-calendar/utils';
 
 const logger = getComponentLogger('queue-worker');
+
+// DIContainer インスタンス
+let diContainer: DIContainer;
+let queueService: QueueService;
 
 // プロセス終了時のクリーンアップ
 const cleanup = async (signal: string) => {
   logger.info(`${signal} シグナル受信 - ワーカーを安全に終了中...`);
   
   try {
-    await queueService.shutdown();
+    if (queueService) {
+      await queueService.shutdown();
+    }
     logger.info('キューサービス終了完了');
     process.exit(0);
   } catch (error) {
@@ -35,14 +43,14 @@ const cleanup = async (signal: string) => {
 process.on('SIGTERM', () => cleanup('SIGTERM'));
 process.on('SIGINT', () => cleanup('SIGINT'));
 
-// 未処理の例外とPromise拒否のハンドリング
+// 未処理の例外と Promise 拒否のハンドリング
 process.on('uncaughtException', (error) => {
   logger.error('未処理の例外が発生しました', error);
   cleanup('UNCAUGHT_EXCEPTION');
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  logger.error('未処理のPromise拒否が発生しました', {
+  logger.error('未処理の Promise 拒否が発生しました', {
     reason,
     promise: promise.toString()
   });
@@ -73,10 +81,18 @@ async function main() {
       nodeEnv: process.env.NODE_ENV || 'development'
     });
 
-    // キューサービスは constructor で自動的にワーカーを開始
+    // DIContainer を初期化
+    diContainer = new DIContainer();
+    
+    // サービスを登録
+    ServiceRegistry.configure(diContainer);
+    
+    // QueueService を取得
+    queueService = diContainer.resolve<QueueService>('QueueService');
+    
     logger.info('キューワーカーが正常に開始されました');
     
-    // 定期的なヘルスチェック（5分ごと）
+    // 定期的なヘルスチェック（5 分ごと）
     const healthCheckInterval = setInterval(async () => {
       try {
         const stats = await queueService.getQueueStats();
@@ -91,7 +107,7 @@ async function main() {
       } catch (error) {
         logger.error('ヘルスチェックエラー', error);
       }
-    }, 5 * 60 * 1000); // 5分
+    }, 5 * 60 * 1000); // 5 分
 
     // プロセス終了時にインターバルをクリア
     process.on('exit', () => {
@@ -113,7 +129,7 @@ async function main() {
 // プロセス開始
 if (require.main === module) {
   main().catch((error) => {
-    logger.error('ワーカーでUnexpectedエラーが発生しました', error);
+    logger.error('ワーカーで Unexpected エラーが発生しました', error);
     process.exit(1);
   });
 }

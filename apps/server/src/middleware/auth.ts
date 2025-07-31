@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { PrismaClientManager } from '../database/prisma';
 import { getComponentLogger } from '@fuji-calendar/utils';
+import { AUTH_CONFIG } from '../config/auth';
 
 const logger = getComponentLogger('AuthMiddleware');
 
@@ -14,7 +15,7 @@ interface AuthenticatedRequest extends Request {
 }
 
 /**
- * JWT認証ミドルウェア
+ * JWT 認証ミドルウェア
  */
 export const authenticateAdmin = async (
   req: AuthenticatedRequest,
@@ -34,11 +35,10 @@ export const authenticateAdmin = async (
     }
 
     const token = authHeader.substring(7);
-    const jwtSecret = process.env.JWT_SECRET || 'dev-jwt-secret-key';
 
     try {
       // トークンを検証
-      const decoded = jwt.verify(token, jwtSecret) as any;
+      const decoded = jwt.verify(token, AUTH_CONFIG.JWT_SECRET) as any;
       
       // データベースで管理者の存在を確認
       const prisma = PrismaClientManager.getInstance();
@@ -65,7 +65,7 @@ export const authenticateAdmin = async (
 
       next();
     } catch (jwtError) {
-      logger.warn('JWT検証エラー', { error: jwtError });
+      logger.warn('JWT 検証エラー', { error: jwtError });
       res.status(401).json({
         success: false,
         error: 'Invalid token',
@@ -99,10 +99,9 @@ export const optionalAuth = async (
     }
 
     const token = authHeader.substring(7);
-    const jwtSecret = process.env.JWT_SECRET || 'dev-jwt-secret-key';
 
     try {
-      const decoded = jwt.verify(token, jwtSecret) as any;
+      const decoded = jwt.verify(token, AUTH_CONFIG.JWT_SECRET) as any;
       
       const prisma = PrismaClientManager.getInstance();
       const admin = await prisma.admin.findUnique({
@@ -129,7 +128,7 @@ export const optionalAuth = async (
 };
 
 /**
- * レート制限ミドルウェア（認証API用）
+ * レート制限ミドルウェア（認証 API 用）
  */
 export const authRateLimit = (req: Request, res: Response, next: NextFunction): void => {
   // 簡易的なレート制限実装
@@ -138,7 +137,7 @@ export const authRateLimit = (req: Request, res: Response, next: NextFunction): 
 };
 
 /**
- * 管理者API用レート制限
+ * 管理者 API 用レート制限
  */
 export const adminApiRateLimit = (req: Request, res: Response, next: NextFunction): void => {
   // 簡易的なレート制限実装

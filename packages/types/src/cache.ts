@@ -2,7 +2,7 @@
  * イベントキャッシュ関連の型定義
  */
 
-import { FujiEvent } from './index';
+import { BaseFujiEvent, CalculationAccuracy } from './common';
 
 /**
  * キャッシュエントリの基本型
@@ -13,7 +13,7 @@ export interface EventsCacheEntry {
   month: number;
   day: number;
   locationId: number;
-  eventsData: string; // JSON文字列
+  eventsData: string; // JSON 文字列
   eventCount: number;
   calculationDurationMs?: number;
   createdAt: Date;
@@ -26,14 +26,14 @@ export interface EventsCacheEntry {
  * キャッシュに保存するイベントデータ
  */
 export interface CachedEventsData {
-  events: FujiEvent[];
+  events: BaseFujiEvent[];
   calculatedAt: Date;
   version: string; // キャッシュフォーマットのバージョン
   metadata: {
     locationName: string;
     totalCalculationTimeMs: number;
     astronomicalEngineVersion?: string;
-    calculationAccuracy: 'high' | 'medium' | 'low';
+    calculationAccuracy: CalculationAccuracy;
   };
 }
 
@@ -43,7 +43,7 @@ export interface CachedEventsData {
 export interface CacheKeyOptions {
   year: number;
   month: number;
-  day?: number; // dayが指定されない場合は月間キャッシュ
+  day?: number; // day が指定されない場合は月間キャッシュ
   locationId: number;
   calculationType?: 'all' | 'diamond' | 'pearl';
 }
@@ -122,7 +122,7 @@ export interface MonthlyCacheSummary {
   oldestCache: Date;
   newestCache: Date;
   avgCalculationTime: number;
-  completionRate: number; // 0-1の範囲
+  completionRate: number; // 0-1 の範囲
 }
 
 /**

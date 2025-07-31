@@ -93,10 +93,17 @@ export class CelestialPositionCalculator {
    * 月の照度率を計算（0-1 の範囲）
    */
   private calculateMoonIllumination(phase: number): number {
-    // 月相は-180 度から+180 度の範囲
-    // 新月 (0 度) で照度 0、満月 (±180 度) で照度 1
-    const normalizedPhase = Math.abs(phase);
-    return (180 - normalizedPhase) / 180;
+    // Astronomy Engine の MoonPhase は 0-360 度の範囲
+    // 新月 (0 度) で照度 0、満月 (180 度) で照度 1
+    let normalizedPhase = phase % 360;
+    if (normalizedPhase < 0) normalizedPhase += 360;
+    
+    // 0-180 度は照度増加、180-360 度は照度減少
+    if (normalizedPhase <= 180) {
+      return normalizedPhase / 180;
+    } else {
+      return (360 - normalizedPhase) / 180;
+    }
   }
 
   /**
@@ -104,6 +111,70 @@ export class CelestialPositionCalculator {
    */
   isVisibleMoonPhase(illumination: number, minIllumination: number = 0.1): boolean {
     return illumination >= minIllumination;
+  }
+
+  /**
+   * 太陽の南中時刻を計算
+   */
+  calculateSolarNoon(date: Date, location: { latitude: number; longitude: number }): Date | null {
+    try {
+      const observer = new Astronomy.Observer(location.latitude, location.longitude, 0);
+      // 指定日の正午から検索開始
+      const noon = new Date(date);
+      noon.setHours(12, 0, 0, 0);
+      
+      // Astronomy Engineの南中時刻計算
+      const transit = Astronomy.SearchHourAngle(
+        Astronomy.Body.Sun,
+        observer,
+        0, // 南中は時角0
+        noon,
+        1 // 1日以内に検索
+      );
+      
+      if (transit) {
+        return transit.time.date;
+      }
+      return null;
+    } catch (error) {
+      this.logger.error('太陽南中時刻計算エラー', error, {
+        date: date.toISOString(),
+        location
+      });
+      return null;
+    }
+  }
+
+  /**
+   * 月の南中時刻を計算
+   */
+  calculateLunarTransit(date: Date, location: { latitude: number; longitude: number }): Date | null {
+    try {
+      const observer = new Astronomy.Observer(location.latitude, location.longitude, 0);
+      // 指定日の0時から検索開始
+      const startTime = new Date(date);
+      startTime.setHours(0, 0, 0, 0);
+      
+      // Astronomy Engineの南中時刻計算
+      const transit = Astronomy.SearchHourAngle(
+        Astronomy.Body.Moon,
+        observer,
+        0, // 南中は時角0
+        startTime,
+        1 // 1日以内に検索
+      );
+      
+      if (transit) {
+        return transit.time.date;
+      }
+      return null;
+    } catch (error) {
+      this.logger.error('月南中時刻計算エラー', error, {
+        date: date.toISOString(),
+        location
+      });
+      return null;
+    }
   }
 
   /**

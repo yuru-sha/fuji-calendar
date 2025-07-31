@@ -1,17 +1,18 @@
 import { Express, Request, Response } from 'express';
 import path from 'path';
 import { getComponentLogger } from '@fuji-calendar/utils';
-import LocationController from '../controllers/LocationController';
-import EventController from '../controllers/EventController';
+import LocationController from '../controllers/LocationControllerRefactored';
 import AuthController from '../controllers/AuthController';
 import { authenticateAdmin, authRateLimit, adminApiRateLimit } from '../middleware/auth';
+import { DIContainer } from '../di/DIContainer';
 
 const serverLogger = getComponentLogger('server');
 
-export function setupRoutes(app: Express): void {
+export function setupRoutes(app: Express, container: DIContainer): void {
+
   // コントローラーのインスタンス化
-  const locationController = new LocationController();
-  const eventController = new EventController();
+  const locationController = container.resolve('LocationController') as LocationController;
+  const calendarController = container.resolve('CalendarController') as any;
   const authController = new AuthController();
 
   // ヘルスチェック
@@ -22,6 +23,18 @@ export function setupRoutes(app: Express): void {
       version: '0.2.0'
     });
   });
+  
+  // キュー統計情報
+  app.get('/api/queue/stats', async (req: Request, res: Response) => {
+    try {
+      const queueService = container.resolve('QueueService') as any;
+      const stats = await queueService.getQueueStats();
+      res.json(stats);
+    } catch (error) {
+      serverLogger.error('キュー統計取得エラー', error);
+      res.status(500).json({ error: 'Failed to get queue stats' });
+    }
+  });
 
   // 撮影地点 API
   app.get('/api/locations', locationController.getLocations.bind(locationController));
@@ -31,17 +44,75 @@ export function setupRoutes(app: Express): void {
   app.delete('/api/locations/:id', locationController.deleteLocation.bind(locationController));
 
   // イベント API
-  app.get('/api/calendar/:year/:month', eventController.getMonthlyCalendar.bind(eventController));
-  app.get('/api/events/:date', eventController.getDayEvents.bind(eventController));
-  app.get('/api/events/upcoming', eventController.getUpcomingEvents.bind(eventController));
-  app.get('/api/calendar/location/:locationId/:year', eventController.getLocationYearlyEvents.bind(eventController));
-  app.get('/api/calendar/stats/:year', eventController.getCalendarStats.bind(eventController));
+  app.get('/api/calendar/:year/:month', calendarController.getMonthlyCalendar.bind(calendarController));
+  app.get('/api/events/:date', calendarController.getDayEvents.bind(calendarController));
+  app.get('/api/events/upcoming', calendarController.getUpcomingEvents.bind(calendarController));
+  app.get('/api/calendar/location/:locationId/:year', calendarController.getLocationYearlyEvents.bind(calendarController));
+  app.get('/api/calendar/stats/:year', calendarController.getCalendarStats.bind(calendarController));
 
   // 認証 API
   app.post('/api/auth/login', authRateLimit, authController.login.bind(authController));
   app.post('/api/auth/logout', authRateLimit, authController.logout.bind(authController));
   app.get('/api/auth/verify', authRateLimit, authController.verifyToken.bind(authController));
   app.post('/api/auth/change-password', authRateLimit, authenticateAdmin, authController.changePassword.bind(authController));
+
+  // 管理者向け一括再計算（既存の locations データを元に全イベントを再検出）
+  app.post('/api/admin/regenerate-all', authenticateAdmin, adminApiRateLimit, async (req: Request, res: Response) => {
+    try {
+      const eventCacheService = container.resolve('EventCacheService') as any;
+      const { years } = req.body;
+      
+      // デフォルトで 2024-2026 年を対象
+      const targetYears = years || [2024, 2025, 2026];
+      
+      serverLogger.info('既存地点データを元に一括再計算開始', { 
+        targetYears,
+        requestedBy: (req as any).admin?.username 
+      });
+      
+      let totalEvents = 0;
+      const results = [];
+      
+      for (const year of targetYears) {
+        serverLogger.info(`${year}年の再計算開始`);
+        const result = await eventCacheService.generateYearlyCache(year);
+        results.push({
+          year,
+          success: result.success,
+          totalEvents: result.totalEvents,
+          timeMs: result.timeMs,
+          error: result.error?.message
+        });
+        
+        if (result.success) {
+          totalEvents += result.totalEvents;
+          serverLogger.info(`${year}年完了: ${result.totalEvents}件`);
+        } else {
+          serverLogger.error(`${year}年失敗`, result.error);
+        }
+      }
+      
+      serverLogger.info('一括再計算完了', { 
+        targetYears,
+        totalEvents,
+        results
+      });
+      
+      res.json({
+        success: true,
+        message: `既存の全地点データを元に一括再計算が完了しました (${totalEvents.toLocaleString()}件)`,
+        totalEvents,
+        results
+      });
+      
+    } catch (error) {
+      serverLogger.error('一括再計算エラー', error);
+      res.status(500).json({
+        error: '一括再計算中にエラーが発生しました',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
   
   // 初期セットアップ用（本番環境では無効化推奨）
   if (process.env.NODE_ENV === 'development') {
@@ -52,6 +123,7 @@ export function setupRoutes(app: Express): void {
   app.post('/api/admin/locations', adminApiRateLimit, authenticateAdmin, locationController.createLocation.bind(locationController));
   app.put('/api/admin/locations/:id', adminApiRateLimit, authenticateAdmin, locationController.updateLocation.bind(locationController));
   app.delete('/api/admin/locations/:id', adminApiRateLimit, authenticateAdmin, locationController.deleteLocation.bind(locationController));
+  // Export/Import 機能
   app.get('/api/admin/locations/export', adminApiRateLimit, authenticateAdmin, locationController.exportLocations.bind(locationController));
   app.post('/api/admin/locations/import', adminApiRateLimit, authenticateAdmin, locationController.importLocations.bind(locationController));
 

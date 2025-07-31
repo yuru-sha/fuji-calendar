@@ -175,7 +175,9 @@ class AuthService {
    * トークンを取得
    */
   getToken(): string | null {
-    return localStorage.getItem(this.tokenKey);
+    const token = localStorage.getItem(this.tokenKey);
+    // トークンが存在し、空文字列でないことを確認
+    return token && token.trim() !== '' ? token : null;
   }
 
   /**
@@ -183,7 +185,11 @@ class AuthService {
    */
   getAuthHeaders(): Record<string, string> {
     const token = this.getToken();
-    return token ? { 'Authorization': `Bearer ${token}` } : {};
+    // トークンが有効な場合のみ Authorization ヘッダーを追加
+    if (token && token.length > 10) { // JWT の最小長をチェック
+      return { 'Authorization': `Bearer ${token}` };
+    }
+    return {};
   }
 
   /**

@@ -17,6 +17,11 @@ interface LocationFormData {
   description: string;
   accessInfo: string;
   parkingInfo: string;
+  // 富士山関連（任意入力）
+  fujiAzimuth: number | '';
+  fujiElevation: number | '';
+  fujiDistance: number | '';
+  measurementNotes: string;
 }
 
 const initialFormData: LocationFormData = {
@@ -27,7 +32,12 @@ const initialFormData: LocationFormData = {
   elevation: '',
   description: '',
   accessInfo: '',
-  parkingInfo: ''
+  parkingInfo: '',
+  // 富士山関連（任意入力）
+  fujiAzimuth: '',
+  fujiElevation: '',
+  fujiDistance: '',
+  measurementNotes: ''
 };
 
 // Sidebar Item Component
@@ -258,7 +268,12 @@ const AdminPage: React.FC = () => {
       elevation: location.elevation,
       description: location.description || '',
       accessInfo: location.accessInfo || '',
-      parkingInfo: location.parkingInfo || ''
+      parkingInfo: location.parkingInfo || '',
+      // 富士山関連（既存値または空文字）
+      fujiAzimuth: location.fujiAzimuth || '',
+      fujiElevation: location.fujiElevation || '',
+      fujiDistance: location.fujiDistance || '',
+      measurementNotes: '' // 新規フィールドなので空文字
     });
     setShowLocationForm(true);
   };
@@ -800,6 +815,9 @@ const AdminPage: React.FC = () => {
                       <option value="千葉県">千葉県</option>
                       <option value="埼玉県">埼玉県</option>
                       <option value="長野県">長野県</option>
+                      <option value="茨城県">茨城県</option>
+                      <option value="奈良県">奈良県</option>
+                      <option value="和歌山県">和歌山県</option>
                     </select>
                   </div>
                 </div>
@@ -897,11 +915,72 @@ const AdminPage: React.FC = () => {
                 <h1 className="text-2xl font-bold text-gray-900">システム設定</h1>
                 <p className="text-gray-600 mt-1">アプリケーションの設定を管理します</p>
               </div>
+              
+              {/* データ再計算セクション */}
+              <div className="bg-white rounded-lg shadow-sm border">
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900">データ再計算</h3>
+                  <p className="text-sm text-gray-600 mt-1">既存の全撮影地点について、ダイヤモンド富士・パール富士イベントを再計算します</p>
+                </div>
+                <div className="p-6">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                    <div className="flex">
+                      <Icon name="alert" size={20} className="text-yellow-600 mt-0.5 mr-3" />
+                      <div>
+                        <h4 className="text-sm font-medium text-yellow-800">注意事項</h4>
+                        <p className="text-sm text-yellow-700 mt-1">
+                          この処理は時間がかかる場合があります。処理中は他の操作を控えてください。
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <button
+                    onClick={async () => {
+                      if (!confirm('既存の全地点データを元に、2024-2026 年のダイヤモンド富士・パール富士イベントを再計算しますか？\n\n この処理には時間がかかる場合があります。')) {
+                        return;
+                      }
+                      
+                      try {
+                        setLoading(true);
+                        const response = await fetch('/api/admin/regenerate-all', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            ...authService.getAuthHeaders()
+                          },
+                          body: JSON.stringify({ years: [2024, 2025, 2026] })
+                        });
+                        
+                        if (!response.ok) {
+                          throw new Error('再計算に失敗しました');
+                        }
+                        
+                        const result = await response.json();
+                        alert(`一括再計算が完了しました！\n\n 生成されたイベント数: ${result.totalEvents.toLocaleString()}件\n\n 詳細:\n${result.results.map(r => `${r.year}年: ${r.success ? r.totalEvents.toLocaleString() + '件' : '失敗'}`).join('\n')}`);
+                        
+                      } catch (error) {
+                        console.error('再計算エラー:', error);
+                        alert('再計算中にエラーが発生しました: ' + (error instanceof Error ? error.message : '不明なエラー'));
+                      } finally {
+                        setLoading(false);
+                      }
+                    }}
+                    disabled={loading}
+                    className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Icon name="refresh" size={16} className="mr-2" />
+                    {loading ? '再計算中...' : '全データを再計算'}
+                  </button>
+                </div>
+              </div>
+
+              {/* 他の設定項目（将来用） */}
               <div className="bg-white rounded-lg shadow-sm p-12 text-center border">
                 <div className="mb-4 opacity-20">
                   <Icon name="settings" size={96} className="mx-auto" />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">準備中</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">その他の設定</h3>
                 <p className="text-gray-500">この機能は近日公開予定です</p>
               </div>
             </div>
@@ -970,6 +1049,9 @@ const AdminPage: React.FC = () => {
                       <option value="千葉県">千葉県</option>
                       <option value="埼玉県">埼玉県</option>
                       <option value="長野県">長野県</option>
+                      <option value="茨城県">茨城県</option>
+                      <option value="奈良県">奈良県</option>
+                      <option value="和歌山県">和歌山県</option>
                     </select>
                   </div>
                 </div>
@@ -1072,6 +1154,82 @@ const AdminPage: React.FC = () => {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                       rows={2}
                       placeholder="駐車場の有無、台数、料金など"
+                    />
+                  </div>
+                </div>
+
+                {/* 富士山視線情報（詳細設定） */}
+                <div className="border-t border-gray-200 pt-6">
+                  <div className="mb-4">
+                    <h3 className="text-sm font-medium text-gray-900 mb-2">富士山視線情報（任意）</h3>
+                    <p className="text-xs text-gray-500">
+                      現地で実測された値があれば入力してください。未入力の場合は理論値を自動計算します。
+                    </p>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        方位角（度）
+                      </label>
+                      <input
+                        type="number"
+                        step="0.001"
+                        value={formData.fujiAzimuth === '' ? '' : formData.fujiAzimuth}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          handleFormDataChange('fujiAzimuth', value === '' ? '' : parseFloat(value));
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="例: 78.728（自動計算）"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        仰角（度）
+                      </label>
+                      <input
+                        type="number"
+                        step="0.001"
+                        value={formData.fujiElevation === '' ? '' : formData.fujiElevation}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          handleFormDataChange('fujiElevation', value === '' ? '' : parseFloat(value));
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="例: 3.61（実測推奨）"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        距離（m）
+                      </label>
+                      <input
+                        type="number"
+                        step="1"
+                        value={formData.fujiDistance === '' ? '' : formData.fujiDistance}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          handleFormDataChange('fujiDistance', value === '' ? '' : parseFloat(value));
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="例: 17700（自動計算）"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      測定方法・備考
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.measurementNotes}
+                      onChange={(e) => handleFormDataChange('measurementNotes', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="例: スーパー地形で確認"
                     />
                   </div>
                 </div>

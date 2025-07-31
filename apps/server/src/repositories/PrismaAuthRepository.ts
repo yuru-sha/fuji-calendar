@@ -31,18 +31,18 @@ export class PrismaAuthRepository implements AuthRepository {
     }
   }
 
-  async saveRefreshToken(adminId: number, refreshToken: string, expiresAt: Date): Promise<void> {
+  async saveRefreshToken(adminId: number, _refreshToken: string, _expiresAt: Date): Promise<void> {
     // Refresh token 機能は未実装（JWT のみ使用）
     logger.debug('リフレッシュトークン機能は未実装', { adminId });
   }
 
-  async findValidRefreshToken(token: string): Promise<{ adminId: number; expiresAt: Date } | null> {
+  async findValidRefreshToken(_token: string): Promise<{ adminId: number; expiresAt: Date } | null> {
     // Refresh token 機能は未実装（JWT のみ使用）
     logger.debug('リフレッシュトークン機能は未実装');
     return null;
   }
 
-  async revokeRefreshToken(token: string): Promise<void> {
+  async revokeRefreshToken(_token: string): Promise<void> {
     // Refresh token 機能は未実装（JWT のみ使用）
     logger.debug('リフレッシュトークン機能は未実装');
   }

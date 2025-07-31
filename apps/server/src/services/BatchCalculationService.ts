@@ -1,5 +1,5 @@
 import { Location } from '@fuji-calendar/types';
-import { prisma, PrismaClientManager } from '../database/prisma';
+import { PrismaClientManager } from '../database/prisma';
 import { EventCacheService } from './EventCacheService';
 import { AstronomicalCalculatorImpl } from './AstronomicalCalculator';
 import { getComponentLogger, StructuredLogger } from '@fuji-calendar/utils';

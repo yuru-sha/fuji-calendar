@@ -1,35 +1,51 @@
 # アーキテクチャ設計
 
+**バージョン 0.3.0** - モノレポ構成・高性能版
+
+**バージョン 0.3.0** - モノレポ構成・高性能版
+
 ダイヤモンド富士・パール富士カレンダーシステムの技術的な設計と構成について説明します。
 
-## システム全体構成
+## システム全体構成（モノレポ）
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   フロントエンド   │◄──►│   バックエンド    │◄──►│   データベース   │
-│   (React SPA)   │    │ (Node.js/Express)│    │   (SQLite3)    │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         │                       ▼                       │
-         │              ┌─────────────────┐              │
-         │              │      Redis      │              │
-         │              │  (キャッシュ)     │              │
-         │              └─────────────────┘              │
-         │                                                │
-         ▼                                                ▼
-┌─────────────────┐                             ┌─────────────────┐
-│    Leaflet      │                             │  Astronomy      │
-│   (地図表示)     │                             │   Engine        │
-└─────────────────┘                             │ (天体計算)       │
-                                                └─────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                      Monorepo Architecture                   │
+│  ┌─────────────────┬─────────────────┬─────────────────────┐ │
+│  │   apps/client   │   apps/server   │   packages/         │ │
+│  │   (React SPA)   │  (Express API)  │  (Shared Libraries) │ │
+│  └─────────┬───────┴─────────┬───────┴─────────┬───────────┘ │
+└────────────┼─────────────────┼─────────────────┼─────────────┘
+             │                 │                 │
+             ▼                 ▼                 ▼
+  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
+  │    Frontend     │ │    Backend      │ │ Shared Packages │
+  │ - React 18      │ │ - Express       │ │ - types         │
+  │ - TypeScript    │ │ - TypeScript    │ │ - utils         │
+  │ - Tailwind CSS  │ │ - Prisma ORM    │ │ - ui            │
+  │ - Vite          │ │ - BullMQ        │ │ - shared        │
+  │ - Leaflet       │ │ - Pino Logs     │ │                 │
+  └─────────┬───────┘ └─────────┬───────┘ └─────────────────┘
+            │                   │
+            ▼                   ▼
+  ┌─────────────────┐ ┌─────────────────┐
+  │   PostgreSQL    │ │      Redis      │
+  │   (Database)    │ │ (Cache & Queue) │
+  └─────────────────┘ └─────────────────┘
+                            │
+                            ▼
+                   ┌─────────────────┐
+                   │ Astronomy Engine│
+                   │ (NASA JPL 準拠)  │
+                   └─────────────────┘
 ```
 
 ## レイヤー構成
 
 ### プレゼンテーション層（フロントエンド）
 - **React 18**: UI フレームワーク
-- **TypeScript**: 型安全性（strict mode有効）
-- **Tailwind CSS v3.4.17**: ユーティリティファーストCSS
+- **TypeScript**: 型安全性（strict mode 有効）
+- **Tailwind CSS v3.4.17**: ユーティリティファースト CSS
 - **CSS Modules**: コンポーネント固有スタイリング
 - **Leaflet**: 地図表示とルート描画
 - **Google Maps Integration**: 現在地からの最適ルート検索
@@ -40,20 +56,28 @@
 - **TypeScript**: 型安全性
 - **JWT**: 認証・認可
 - **Helmet**: セキュリティヘッダー
-- **Rate Limiting**: API制限
+- **Rate Limiting**: API 制限
 
-### ビジネスロジック層
-- **CalendarService**: カレンダー機能・天気情報統合
-- **AstronomicalCalculator**: 天体計算エンジン
-- **FavoritesService**: お気に入り管理（LocalStorage）
-- **AuthService**: JWT認証管理・アカウントロック
-- **CacheService**: Redis高性能キャッシュ
-- **QueueService**: バッチ処理（無効化済み）
+### ビジネスロジック層（モノレポ構成）
+- **CalendarServicePrisma**: カレンダー機能・天気情報統合（Prisma ベース）
+- **LocationService**: 地点管理ビジネスロジック（Repository パターン）
+- **AstronomicalCalculator**: 天体計算エンジン（Astronomy Engine）
+- **AuthServiceRefactored**: JWT 認証管理・アカウントロック
+- **EventCacheService**: イベントデータの事前計算と PostgreSQL キャッシュ
+- **QueueServiceRefactored**: BullMQ による非同期ジョブ管理
+- **DIContainer**: 依存性注入コンテナ
 
-### データアクセス層
-- **SQLite3**: メインデータベース
-- **Redis**: キャッシュ・セッション管理
-- **Pino**: 構造化ログ
+### データアクセス層（Repository パターン）
+- **PostgreSQL + Prisma ORM**: メインデータベース
+- **Repository インターフェース**: 型安全なデータアクセス抽象化
+- **Redis + BullMQ**: キャッシュ・非同期キューシステム
+- **Pino**: 構造化ログ（5-10 倍パフォーマンス向上）
+
+### 共有パッケージ層
+- **@fuji-calendar/types**: 共通型定義・インターフェース
+- **@fuji-calendar/utils**: 時刻処理・ログ・フォーマッター
+- **@fuji-calendar/ui**: 再利用可能 React コンポーネント
+- **@fuji-calendar/shared**: 共通ビジネスロジック
 
 ## 主要コンポーネント
 
@@ -62,11 +86,11 @@
 ```typescript
 // AstronomicalCalculatorAstronomyEngine.ts
 class AstronomicalCalculatorAstronomyEngine {
-  // NASA JPL準拠の高精度計算
+  // NASA JPL 準拠の高精度計算
   async calculateDiamondFuji(date: Date, location: Location): Promise<FujiEvent[]>
   async calculatePearlFuji(date: Date, location: Location): Promise<FujiEvent[]>
   
-  // 2段階最適化検索
+  // 2 段階最適化検索
   private async findOptimalTimeWithAstronomyEngine(): Promise<Date | null>
   
   // 大気屈折補正
@@ -75,8 +99,8 @@ class AstronomicalCalculatorAstronomyEngine {
 ```
 
 **特徴:**
-- **Astronomy Engine**: NASA JPL準拠の天体暦
-- **2段階検索**: 粗い検索(10分刻み) → 精密検索(1分刻み)
+- **Astronomy Engine**: NASA JPL 準拠の天体暦
+- **2 段階検索**: 粗い検索 (10 分刻み) → 精密検索 (1 分刻み)
 - **気象補正**: 日本の気象条件を考慮した大気屈折補正
 - **距離別許容範囲**: 観測データに基づく精度調整
 
@@ -85,19 +109,19 @@ class AstronomicalCalculatorAstronomyEngine {
 ```typescript
 // timeUtils.ts
 export const timeUtils = {
-  // JST基準の統一処理
+  // JST 基準の統一処理
   formatDateString(date: Date): string,
   formatTimeString(date: Date): string,
   
-  // UTC変換（Astronomy Engine用）
+  // UTC 変換（Astronomy Engine 用）
   jstToUtc(jstDate: Date): Date,
   utcToJst(utcDate: Date): Date
 }
 ```
 
 **設計原則:**
-- **JST統一**: 全ての時刻をJST基準で処理
-- **API境界**: Astronomy Engine用のみUTC変換
+- **JST 統一**: 全ての時刻を JST 基準で処理
+- **API 境界**: Astronomy Engine 用のみ UTC 変換
 - **表示一貫性**: フロントエンドとバックエンドで統一
 
 ### ログシステム
@@ -117,8 +141,8 @@ interface StructuredLogger {
 ```
 
 **特徴:**
-- **Pino**: 5-10倍の高性能
-- **構造化ログ**: JSON形式での詳細記録
+- **Pino**: 5-10 倍の高性能
+- **構造化ログ**: JSON 形式での詳細記録
 - **コンポーネント別**: 機能ごとの詳細追跡
 - **本番対応**: ログローテーションとファイル出力
 
@@ -156,31 +180,31 @@ interface FujiEvent {
   id: string;
   type: 'diamond' | 'pearl';
   subType: 'sunrise' | 'sunset' | 'rising' | 'setting';
-  time: Date;                // JST時刻
+  time: Date;                // JST 時刻
   location: Location;
   azimuth: number;          // 撮影方位角
   elevation: number;        // 撮影仰角
 }
 ```
 
-## APIデザイン
+## API デザイン
 
 ### RESTful API 設計
 
 ```
-# カレンダーAPI
+# カレンダー API
 GET /api/calendar/:year/:month            # 月間カレンダー
 GET /api/events/:date                     # 日別イベント詳細（天気情報付き）
 GET /api/events/upcoming                  # 今後のイベント
 GET /api/calendar/:year/:month/best       # おすすめ撮影日
 POST /api/calendar/suggest                # 撮影計画提案
 
-# 撮影地点API
+# 撮影地点 API
 GET /api/locations                        # 撮影地点一覧
 GET /api/locations/:id                    # 撮影地点詳細
 GET /api/locations/:id/yearly/:year       # 特定地点の年間イベント
 
-# 認証・管理API
+# 認証・管理 API
 POST /api/auth/login                      # 管理者ログイン
 POST /api/auth/logout                     # ログアウト
 POST /api/auth/refresh                    # トークンリフレッシュ
@@ -188,7 +212,7 @@ POST /api/admin/locations                 # 地点追加（管理者）
 PUT /api/admin/locations/:id              # 地点更新（管理者）
 DELETE /api/admin/locations/:id           # 地点削除（管理者）
 
-# システムAPI
+# システム API
 GET /api/health                           # ヘルスチェック
 ```
 
@@ -218,10 +242,10 @@ interface ApiError {
 ### 認証・認可
 
 ```typescript
-// JWT + Refresh Token方式
+// JWT + Refresh Token 方式
 interface AuthTokens {
-  accessToken: string;    // 短期間（15分）
-  refreshToken: string;   // 長期間（7日）
+  accessToken: string;    // 短期間（15 分）
+  refreshToken: string;   // 長期間（7 日）
 }
 
 // ミドルウェア認証
@@ -231,15 +255,15 @@ app.use('/api/admin', authenticateToken);
 ### セキュリティ対策
 
 1. **Helmet**: セキュリティヘッダー
-2. **Rate Limiting**: DDoS対策
-3. **CSRF**: Cross-Site Request Forgery対策
-4. **XSS**: Cross-Site Scripting対策
+2. **Rate Limiting**: DDoS 対策
+3. **CSRF**: Cross-Site Request Forgery 対策
+4. **XSS**: Cross-Site Scripting 対策
 5. **SQL Injection**: パラメータ化クエリ
 
 ### パスワード管理
 
 ```typescript
-// bcryptによるハッシュ化
+// bcrypt によるハッシュ化
 const saltRounds = 12;
 const hashedPassword = await bcrypt.hash(password, saltRounds);
 ```
@@ -258,7 +282,7 @@ ALTER TABLE locations ADD COLUMN fuji_azimuth REAL;
 ALTER TABLE locations ADD COLUMN fuji_elevation REAL; 
 ALTER TABLE locations ADD COLUMN fuji_distance REAL;
 
--- イベントキャッシュテーブル（Redis代替）
+-- イベントキャッシュテーブル（Redis 代替）
 CREATE TABLE events_cache (
   cache_key TEXT PRIMARY KEY,
   events_data TEXT,
@@ -271,11 +295,11 @@ CREATE TABLE events_cache (
 ### 計算最適化
 
 1. **事前計算**: 撮影地点の富士山に対する座標値
-2. **2段階検索**: 粗い検索(10分刻み) → 精密検索(10秒刻み)
+2. **2 段階検索**: 粗い検索 (10 分刻み) → 精密検索 (10 秒刻み)
 3. **季節判定**: ダイヤモンド富士シーズンの絞り込み
 4. **並列処理**: 複数地点の同時計算
 5. **直接計算**: キャッシュを介さない高速化実装
-6. **TypeScript最適化**: 厳密型チェックによるランタイムエラー削減
+6. **TypeScript 最適化**: 厳密型チェックによるランタイムエラー削減
 
 ### キャッシュ戦略
 
@@ -294,7 +318,7 @@ interface CacheStrategy {
 
 // 天気情報キャッシュ
 interface WeatherCache {
-  // 7日間予報: 6時間キャッシュ
+  // 7 日間予報: 6 時間キャッシュ
   forecast: '6h',
   
   // 推奨度計算: 天気データに依存
@@ -311,7 +335,7 @@ interface WeatherCache {
 services:
   calendar-service:     # カレンダー機能
   calculation-service:  # 天体計算
-  weather-service:      # 天気情報サービス（外部API統合）
+  weather-service:      # 天気情報サービス（外部 API 統合）
   auth-service:        # 認証サービス
   notification-service: # 通知機能（将来）
   favorites-service:   # お気に入り管理（将来）
@@ -320,7 +344,7 @@ services:
 ### API バージョニング
 
 ```typescript
-// 将来のAPI拡張
+// 将来の API 拡張
 app.use('/api/v1', v1Router);
 app.use('/api/v2', v2Router);  // 将来の機能拡張
 ```
@@ -334,7 +358,7 @@ interface AstronomicalCalculator {
   calculatePearlFuji(date: Date, location: Location): Promise<FujiEvent[]>;
 }
 
-// 実装：AstronomyEngine, VSOP87, Swiss Ephemeris等
+// 実装：AstronomyEngine, VSOP87, Swiss Ephemeris 等
 
 // 天気サービスプラグイン
 interface WeatherProvider {
@@ -389,20 +413,26 @@ logger.ui('info', 'ユーザー操作', {
 
 ## 技術的制約と決定事項
 
-### 制約事項
+### 制約事項（v0.3.0 での改善状況）
 
-1. **SQLite**: シンプルさ重視、大規模スケール時は PostgreSQL 移行検討
-2. **シングルインスタンス**: 初期フェーズ、将来的にマイクロサービス化
-3. **JS/TS統一**: 開発効率重視、パフォーマンス要求時は Go/Rust 検討
+1. **PostgreSQL への移行完了**: SQLite から PostgreSQL + Prisma ORM に移行済み
+2. **モノレポ構成**: 単一リポジトリでの効率的な開発、将来的にマイクロサービス化対応
+3. **TypeScript strict mode**: 全パッケージで厳密な型チェック、ランタイムエラー大幅削減
+4. **依存性注入**: DIContainer による疎結合設計で拡張性向上
 
-### 技術選択の理由
+### 技術選択の理由（v0.3.0 版）
 
-1. **Astronomy Engine**: NASA JPL準拠の高精度天体計算
-2. **Pino**: 5-10倍の高性能構造化ログ
-3. **Tailwind CSS**: 開発効率とデザイン一貫性
-4. **TypeScript strict mode**: ランタイムエラーの削減
-5. **JWT + Refresh Token**: ステートレス認証とセキュリティ
-6. **Redis**: キャッシュ性能とセッション管理
-7. **LocalStorage**: シンプルなお気に入り管理
-8. **Google Maps API**: 現在地からの最適ルート案内でUX向上
-9. **Docker**: 環境一貫性とマルチコンテナ対応
+1. **npm workspaces**: モノレポ構成による効率的なパッケージ管理
+2. **PostgreSQL + Prisma ORM**: 型安全なデータベースアクセスとスケーラビリティ
+3. **BullMQ + Redis**: 高性能非同期ジョブ処理システム
+4. **Astronomy Engine**: NASA JPL 準拠の高精度天体計算
+5. **Pino**: 5-10 倍の高性能構造化ログ
+6. **Tailwind CSS v3.4.17**: 開発効率とデザイン一貫性
+7. **TypeScript strict mode**: 全パッケージでランタイムエラー削減
+8. **依存性注入**: DIContainer による疎結合設計
+9. **Repository パターン**: データアクセス層の抽象化と型安全性
+10. **Vite**: 高速フロントエンドビルドツール
+11. **JWT + Refresh Token**: ステートレス認証とセキュリティ
+12. **LocalStorage**: シンプルなお気に入り管理
+13. **Google Maps API**: 現在地からの最適ルート案内で UX 向上
+14. **Docker Compose**: 環境一貫性とマルチコンテナ対応

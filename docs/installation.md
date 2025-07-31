@@ -1,20 +1,24 @@
 # インストールガイド
 
+**バージョン 0.3.0** - モノレポ構成・高性能版
+
+**バージョン 0.3.0** - モノレポ構成・高性能版
+
 ダイヤモンド富士・パール富士カレンダーのインストールと初期設定手順について説明します。
 
 ## システム要件
 
 ### 推奨環境
-- Docker 20.10以上 & Docker Compose v2
-- 空きメモリ: 2GB以上
-- 空きストレージ: 5GB以上
+- Docker 20.10 以上 & Docker Compose v2
+- 空きメモリ: 2GB 以上
+- 空きストレージ: 5GB 以上
 
 ### ローカル開発環境
-- Node.js 18以上
-- PostgreSQL 14以上
-- Redis 6以上
+- Node.js 18 以上
+- PostgreSQL 14 以上
+- Redis 6 以上
 
-## Docker環境での設置（推奨）
+## Docker 環境での設置（推奨）
 
 ### 1. リポジトリのクローン
 
@@ -31,7 +35,7 @@ cp .env.example .env
 
 # データベース起動とマイグレーション実行
 docker-compose -f docker-compose.dev.yml up postgres -d
-sleep 15  # PostgreSQL起動待ち
+sleep 15  # PostgreSQL 起動待ち
 
 # ローカル接続でマイグレーション実行
 DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" npx prisma migrate deploy
@@ -62,8 +66,8 @@ docker-compose -f docker-compose.dev.yml down
 ### 4. アクセス確認
 
 - フロントエンド: http://localhost:3000
-- バックエンドAPI: http://localhost:8000
-- API健康状態: http://localhost:8000/api/health
+- バックエンド API: http://localhost:8000
+- API 健康状態: http://localhost:8000/api/health
 
 ## 本番環境での設置
 
@@ -92,12 +96,12 @@ FRONTEND_URL=https://your-domain.com
 ### 2. 初期セットアップ
 
 ```bash
-# データベースとRedisのデータディレクトリ作成
+# データベースと Redis のデータディレクトリ作成
 mkdir -p data/postgres data/redis
 
 # データベース起動
 docker-compose up postgres -d
-sleep 20  # PostgreSQL起動待ち
+sleep 20  # PostgreSQL 起動待ち
 
 # データベースマイグレーション（ローカル接続）
 DATABASE_URL="postgresql://fuji_user:prod_password_change_me@localhost:5432/fuji_calendar" npx prisma migrate deploy
@@ -119,10 +123,10 @@ bash scripts/config/docker-prod.sh deploy
 bash scripts/config/docker-prod.sh health
 ```
 
-### 4. SSL証明書の設定（オプション）
+### 4. SSL 証明書の設定（オプション）
 
 ```bash
-# Let's Encryptを使用する場合
+# Let's Encrypt を使用する場合
 docker run --rm \
   -v "${PWD}/nginx/ssl:/etc/letsencrypt" \
   -p 80:80 \
@@ -133,10 +137,10 @@ docker run --rm \
 
 ## ローカル環境での設置
 
-### 1. Redisの起動
+### 1. Redis の起動
 
 ```bash
-# Dockerを使用する場合
+# Docker を使用する場合
 docker run -d --name redis-fuji -p 6379:6379 redis:7-alpine
 
 # または、ローカルインストール
@@ -152,10 +156,10 @@ npm install
 ### 3. データベースの初期化
 
 ```bash
-# PostgreSQLの起動（Dockerを使用する場合）
+# PostgreSQL の起動（Docker を使用する場合）
 docker run -d --name postgres-fuji -e POSTGRES_PASSWORD=password -e POSTGRES_DB=fuji_calendar -p 5432:5432 postgres:14
 
-# Prismaマイグレーション実行
+# Prisma マイグレーション実行
 npx prisma migrate dev
 
 # 初回起動（サンプルデータが自動作成）
@@ -181,7 +185,7 @@ npm run dev:client  # フロントエンドのみ
 scripts/
 ├── admin/           # 管理者アカウント作成
 ├── analysis/        # 計算精度検証・分析
-├── config/          # Docker・インフラ設定
+├── config/          # Docker ・インフラ設定
 ├── data-generation/ # データ生成・修正
 ├── debug/           # 天体計算デバッグ
 ├── generation/      # イベントデータ生成
@@ -217,10 +221,10 @@ node scripts/admin/create-admin.js
 |--------|------|-------------|------|
 | `NODE_ENV` | 実行環境 | development | ○ |
 | `PORT` | サーバーポート | 8000 | × |
-| `DATABASE_URL` | PostgreSQL接続URL | postgresql://user:pass@localhost:5432/fuji_calendar | × |
-| `JWT_SECRET` | JWT署名シークレット | ランダム生成 | 本番○ |
+| `DATABASE_URL` | PostgreSQL 接続 URL | postgresql://user:pass@localhost:5432/fuji_calendar | × |
+| `JWT_SECRET` | JWT 署名シークレット | ランダム生成 | 本番○ |
 | `REFRESH_SECRET` | リフレッシュトークンシークレット | ランダム生成 | 本番○ |
-| `FRONTEND_URL` | フロントエンドURL | localhost:3000 | 本番○ |
+| `FRONTEND_URL` | フロントエンド URL | localhost:3000 | 本番○ |
 | `LOG_LEVEL` | ログレベル | info/debug | × |
 | `ENABLE_FILE_LOGGING` | ファイルログ出力 | false | × |
 | `LOG_DIR` | ログディレクトリ | ./logs | × |
@@ -251,31 +255,31 @@ lsof -i :8000
 kill -9 <PID>
 ```
 
-#### 2. PostgreSQL接続エラー
+#### 2. PostgreSQL 接続エラー
 
 ```bash
-# PostgreSQLの起動確認
+# PostgreSQL の起動確認
 psql -h localhost -U postgres -d fuji_calendar -c "\l"
 
 # データベース接続テスト
 node scripts/testing/test-postgres-connection.js
 
-# Prismaマイグレーション状態確認
+# Prisma マイグレーション状態確認
 npx prisma migrate status
 ```
 
-#### 3. Redisの接続エラー
+#### 3. Redis の接続エラー
 
 ```bash
 # Redis の起動確認
 docker ps | grep redis
-redis-cli ping  # "PONG" が返ればOK
+redis-cli ping  # "PONG" が返れば OK
 ```
 
-#### 4. Docker関連のエラー
+#### 4. Docker 関連のエラー
 
 ```bash
-# Dockerイメージの再構築
+# Docker イメージの再構築
 bash scripts/config/docker-dev.sh clean
 bash scripts/config/docker-dev.sh start
 
@@ -319,9 +323,9 @@ npm run dev
 
 ### 本番環境での推奨設定
 
-1. **CPUコア数**: 2コア以上
-2. **メモリ**: 4GB以上（複数地点の計算時）
-3. **ストレージ**: SSD推奨
+1. **CPU コア数**: 2 コア以上
+2. **メモリ**: 4GB 以上（複数地点の計算時）
+3. **ストレージ**: SSD 推奨
 4. **プロキシ**: Nginx（同梱設定）
 
 ### モニタリング

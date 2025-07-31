@@ -69,23 +69,7 @@ export class LocationService {
       if (data.fujiElevation !== undefined) {
         finalFujiElevation = data.fujiElevation;
       } else {
-        // 仰角のみ自動計算
-        const tempLocation: Location = {
-          id: 0,
-          name: data.name,
-          prefecture: data.prefecture,
-          latitude: data.latitude,
-          longitude: data.longitude,
-          elevation: data.elevation,
-          description: data.description,
-          accessInfo: data.accessInfo,
-          fujiDistance: finalFujiDistance,
-          fujiAzimuth: finalFujiAzimuth,
-          fujiElevation: 0, // 後で設定
-          createdAt: new Date(),
-          updatedAt: new Date()
-        };
-        // 仰角計算は後で非同期実行するため、一時的に 0 に設定
+        // 仰角のみ自動計算（後で非同期実行するため、一時的に 0 に設定）
         finalFujiElevation = 0;
       }
     } else {
@@ -93,25 +77,10 @@ export class LocationService {
       logger.info('自動計算値を使用');
       const fujiMetrics = this.calculateFujiMetrics(data.latitude, data.longitude, data.elevation);
 
-      const tempLocation: Location = {
-        id: 0,
-        name: data.name,
-        prefecture: data.prefecture,
-        latitude: data.latitude,
-        longitude: data.longitude,
-        elevation: data.elevation,
-        description: data.description,
-        accessInfo: data.accessInfo,
-        fujiDistance: fujiMetrics.distance,
-        fujiAzimuth: fujiMetrics.azimuth,
-        fujiElevation: 0, // 後で設定
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-
       finalFujiAzimuth = fujiMetrics.azimuth;
       finalFujiDistance = fujiMetrics.distance;
-      finalFujiElevation = this.astronomicalCalculator.calculateElevationToFuji(tempLocation);
+      // 仰角計算は後で非同期実行するため、一時的に 0 に設定
+      finalFujiElevation = 0;
     }
 
     // データベースに保存
@@ -277,15 +246,6 @@ export class LocationService {
         // 位置情報のみ変更の場合は自動計算
         const fujiMetrics = this.calculateFujiMetrics(newLatitude, newLongitude, newElevation);
         
-        const tempLocation: Location = {
-          ...currentLocation,
-          latitude: newLatitude,
-          longitude: newLongitude,
-          elevation: newElevation,
-          fujiDistance: fujiMetrics.distance,
-          fujiAzimuth: fujiMetrics.azimuth,
-        };
-        
         finalFujiAzimuth = fujiMetrics.azimuth;
         finalFujiDistance = fujiMetrics.distance;
         // 仰角計算は後で非同期実行するため、一時的に 0 に設定
@@ -402,7 +362,7 @@ export class LocationService {
   /**
    * 富士山への距離・方位角を計算
    */
-  private calculateFujiMetrics(latitude: number, longitude: number, elevation: number): {
+  private calculateFujiMetrics(latitude: number, longitude: number, _elevation: number): {
     distance: number;
     azimuth: number;
   } {

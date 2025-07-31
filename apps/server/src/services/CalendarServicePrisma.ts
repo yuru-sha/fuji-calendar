@@ -1,9 +1,7 @@
 import { CalendarEvent, CalendarResponse, EventsResponse, FujiEvent, WeatherInfo, Location } from '@fuji-calendar/types';
-import { PrismaClient, LocationEvent } from '@prisma/client';
+import { LocationEvent } from '@prisma/client';
 import { PrismaClientManager } from '../database/prisma';
-import { AstronomicalCalculatorImpl } from './AstronomicalCalculator';
-import { EventAggregationService } from './EventAggregationService';
-import { WeatherService, weatherService } from './WeatherService';
+import { weatherService } from './WeatherService';
 import { EventCacheService } from './EventCacheService';
 import { timeUtils } from '@fuji-calendar/utils';
 import { getComponentLogger, StructuredLogger } from '@fuji-calendar/utils';

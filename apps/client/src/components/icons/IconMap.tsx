@@ -2,7 +2,6 @@ import React from 'react';
 import {
   BarChart3,
   MapPin,
-  Zap,
   Calendar,
   Database,
   Users,
@@ -31,7 +30,6 @@ import {
   Sun,
   Moon,
   Home,
-  UserCheck,
   BookOpen,
   Lightbulb,
   Cloud,
@@ -122,6 +120,7 @@ interface IconProps {
   size?: number;
   className?: string;
   color?: string;
+  style?: React.CSSProperties;
 }
 
 // 汎用アイコンコンポーネント
@@ -129,7 +128,8 @@ export const Icon: React.FC<IconProps> = ({
   name,
   size = 24,
   className = '',
-  color = 'currentColor'
+  color = 'currentColor',
+  style
 }) => {
   const IconComponent = iconMap[name];
 
@@ -143,6 +143,7 @@ export const Icon: React.FC<IconProps> = ({
       size={size}
       className={className}
       color={color}
+      style={style}
     />
   );
 };

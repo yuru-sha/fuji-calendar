@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+// import { PrismaClient } from '@prisma/client';
 import { Location, FujiEvent, CalendarStats } from '@fuji-calendar/types';
 import { CalendarRepository } from './interfaces/CalendarRepository';
 import { PrismaClientManager } from '../database/prisma';

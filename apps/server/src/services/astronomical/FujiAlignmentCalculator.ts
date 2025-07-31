@@ -229,7 +229,7 @@ export class FujiAlignmentCalculator {
    * 月の出の検索時間範囲を取得
    * 太陽・月が出ている時間で計算する（24 時間全体を検索）
    */
-  private getMoonriseSearchRange(date: Date, location: Location): { startTime: Date; endTime: Date } {
+  private getMoonriseSearchRange(date: Date, _location: Location): { startTime: Date; endTime: Date } {
     const baseDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0);
     
     // 24 時間全体を検索範囲とする（月の出・月の入り時刻の制約を外す）
@@ -243,7 +243,7 @@ export class FujiAlignmentCalculator {
    * 月の入りの検索時間範囲を取得
    * 太陽・月が出ている時間で計算する（24 時間全体を検索）
    */
-  private getMoonsetSearchRange(date: Date, location: Location): { startTime: Date; endTime: Date } {
+  private getMoonsetSearchRange(date: Date, _location: Location): { startTime: Date; endTime: Date } {
     const baseDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0);
     
     // 24 時間全体を検索範囲とする（月の出・月の入り時刻の制約を外す）

@@ -1,177 +1,351 @@
-# 富士カレンダー - モノレポ構成
+# Diamond Fuji & Pearl Fuji Calendar - Monorepo Edition
 
-ダイヤモンド富士とパール富士の撮影タイミングを計算・表示するWebアプリケーション（モノレポ構成）
+**Version 0.3.0** - High-performance monorepo architecture
 
-## 📁 プロジェクト構造
+A web application for calculating and displaying optimal shooting times and locations for Diamond Fuji and Pearl Fuji phenomena. Built with modern monorepo architecture and powered by high-precision astronomical calculations using Astronomy Engine, designed to help photography enthusiasts efficiently plan their shoots.
+
+## ✨ Key Features
+
+- 📅 **Monthly Calendar View**: Visual display of Diamond/Pearl Fuji occurrence dates
+- 🏔️ **Shooting Location Database**: Detailed information and access routes for nationwide photography spots
+- ⭐ **High-precision Calculations**: Accurate astronomical position calculations using Astronomy Engine
+- 🗺️ **Interactive Maps**: Location relationship display using Leaflet with route planning
+- 🚗 **Route Navigation**: Optimal route guidance from current location via Google Maps
+- ⭐ **Favorites System**: Save, manage, and export shooting locations and events
+- 🌤️ **Weather Integration**: 7-day forecast with shooting condition recommendations
+- 📊 **Shooting Quality Rating**: Evaluation based on astronomical calculations
+- 🔐 **Admin Panel**: Location management system with JWT authentication
+- 🕐 **JST Time Support**: Accurate time display in Japan Standard Time
+- 🚀 **High Performance**: Optimized with Pino structured logging and Redis cache
+- 🏗️ **Monorepo Architecture**: Efficient development with type-safe shared packages
+- ⚡ **Async Processing**: Background astronomical calculations with BullMQ
+
+## 🆕 Version 0.3.0 Major Improvements
+
+### Architecture Overhaul
+- **Monorepo Migration**: Efficient package management with npm workspaces
+- **PostgreSQL + Prisma**: Migration from SQLite to PostgreSQL for production readiness
+- **Redis + BullMQ**: High-performance queue system for async processing
+- **Dependency Injection**: Improved maintainability with DIContainer
+- **Strict Type Safety**: TypeScript strict mode across all packages
+
+### Significant Performance Gains
+- **Structured Logging**: 5-10x log performance improvement with Pino
+- **Async Calculations**: Heavy astronomical computations moved to background
+- **Optimized Caching**: High-speed data access with Redis
+- **Efficient Build**: Fast frontend development with Vite
+
+### Enhanced Developer Experience
+- **Code Organization**: Script files organized into scripts/ directory structure
+- **Type-safe Development**: Consistent type definitions via shared packages
+- **Unified Quality Control**: Lint and typecheck across entire monorepo
+- **Development Efficiency**: Comprehensive debugging script suite
+
+## 🏗️ Tech Stack
+
+### Architecture
+- **Monorepo Structure**: Efficient package management with npm workspaces
+- **Type-safe Development**: TypeScript strict mode across frontend, backend, and shared packages
+
+### Frontend (@fuji-calendar/client)
+- React 18 + TypeScript (strict mode)
+- Tailwind CSS v3.4.17 (utility-first styling)
+- CSS Modules (component-specific styles)
+- Leaflet (map display & route drawing)
+- Vite (fast build tool)
+- LocalStorage API (favorites functionality)
+
+### Backend (@fuji-calendar/server)
+- Node.js + Express + TypeScript (strict mode)
+- PostgreSQL 15 + Prisma ORM (database)
+- Redis + BullMQ (cache & async queue system)
+- Astronomy Engine (high-precision astronomical calculations)
+- Pino (structured logging with 5-10x performance boost)
+- bcrypt (password hashing)
+- JWT (Access + Refresh Token authentication)
+
+### Shared Packages
+- **@fuji-calendar/types**: Common type definitions & interfaces
+- **@fuji-calendar/utils**: Time processing, logging, formatters
+- **@fuji-calendar/ui**: Reusable React components
+- **@fuji-calendar/shared**: Common business logic
+
+### Security & Infrastructure
+- Helmet (security headers)
+- Rate limiting (100req/min public, 60req/min admin, 5req/15min auth)
+- CSRF protection
+- XSS prevention
+- SQL injection protection
+- Brute force attack prevention
+- Docker & Docker Compose
+- nginx (reverse proxy)
+
+## 📁 Project Structure (Monorepo)
 
 ```
-├── apps/
-│   ├── client/          # Reactフロントエンド
-│   │   ├── public/
+fuji-calendar/
+├── apps/                        # Applications
+│   ├── client/                  # @fuji-calendar/client
 │   │   ├── src/
-│   │   │   ├── components/
-│   │   │   ├── pages/
-│   │   │   ├── App.tsx
-│   │   │   └── main.tsx
+│   │   │   ├── components/      # React components
+│   │   │   ├── pages/           # Page components
+│   │   │   ├── hooks/           # Custom hooks
+│   │   │   ├── services/        # API & favorites services
+│   │   │   ├── features/        # Feature-based components
+│   │   │   └── App.tsx
+│   │   ├── public/              # Static files
 │   │   ├── package.json
-│   │   ├── tsconfig.json
 │   │   └── vite.config.ts
-│   └── server/          # Expressバックエンド
+│   └── server/                  # @fuji-calendar/server
 │       ├── src/
-│       │   ├── controllers/
-│       │   ├── routes/
-│       │   ├── services/
-│       │   └── server.ts
-│       ├── package.json
-│       └── tsconfig.json
-├── packages/
-│   ├── ui/              # 共有UIコンポーネント
-│   │   ├── src/
-│   │   │   ├── components/
-│   │   │   │   ├── Button.tsx
-│   │   │   │   ├── Icon.tsx
-│   │   │   │   └── FujiIcon.tsx
-│   │   │   └── index.ts
-│   │   ├── package.json
-│   │   └── tsconfig.json
-│   ├── types/           # 共有型定義
-│   │   ├── src/
-│   │   │   ├── index.ts
-│   │   │   └── cache.ts
-│   │   ├── package.json
-│   │   └── tsconfig.json
-│   └── utils/           # 共有ユーティリティ関数
-│       ├── src/
-│       │   ├── timeUtils.ts
-│       │   ├── logger.ts
-│       │   ├── formatters.ts
-│       │   └── index.ts
-│       ├── package.json
-│       └── tsconfig.json
-├── package.json         # モノレポのルート設定
-├── tsconfig.json        # 共通TypeScript設定
-└── README.md
+│       │   ├── controllers/     # API controllers
+│       │   ├── repositories/    # Data access layer (Prisma)
+│       │   ├── services/        # Business logic & astronomical calculations
+│       │   ├── middleware/      # Express middleware
+│       │   ├── database/        # Prisma configuration
+│       │   ├── di/              # Dependency injection container
+│       │   ├── routes/          # API route definitions
+│       │   └── worker.ts        # Background worker
+│       └── package.json
+├── packages/                    # Shared packages
+│   ├── types/                   # @fuji-calendar/types
+│   │   └── src/                 # Common type definitions & interfaces
+│   ├── utils/                   # @fuji-calendar/utils  
+│   │   └── src/                 # Time processing, logging, formatters
+│   ├── ui/                      # @fuji-calendar/ui
+│   │   └── src/                 # Reusable React components
+│   └── shared/                  # @fuji-calendar/shared
+│       └── src/                 # Common business logic
+├── scripts/                     # Management & development scripts
+│   ├── admin/                   # Admin creation scripts
+│   ├── debug/                   # Debug & verification scripts
+│   ├── data-generation/         # Data generation scripts
+│   └── config/                  # Docker management scripts
+├── prisma/                      # Prisma schema & migrations
+├── docker/                      # Docker configurations
+├── nginx/                       # nginx configurations
+├── tests/                       # Test files
+├── docs/                        # Project documentation
+├── package.json                 # Monorepo root configuration
+└── tsconfig.json                # Common TypeScript configuration
 ```
 
-## 🚀 開発環境のセットアップ
+## 🚀 Quick Start
 
-### 前提条件
+### Prerequisites
+- Docker & Docker Compose v2 **Recommended**
+- Node.js 18+ (for initial setup only)
 
-- Node.js 18.0.0以上
-- npm 9.0.0以上
-
-### インストール
+### Docker Setup (Recommended)
 
 ```bash
-# 依存関係をインストール
-npm install
+# 1. Clone & Setup
+git clone <repository-url>
+cd fuji-calendar
+cp .env.example .env
+
+# 2. Database Migration
+docker-compose -f docker-compose.dev.yml up postgres -d
+sleep 15
+DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" npx prisma migrate deploy
+
+# 3. Initial Setup
+DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" node scripts/admin/create-admin.js
+
+# 4. Start Application
+docker-compose -f docker-compose.dev.yml up -d
 ```
 
-### 開発サーバーの起動
+### Access
+- **Frontend**: http://localhost:3000
+- **Admin Login**: admin / admin123
+
+## 💻 Development (Monorepo Environment)
+
+### Development Server
 
 ```bash
-# フロントエンドとバックエンドを同時に起動
+# Start frontend, backend, and worker simultaneously
 npm run dev
 
-# 個別に起動する場合
-npm run dev:client  # フロントエンド（ポート3000）
-npm run dev:server  # バックエンド（ポート3001）
+# Individual startup
+npm run dev:client    # Frontend only (port 3001)
+npm run dev:server    # Backend only (port 3000)
+npm run dev:worker    # Background worker only
 ```
 
-## 📦 パッケージ管理
-
-### 新しい依存関係の追加
+### Build & Quality Management
 
 ```bash
-# 特定のアプリケーションに追加
+# Build all packages
+npm run build
+
+# Individual builds
+npm run build:client    # Frontend build
+npm run build:server    # Backend build  
+npm run build:packages  # Shared packages build
+
+# Quality checks
+npm run typecheck       # TypeScript type checking (all packages)
+npm run lint           # ESLint (all packages)
+npm run lint:fix       # ESLint auto-fix
+
+# Package management
+npm run clean          # Clean build artifacts and node_modules
+```
+
+### Package Dependency Management
+
+```bash
+# Add to specific application
 npm install <package> --workspace=apps/client
 npm install <package> --workspace=apps/server
 
-# 共有パッケージに追加
-npm install <package> --workspace=packages/ui
-npm install <package> --workspace=packages/utils
+# Add to shared packages  
 npm install <package> --workspace=packages/types
+npm install <package> --workspace=packages/utils
 ```
 
-### パッケージのビルド
+### Testing
 
 ```bash
-# 全パッケージをビルド
-npm run build
+# Run tests
+npm test
 
-# 個別にビルド
-npm run build:client
+# Watch mode
+npm run test:watch
+```
+
+## 🛠️ Local Development (Without Docker)
+
+### Installation Steps
+
+1. Clone repository
+```bash
+git clone <repository-url>
+cd fuji-calendar
+```
+
+2. Start Redis
+```bash
+# With Docker
+docker run -d --name redis-fuji -p 6379:6379 redis:7-alpine
+
+# Or local installation
+redis-server
+```
+
+3. Install dependencies
+```bash
+npm install
+```
+
+4. Set environment variables (optional)
+```bash
+cp .env.example .env
+# Edit .env file with necessary environment variables
+```
+
+5. Initialize database
+```bash
 npm run build:server
-npm run build:packages
+npm run start
+# Database and sample data will be automatically created on first startup
 ```
 
-## 🧪 テストとリント
+## 🗂️ Available Scripts
 
-```bash
-# 型チェック
-npm run typecheck
+### Root Level
+- `npm run dev` - Start development servers (frontend + backend + worker)
+- `npm run build` - Build all packages
+- `npm run typecheck` - Type checking across all packages
+- `npm run lint` - Lint all packages
+- `npm run clean` - Clean build artifacts
 
-# リント
-npm run lint
-npm run lint:fix
+### Application Specific
+- `npm run dev:client` - Frontend development server
+- `npm run dev:server` - Backend development server
+- `npm run dev:worker` - Background worker
+- `npm run build:client` - Frontend build
+- `npm run build:server` - Backend build
 
-# テスト実行
-npm run test
-```
+## 🌍 Environment Variables
 
-## 📋 利用可能なスクリプト
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PORT` | Server port | 8000 |
+| `NODE_ENV` | Environment mode | development |
+| `DATABASE_URL` | PostgreSQL connection URL | postgresql://user:pass@localhost:5432/fuji_calendar |
+| `JWT_SECRET` | JWT signing secret ⚠️ **Change for production** | Default value |
+| `REFRESH_SECRET` | Refresh token secret ⚠️ **Change for production** | Default value |
+| `REDIS_HOST` | Redis host | localhost |
+| `REDIS_PORT` | Redis port | 6379 |
+| `FRONTEND_URL` | Frontend URL (production) | - |
+| `LOG_LEVEL` | Log level | info (prod), debug (dev) |
+| `ENABLE_FILE_LOGGING` | Enable file logging | false |
+| `LOG_DIR` | Log directory path | ./logs |
 
-### ルートレベル
-- `npm run dev` - 開発サーバー起動（フロント+バック）
-- `npm run build` - 全パッケージビルド
-- `npm run typecheck` - 型チェック
-- `npm run lint` - リント実行
-- `npm run clean` - ビルド成果物削除
+## 📚 API Endpoints
 
-### アプリケーション固有
-- `npm run dev:client` - フロントエンド開発サーバー
-- `npm run dev:server` - バックエンド開発サーバー
-- `npm run build:client` - フロントエンドビルド
-- `npm run build:server` - バックエンドビルド
+### Calendar API
+- `GET /api/calendar/:year/:month` - Monthly calendar data
+- `GET /api/events/:date` - Event details for specific date
+- `GET /api/events/upcoming` - Upcoming events
+- `GET /api/calendar/:year/:month/best` - Recommended shooting dates
+- `POST /api/calendar/suggest` - Shooting plan suggestions
 
-## 🏗️ アーキテクチャ
+### Location API
+- `GET /api/locations` - Location list
+- `GET /api/locations/:id` - Location details
+- `GET /api/locations/:id/yearly/:year` - Annual events for specific location
 
-### モノレポの利点
+### Admin API
+- `POST /api/auth/login` - Admin login
+- `POST /api/auth/logout` - Logout
+- `POST /api/auth/refresh` - Token refresh
+- `POST /api/admin/locations` - Create location
+- `PUT /api/admin/locations/:id` - Update location
+- `DELETE /api/admin/locations/:id` - Delete location
 
-1. **コード共有**: 型定義、ユーティリティ、UIコンポーネントを効率的に共有
-2. **一貫性**: 統一されたツールチェーンと設定
-3. **開発効率**: 単一リポジトリでの統合開発
-4. **依存関係管理**: ワークスペース機能による効率的な依存関係管理
+### System API
+- `GET /api/health` - Health check
+- Weather forecast data integration (mock implementation)
 
-### パッケージ構成
+## 🏗️ Monorepo Benefits
 
-- **@fuji-calendar/types**: 共通型定義とインターフェース
-- **@fuji-calendar/utils**: 時刻処理、ログ、フォーマッター等のユーティリティ
-- **@fuji-calendar/ui**: 再利用可能なReactコンポーネント
-- **@fuji-calendar/client**: Reactフロントエンドアプリケーション
-- **@fuji-calendar/server**: Express.jsバックエンドアプリケーション
+1. **Code Sharing**: Efficient sharing of type definitions, utilities, and UI components
+2. **Consistency**: Unified toolchain and configuration
+3. **Development Efficiency**: Integrated development in a single repository
+4. **Dependency Management**: Efficient dependency management with workspace features
 
-## 🔧 設定ファイル
+### Package Configuration
 
-- `tsconfig.json` - TypeScript共通設定
+- **@fuji-calendar/types**: Common type definitions and interfaces
+- **@fuji-calendar/utils**: Time processing, logging, formatters, and other utilities
+- **@fuji-calendar/ui**: Reusable React components
+- **@fuji-calendar/client**: React frontend application
+- **@fuji-calendar/server**: Express.js backend application
 
-- `package.json` - モノレポルート設定
-- 各パッケージの`package.json` - 個別パッケージ設定
+## 📝 Development Guidelines
 
-## 📝 開発ガイドライン
+1. **Type Safety**: Leverage TypeScript for type-safe development
+2. **Component Design**: Create reusable UI components
+3. **Performance**: Efficient bundle size and runtime performance
+4. **Maintainability**: Clear separation of concerns and modularization
 
-1. **型安全性**: TypeScriptを活用した型安全な開発
-2. **コンポーネント設計**: 再利用可能なUIコンポーネントの作成
-3. **パフォーマンス**: 効率的なバンドルサイズとランタイム性能
-4. **保守性**: 明確な責任分離とモジュール化
+## 🤝 Contributing
 
-## 🤝 コントリビューション
+1. Create a feature branch
+2. Implement changes
+3. Run tests and linting
+4. Create a pull request
 
-1. フィーチャーブランチを作成
-2. 変更を実装
-3. テストとリントを実行
-4. プルリクエストを作成
-
-## 📄 ライセンス
+## 📄 License
 
 MIT License
+
+## 🙏 Acknowledgments
+
+- Astronomy Engine for precise astronomical calculations
+- Contributors to the shooting location database
+- Photography community for valuable feedback and suggestions

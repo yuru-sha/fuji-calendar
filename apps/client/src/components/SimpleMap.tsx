@@ -252,7 +252,7 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
           ? locationEvents.filter(e => e.id === selectedEventId)
           : locationEvents;
         
-        // まず撮影地→富士山の線を1本だけ描画（赤色）
+        // まず撮影地→富士山の線を 1 本だけ描画（赤色）
         L.polyline([
           [location.latitude, location.longitude],
           [FUJI_COORDINATES.latitude, FUJI_COORDINATES.longitude]
@@ -264,7 +264,7 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
         }).addTo(map);
         
         // 各イベントごとに太陽・月への線を描画
-        eventsToShow.forEach((event, index) => {
+        eventsToShow.forEach((event, _index) => {
           const locationToFujiAzimuth = location.fujiAzimuth || 0; // 撮影地点から富士山への方位角
           const observerToSunMoonAzimuth = event.azimuth; // 撮影地点から見た太陽・月の方位角（イベントデータから取得）
           

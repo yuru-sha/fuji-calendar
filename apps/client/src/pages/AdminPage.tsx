@@ -925,7 +925,7 @@ const AdminPage: React.FC = () => {
                 <div className="p-6">
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
                     <div className="flex">
-                      <Icon name="alert" size={20} className="text-yellow-600 mt-0.5 mr-3" />
+                      <Icon name="warning" size={20} className="text-yellow-600 mt-0.5 mr-3" />
                       <div>
                         <h4 className="text-sm font-medium text-yellow-800">注意事項</h4>
                         <p className="text-sm text-yellow-700 mt-1">
@@ -957,7 +957,7 @@ const AdminPage: React.FC = () => {
                         }
                         
                         const result = await response.json();
-                        alert(`一括再計算が完了しました！\n\n 生成されたイベント数: ${result.totalEvents.toLocaleString()}件\n\n 詳細:\n${result.results.map(r => `${r.year}年: ${r.success ? r.totalEvents.toLocaleString() + '件' : '失敗'}`).join('\n')}`);
+                        alert(`一括再計算が完了しました！\n\n 生成されたイベント数: ${result.totalEvents.toLocaleString()}件\n\n 詳細:\n${result.results.map((r: any) => `${r.year}年: ${r.success ? r.totalEvents.toLocaleString() + '件' : '失敗'}`).join('\n')}`);
                         
                       } catch (error) {
                         console.error('再計算エラー:', error);

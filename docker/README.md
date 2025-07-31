@@ -1,6 +1,8 @@
 # Docker 環境構成
 
-ダイヤモンド富士・パール富士カレンダーのDocker環境を構築するための設定ファイル群です。
+**バージョン 0.3.0** - モノレポ構成・高性能版
+
+ダイヤモンド富士・パール富士カレンダーの Docker 環境を構築するための設定ファイル群です。
 
 ## 構成オプション
 
@@ -17,7 +19,7 @@ bash scripts/config/docker-prod.sh start
 
 **コンテナ:**
 - `postgres`: PostgreSQL 15 データベース
-- `backend`: Express.js API サーバー (Node.js)
+- `backend`: Express.js API サーバー (Node.js ・モノレポ構成)
 - `nginx`: リバースプロキシ + 静的ファイル配信
 - `redis`: キューシステム (BullMQ)
 
@@ -34,7 +36,7 @@ bash scripts/config/docker-dev.sh start
 
 **コンテナ:**
 - `postgres`: PostgreSQL 15 データベース (開発用)
-- `app`: Express.js + React 開発サーバー
+- `app`: Express.js + React 開発サーバー (モノレポ構成)
 - `redis`: キューシステム (開発用)
 
 ## ディレクトリ構造
@@ -49,7 +51,7 @@ docker/
 └── frontend/
     ├── Dockerfile              # フロントエンド用 (Nginx)
     ├── nginx.conf              # Nginx メイン設定
-    └── default.conf            # サイト設定 + APIプロキシ
+    └── default.conf            # サイト設定 + API プロキシ
 ```
 
 ## 開発フロー
@@ -83,7 +85,7 @@ DB_NAME=fuji_calendar
 DB_USER=fuji_user
 DB_PASSWORD=prod_password_change_me
 
-# JWT設定
+# JWT 設定
 JWT_SECRET=your-super-secret-jwt-key
 REFRESH_SECRET=your-super-secret-refresh-key
 
@@ -103,7 +105,7 @@ FRONTEND_URL=https://your-domain.com
 ## ボリューム管理
 
 ```bash
-# PostgreSQLバックアップ
+# PostgreSQL バックアップ
 docker exec fuji_calendar_postgres_prod pg_dump -U fuji_user fuji_calendar > backup-$(date +%Y%m%d).sql
 
 # ログ確認
@@ -151,30 +153,30 @@ docker stats
 
 ## パフォーマンス調整
 
-### PostgreSQL設定
+### PostgreSQL 設定
 - **バージョン**: PostgreSQL 15 Alpine
 - **文字エンコーディング**: UTF-8
 - **タイムゾーン**: Asia/Tokyo
 
-### Redis設定
+### Redis 設定
 - **メモリ制限**: 512MB
 - **削除ポリシー**: `allkeys-lru`
-- **永続化**: AOF有効
+- **永続化**: AOF 有効
 
-### Nginx設定
-- **Gzip圧縮**: 有効 (レベル6)
-- **静的ファイルキャッシュ**: 1年
-- **Worker数**: CPU自動検出
+### Nginx 設定
+- **Gzip 圧縮**: 有効 (レベル 6)
+- **静的ファイルキャッシュ**: 1 年
+- **Worker 数**: CPU 自動検出
 
 ## セキュリティ
 
 ### 設定済み保護
-- セキュリティヘッダー (X-Frame-Options, CSP等)
+- セキュリティヘッダー (X-Frame-Options, CSP 等)
 - サーバー情報隠蔽
 - 不要ファイルアクセス禁止
 - ヘルスチェックログ除外
 
 ### 推奨設定
-- JWT秘密鍵の定期ローテーション
-- HTTPS証明書の設定
+- JWT 秘密鍵の定期ローテーション
+- HTTPS 証明書の設定
 - ファイアウォール設定

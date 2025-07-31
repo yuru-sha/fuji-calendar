@@ -1,4 +1,5 @@
 # Diamond Fuji & Pearl Fuji Calendar - Monorepo Edition
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/yuru-sha/fuji-calendar)
 
 **Version 0.3.0** - High-performance monorepo architecture
 

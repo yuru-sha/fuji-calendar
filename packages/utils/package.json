@@ -11,9 +11,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@fuji-calendar/types": "*"
-  },
-  "dependencies": {
     "@fuji-calendar/types": "*",
     "pino": "^9.7.0"
   },

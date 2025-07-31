@@ -90,3 +90,6 @@ data/*
 
 # Serena directories and files
 .serena/
+
+# Kiro directories and files
+.kiro/

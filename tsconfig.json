@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "lib": ["DOM", "DOM.Iterable", "ES6"],
     "allowJs": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -9,31 +9,36 @@
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
-    "module": "ESNext",
-    "moduleResolution": "bundler",
+    "module": "esnext",
+    "moduleResolution": "node",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@/shared/*": ["src/shared/*"],
-      "@/client/*": ["src/client/*"],
-      "@/server/*": ["src/server/*"],
-      "@/ui": ["src/shared/ui"],
-      "@/api": ["src/shared/api"],
-      "@/features/*": ["src/client/features/*"]
+      "@fuji-calendar/types": ["packages/types/src"],
+      "@fuji-calendar/utils": ["packages/utils/src"],
+      "@fuji-calendar/ui": ["packages/ui/src"]
     }
   },
   "include": [
-    "src/client/**/*",
-    "src/shared/**/*",
-    "src/client/types/assets.d.ts"
+    "apps/*/src",
+    "packages/*/src"
   ],
   "exclude": [
     "node_modules",
     "dist",
-    "src/server"
+    "build"
+  ],
+  "references": [
+    { "path": "./apps/client" },
+    { "path": "./apps/server" },
+    { "path": "./packages/types" },
+    { "path": "./packages/utils" },
+    { "path": "./packages/ui" }
   ]
 }

@@ -1,0 +1,23 @@
+{
+  "name": "@fuji-calendar/utils",
+  "version": "0.3.0",
+  "description": "Shared utility functions for Fuji Calendar",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fuji-calendar/types": "*",
+    "pino": "^9.7.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.2.2"
+  },
+  "files": [
+    "dist"
+  ]
+}

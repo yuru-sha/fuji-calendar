@@ -1,5 +1,7 @@
 # Astronomy Engine Horizon関数エラー修正ガイド
 
+**バージョン 0.3.0** - モノレポ構成・高性能版
+
 ## 問題の概要
 
 **エラーメッセージ**: `"Value is not a finite number: undefined"`  

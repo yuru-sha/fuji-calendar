@@ -1,13 +1,15 @@
 # 開発ツール・デバッグスクリプト
 
+**バージョン 0.3.0** - モノレポ構成・高性能版
+
 ダイヤモンド富士・パール富士カレンダーの開発・デバッグに使用するツール群について説明します。
 
 ## デバッグスクリプト一覧
 
 ### ダイヤモンド富士関連
 
-#### `scripts/debug_diamond_fuji_detailed.js`
-ダイヤモンド富士の詳細な計算過程をデバッグするスクリプト
+#### `scripts/debug/debug-diamond-fuji.js`
+ダイヤモンド富士の詳細な計算過程をデバッグするスクリプト（モノレポ構成）
 
 **機能:**
 - 特定の日付・地点でのダイヤモンド富士計算の詳細表示
@@ -17,11 +19,11 @@
 
 **使用例:**
 ```bash
-node scripts/debug_diamond_fuji_detailed.js
+node scripts/debug/debug-diamond-fuji.js
 ```
 
-#### `scripts/debug_diamond_fuji_20250310.js`
-2025年3月10日の特定ケースでのデバッグ
+#### `scripts/debug/debug-tenjogatake.js`
+天上ヶ岳での特定ケースのデバッグ
 
 **用途:**
 - 実際の撮影報告との比較検証
@@ -63,7 +65,7 @@ node scripts/debug_diamond_fuji_detailed.js
 - 太陽角距離による明度計算
 
 #### `scripts/debug_pearl_fuji_20251226.js`
-2025年12月26日の特定ケース検証
+2025 年 12 月 26 日の特定ケース検証
 
 **用途:**
 - 冬至付近での月の軌道解析
@@ -82,7 +84,7 @@ node scripts/debug_diamond_fuji_detailed.js
 パール富士の精密検索
 
 **機能:**
-- 10秒刻みでの詳細時刻検索
+- 10 秒刻みでの詳細時刻検索
 - 月の軌道の詳細解析
 - 最適撮影タイミングの特定
 
@@ -148,7 +150,7 @@ node scripts/[スクリプト名].js
 DEBUG=true node scripts/debug_diamond_fuji_detailed.js
 ```
 
-#### JSON出力
+#### JSON 出力
 ```bash
 OUTPUT_FORMAT=json node scripts/test_diamond_fuji_locations.js > results.json
 ```
@@ -179,7 +181,7 @@ LOG_LEVEL=debug node scripts/performance-analysis.js
 
 ## 出力形式
 
-### JSON形式
+### JSON 形式
 ```json
 {
   "location": "海ほたる",
@@ -196,7 +198,7 @@ LOG_LEVEL=debug node scripts/performance-analysis.js
 }
 ```
 
-### CSV形式
+### CSV 形式
 ```csv
 Date,Location,Type,Time,Azimuth,Elevation,Accuracy
 2025-03-10,海ほたる,diamond_fuji,17:45:23,248.5,1.2,high

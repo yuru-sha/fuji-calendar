@@ -30,6 +30,8 @@ services:
     restart: unless-stopped
     ports:
       - "6379:6379"
+    environment:
+      TZ: Asia/Tokyo
     volumes:
       - ./data/redis:/data
     command: redis-server --appendonly yes
@@ -41,7 +43,7 @@ services:
     networks:
       - fuji_calendar_network
 
-  # 開発サーバー (PostgreSQL対応)
+  # 開発サーバー (モノレポ構成・ PostgreSQL 対応)
   app:
     build:
       context: .
@@ -49,30 +51,34 @@ services:
     container_name: fuji_calendar_app
     restart: unless-stopped
     ports:
-      - "3000:3000"
-      - "3001:3001"
+      - "3000:3000"  # バックエンド API
+      - "3001:3001"  # フロントエンド開発サーバー
     environment:
       - NODE_ENV=development
-      - PORT=3000
-      # PostgreSQL接続設定
-      - DB_TYPE=postgres
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_NAME=fuji_calendar
-      - DB_USER=fuji_user
-      - DB_PASSWORD=dev_password_123
-      # Redis設定
+      # PostgreSQL 接続設定（Prisma 対応）
+      - DATABASE_URL=postgresql://fuji_user:dev_password_123@postgres:5432/fuji_calendar
+      # Redis 設定
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      # その他設定
+      # JWT 設定
       - JWT_SECRET=dev-jwt-secret-not-for-production
       - REFRESH_SECRET=dev-refresh-secret-not-for-production
+      # ログ設定
       - LOG_LEVEL=debug
       - ENABLE_FILE_LOGGING=false
+      - LOG_DIR=/app/logs
+      # タイムゾーン
+      - TZ=Asia/Tokyo
     volumes:
       - .:/app
       - /app/node_modules
-      - ./data:/app/data
+      - /app/apps/client/node_modules
+      - /app/apps/server/node_modules
+      - /app/packages/types/node_modules
+      - /app/packages/utils/node_modules
+      - /app/packages/ui/node_modules
+      - /app/packages/shared/node_modules
+      - ./logs:/app/logs
     depends_on:
       postgres:
         condition: service_healthy

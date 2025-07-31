@@ -19,21 +19,22 @@ model Admin {
 }
 
 model Location {
-  id            Int                 @id @default(autoincrement())
-  name          String              @db.VarChar(255)
-  prefecture    String              @db.VarChar(100)
-  latitude      Float
-  longitude     Float
-  elevation     Float
-  description   String?
-  accessInfo    String?             @map("access_info")
-  fujiAzimuth   Float?              @map("fuji_azimuth")
-  fujiElevation Float?              @map("fuji_elevation")
-  fujiDistance  Float?              @map("fuji_distance")
-  createdAt     DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  parkingInfo   String?             @map("parking_info")
-  events        LocationFujiEvent[]
+  id               Int                 @id @default(autoincrement())
+  name             String              @db.VarChar(255)
+  prefecture       String              @db.VarChar(100)
+  latitude         Float
+  longitude        Float
+  elevation        Float
+  fujiAzimuth      Float?              @map("fuji_azimuth")
+  fujiElevation    Float?              @map("fuji_elevation")
+  fujiDistance     Float?              @map("fuji_distance")
+  description      String?
+  accessInfo       String?             @map("access_info")
+  parkingInfo      String?             @map("parking_info")
+  measurementNotes String?             @map("measurement_notes")
+  createdAt        DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  events           LocationEvent[]
 
   @@index([fujiAzimuth, fujiElevation])
   @@index([latitude, longitude], map: "idx_locations_coords")
@@ -41,21 +42,21 @@ model Location {
   @@map("locations")
 }
 
-model LocationFujiEvent {
+model LocationEvent {
   id               BigInt    @id @default(autoincrement())
   locationId       Int       @map("location_id")
+  eventType        EventType @map("event_type")
   eventDate        DateTime  @map("event_date") @db.Date
   eventTime        DateTime  @map("event_time") @db.Timestamptz(6)
   azimuth          Float
   altitude         Float
+  accuracy         Accuracy?
   qualityScore     Float     @default(0.0) @map("quality_score")
   moonPhase        Float?    @map("moon_phase")
   moonIllumination Float?    @map("moon_illumination")
   calculationYear  Int       @map("calculation_year")
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  eventType        EventType @map("event_type")
-  accuracy         Accuracy?
   location         Location  @relation(fields: [locationId], references: [id], onDelete: Cascade)
 
   @@unique([locationId, eventDate, eventTime, eventType], map: "unique_location_event")
@@ -63,7 +64,7 @@ model LocationFujiEvent {
   @@index([eventDate], map: "idx_event_date")
   @@index([eventType, eventDate], map: "idx_event_type_date")
   @@index([qualityScore(sort: Desc)], map: "idx_quality_score")
-  @@map("location_fuji_events")
+  @@map("location_events")
 }
 
 enum EventType {

@@ -87,3 +87,9 @@ data/*
 !data/.gitkeep
 
 /generated/prisma
+
+# Serena directories and files
+.serena/
+
+# Kiro directories and files
+.kiro/

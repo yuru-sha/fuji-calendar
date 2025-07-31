@@ -1,69 +1,143 @@
-# Fuji Calendar - Diamond Fuji & Pearl Fuji Photography Guide
+# Diamond Fuji & Pearl Fuji Calendar - Monorepo Edition
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/yuru-sha/fuji-calendar)
 
-**Version 0.2.0**
+**Version 0.3.0** - High-performance monorepo architecture
 
-A calendar application that displays optimal dates and locations for Diamond Fuji and Pearl Fuji photography. Provides accurate information based on high-precision astronomical calculations using Astronomy Engine to help photography enthusiasts efficiently plan their shoots.
+A web application for calculating and displaying optimal shooting times and locations for Diamond Fuji and Pearl Fuji phenomena. Built with modern monorepo architecture and powered by high-precision astronomical calculations using Astronomy Engine, designed to help photography enthusiasts efficiently plan their shoots.
 
-![Diamond Fuji](docs/images/diamond_fuji_small.png) ![Pearl Fuji](docs/images/pearl_fuji_small.png)
+## ✨ Key Features
 
-## Features
-
-- 📅 **Monthly Calendar Display**: Visual representation of Diamond Fuji & Pearl Fuji occurrence dates
-- 🏔️ **Photography Location Information**: Detailed information and access methods for shooting spots nationwide
-- ⏰ **High-Precision Astronomical Calculations**: Precise celestial position calculations using Astronomy Engine
-- 🗺️ **Map Display**: Leaflet-based visualization of photography locations and Mt. Fuji positioning
-- 🚗 **Route Navigation**: Google Maps integration for optimal route planning from current location
-- ⭐ **Favorites Feature**: Save, manage, and export photography locations & events
-- 🌤️ **Weather Integration**: 7-day weather forecast with shooting condition recommendations
-- 📊 **Photography Recommendation Score**: Evaluation of shooting conditions based on astronomical calculations
-- 🔐 **Admin Management**: Administrator registration and management of photography locations
+- 📅 **Monthly Calendar View**: Visual display of Diamond/Pearl Fuji occurrence dates
+- 🏔️ **Shooting Location Database**: Detailed information and access routes for nationwide photography spots
+- ⭐ **High-precision Calculations**: Accurate astronomical position calculations using Astronomy Engine
+- 🗺️ **Interactive Maps**: Location relationship display using Leaflet with route planning
+- 🚗 **Route Navigation**: Optimal route guidance from current location via Google Maps
+- ⭐ **Favorites System**: Save, manage, and export shooting locations and events
+- 🌤️ **Weather Integration**: 7-day forecast with shooting condition recommendations
+- 📊 **Shooting Quality Rating**: Evaluation based on astronomical calculations
+- 🔐 **Admin Panel**: Location management system with JWT authentication
 - 🕐 **JST Time Support**: Accurate time display in Japan Standard Time
-- 🎯 **Precise Pearl Fuji Search**: Detailed search around moonrise/moonset times
-- 🚀 **High Performance**: Optimization with Pino structured logging & Redis caching
+- 🚀 **High Performance**: Optimized with Pino structured logging and Redis cache
+- 🏗️ **Monorepo Architecture**: Efficient development with type-safe shared packages
+- ⚡ **Async Processing**: Background astronomical calculations with BullMQ
 
-## Technology Stack
+## 🆕 Version 0.3.0 Major Improvements
 
-### Frontend
-- React 18
-- TypeScript (strict mode)
+### Architecture Overhaul
+- **Monorepo Migration**: Efficient package management with npm workspaces
+- **PostgreSQL + Prisma**: Migration from SQLite to PostgreSQL for production readiness
+- **Redis + BullMQ**: High-performance queue system for async processing
+- **Dependency Injection**: Improved maintainability with DIContainer
+- **Strict Type Safety**: TypeScript strict mode across all packages
+
+### Significant Performance Gains
+- **Structured Logging**: 5-10x log performance improvement with Pino
+- **Async Calculations**: Heavy astronomical computations moved to background
+- **Optimized Caching**: High-speed data access with Redis
+- **Efficient Build**: Fast frontend development with Vite
+
+### Enhanced Developer Experience
+- **Code Organization**: Script files organized into scripts/ directory structure
+- **Type-safe Development**: Consistent type definitions via shared packages
+- **Unified Quality Control**: Lint and typecheck across entire monorepo
+- **Development Efficiency**: Comprehensive debugging script suite
+
+## 🏗️ Tech Stack
+
+### Architecture
+- **Monorepo Structure**: Efficient package management with npm workspaces
+- **Type-safe Development**: TypeScript strict mode across frontend, backend, and shared packages
+
+### Frontend (@fuji-calendar/client)
+- React 18 + TypeScript (strict mode)
 - Tailwind CSS v3.4.17 (utility-first styling)
 - CSS Modules (component-specific styles)
-- Leaflet (Map display)
-- LocalStorage API (Favorites feature)
+- Leaflet (map display & route drawing)
+- Vite (fast build tool)
+- LocalStorage API (favorites functionality)
 
-### Backend
-- Node.js
-- Express
-- TypeScript (strict mode)
-- PostgreSQL 15 + Prisma ORM (Database)
-- Redis (Cache & Queue system with BullMQ)
-- Astronomy Engine (High-precision astronomical calculations)
-- Pino (Structured logging with performance optimization)
-- bcrypt (Password hashing)
-- JWT (Authentication with refresh tokens)
+### Backend (@fuji-calendar/server)
+- Node.js + Express + TypeScript (strict mode)
+- PostgreSQL 15 + Prisma ORM (database)
+- Redis + BullMQ (cache & async queue system)
+- Astronomy Engine (high-precision astronomical calculations)
+- Pino (structured logging with 5-10x performance boost)
+- bcrypt (password hashing)
+- JWT (Access + Refresh Token authentication)
+
+### Shared Packages
+- **@fuji-calendar/types**: Common type definitions & interfaces
+- **@fuji-calendar/utils**: Time processing, logging, formatters
+- **@fuji-calendar/ui**: Reusable React components
+- **@fuji-calendar/shared**: Common business logic
 
 ### Security & Infrastructure
-- Helmet (Security headers)
+- Helmet (security headers)
 - Rate limiting (100req/min public, 60req/min admin, 5req/15min auth)
 - CSRF protection
-- XSS protection
-- SQL injection prevention
-- Brute force attack protection
+- XSS prevention
+- SQL injection protection
+- Brute force attack prevention
 - Docker & Docker Compose
-- nginx (Reverse proxy)
+- nginx (reverse proxy)
+
+## 📁 Project Structure (Monorepo)
+
+```
+fuji-calendar/
+├── apps/                        # Applications
+│   ├── client/                  # @fuji-calendar/client
+│   │   ├── src/
+│   │   │   ├── components/      # React components
+│   │   │   ├── pages/           # Page components
+│   │   │   ├── hooks/           # Custom hooks
+│   │   │   ├── services/        # API & favorites services
+│   │   │   ├── features/        # Feature-based components
+│   │   │   └── App.tsx
+│   │   ├── public/              # Static files
+│   │   ├── package.json
+│   │   └── vite.config.ts
+│   └── server/                  # @fuji-calendar/server
+│       ├── src/
+│       │   ├── controllers/     # API controllers
+│       │   ├── repositories/    # Data access layer (Prisma)
+│       │   ├── services/        # Business logic & astronomical calculations
+│       │   ├── middleware/      # Express middleware
+│       │   ├── database/        # Prisma configuration
+│       │   ├── di/              # Dependency injection container
+│       │   ├── routes/          # API route definitions
+│       │   └── worker.ts        # Background worker
+│       └── package.json
+├── packages/                    # Shared packages
+│   ├── types/                   # @fuji-calendar/types
+│   │   └── src/                 # Common type definitions & interfaces
+│   ├── utils/                   # @fuji-calendar/utils  
+│   │   └── src/                 # Time processing, logging, formatters
+│   ├── ui/                      # @fuji-calendar/ui
+│   │   └── src/                 # Reusable React components
+│   └── shared/                  # @fuji-calendar/shared
+│       └── src/                 # Common business logic
+├── scripts/                     # Management & development scripts
+│   ├── admin/                   # Admin creation scripts
+│   ├── debug/                   # Debug & verification scripts
+│   ├── data-generation/         # Data generation scripts
+│   └── config/                  # Docker management scripts
+├── prisma/                      # Prisma schema & migrations
+├── docker/                      # Docker configurations
+├── nginx/                       # nginx configurations
+├── tests/                       # Test files
+├── docs/                        # Project documentation
+├── package.json                 # Monorepo root configuration
+└── tsconfig.json                # Common TypeScript configuration
+```
 
 ## 🚀 Quick Start
 
-**Get running in 5 minutes**: [QUICKSTART.md](QUICKSTART.md)
-
-### Requirements
+### Prerequisites
 - Docker & Docker Compose v2 **Recommended**
 - Node.js 18+ (for initial setup only)
 
-## Installation & Setup
-
-### Docker Environment (Recommended)
+### Docker Setup (Recommended)
 
 ```bash
 # 1. Clone & Setup
@@ -77,7 +151,7 @@ sleep 15
 DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" npx prisma migrate deploy
 
 # 3. Initial Setup
-DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" node scripts/admin/create-admin.js          # admin/admin123
+DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" node scripts/admin/create-admin.js
 
 # 4. Start Application
 docker-compose -f docker-compose.dev.yml up -d
@@ -87,49 +161,67 @@ docker-compose -f docker-compose.dev.yml up -d
 - **Frontend**: http://localhost:3000
 - **Admin Login**: admin / admin123
 
-### Production Environment
+## 💻 Development (Monorepo Environment)
 
-1. Set environment variables
-```bash
-cp .env.example .env
-# Edit .env file with production values (JWT_SECRET, etc.)
-```
-
-2. Deploy production environment
-```bash
-# Production environment startup
-docker-compose up -d
-
-# Or use management script
-bash scripts/config/docker-prod.sh deploy
-```
-
-3. Access
-- Application: http://localhost
-
-### Docker Management Commands
+### Development Server
 
 ```bash
-# Development environment
-bash scripts/config/docker-dev.sh start      # Start development environment
-bash scripts/config/docker-dev.sh stop       # Stop
-bash scripts/config/docker-dev.sh logs       # View logs
-bash scripts/config/docker-dev.sh status     # Check status
-bash scripts/config/docker-dev.sh clean      # Cleanup
+# Start frontend, backend, and worker simultaneously
+npm run dev
 
-# Production environment
-bash scripts/config/docker-prod.sh deploy    # Deploy
-bash scripts/config/docker-prod.sh start     # Start
-bash scripts/config/docker-prod.sh stop      # Stop
-bash scripts/config/docker-prod.sh backup    # Database backup
-bash scripts/config/docker-prod.sh health    # Health check
+# Individual startup
+npm run dev:client    # Frontend only (port 3001)
+npm run dev:server    # Backend only (port 3000)
+npm run dev:worker    # Background worker only
 ```
 
-## Local Environment (Without Docker)
+### Build & Quality Management
+
+```bash
+# Build all packages
+npm run build
+
+# Individual builds
+npm run build:client    # Frontend build
+npm run build:server    # Backend build  
+npm run build:packages  # Shared packages build
+
+# Quality checks
+npm run typecheck       # TypeScript type checking (all packages)
+npm run lint           # ESLint (all packages)
+npm run lint:fix       # ESLint auto-fix
+
+# Package management
+npm run clean          # Clean build artifacts and node_modules
+```
+
+### Package Dependency Management
+
+```bash
+# Add to specific application
+npm install <package> --workspace=apps/client
+npm install <package> --workspace=apps/server
+
+# Add to shared packages  
+npm install <package> --workspace=packages/types
+npm install <package> --workspace=packages/utils
+```
+
+### Testing
+
+```bash
+# Run tests
+npm test
+
+# Watch mode
+npm run test:watch
+```
+
+## 🛠️ Local Development (Without Docker)
 
 ### Installation Steps
 
-1. Clone the repository
+1. Clone repository
 ```bash
 git clone <repository-url>
 cd fuji-calendar
@@ -137,10 +229,10 @@ cd fuji-calendar
 
 2. Start Redis
 ```bash
-# Start with Docker
+# With Docker
 docker run -d --name redis-fuji -p 6379:6379 redis:7-alpine
 
-# OR local installation
+# Or local installation
 redis-server
 ```
 
@@ -152,7 +244,7 @@ npm install
 4. Set environment variables (optional)
 ```bash
 cp .env.example .env
-# Edit .env file to set required environment variables
+# Edit .env file with necessary environment variables
 ```
 
 5. Initialize database
@@ -162,173 +254,99 @@ npm run start
 # Database and sample data will be automatically created on first startup
 ```
 
-## Development
+## 🗂️ Available Scripts
 
-### Starting Development Server
+### Root Level
+- `npm run dev` - Start development servers (frontend + backend + worker)
+- `npm run build` - Build all packages
+- `npm run typecheck` - Type checking across all packages
+- `npm run lint` - Lint all packages
+- `npm run clean` - Clean build artifacts
 
-Start both frontend and backend simultaneously:
-```bash
-npm run dev
-```
+### Application Specific
+- `npm run dev:client` - Frontend development server
+- `npm run dev:server` - Backend development server
+- `npm run dev:worker` - Background worker
+- `npm run build:client` - Frontend build
+- `npm run build:server` - Backend build
 
-Start individually:
-```bash
-# Backend only
-npm run dev:server
+## 🌍 Environment Variables
 
-# Frontend only
-npm run dev:client
-```
-
-### Build
-
-```bash
-# Production build
-npm run build
-
-# Type checking
-npm run typecheck
-
-# Lint
-npm run lint
-npm run lint:fix
-```
-
-### Testing
-
-```bash
-# Run tests
-npm test
-
-# Test watch mode
-npm run test:watch
-```
-
-## API Endpoints
-
-### Calendar API
-
-- `GET /api/calendar/:year/:month` - Monthly calendar data
-- `GET /api/events/:date` - Specific date event details
-- `GET /api/events/upcoming` - Upcoming events
-- `GET /api/calendar/:year/:month/best` - Recommended photography dates
-- `POST /api/calendar/suggest` - Photography plan suggestions
-
-### Photography Location API
-
-- `GET /api/locations` - Photography location list
-- `GET /api/locations/:id` - Photography location details
-- `GET /api/locations/:id/yearly/:year` - Yearly events for specific location
-
-### Admin API
-
-- `POST /api/auth/login` - Admin login
-- `POST /api/auth/logout` - Logout
-- `POST /api/auth/refresh` - Token refresh
-- `POST /api/admin/locations` - Create photography location
-- `PUT /api/admin/locations/:id` - Update photography location
-- `DELETE /api/admin/locations/:id` - Delete photography location
-
-### System API
-
-- `GET /api/health` - Health check
-- Weather forecast data integration (mock implementation)
-
-## Directory Structure
-
-```
-fuji-calendar/
-├── src/
-│   ├── client/          # Frontend code
-│   │   ├── components/  # React components
-│   │   ├── pages/       # Page components
-│   │   ├── hooks/       # Custom hooks
-│   │   ├── services/    # API & favorites services
-│   │   ├── types/       # Type definitions
-│   │   └── assets/      # Static resources
-│   ├── server/          # Backend code
-│   │   ├── controllers/ # API controllers
-│   │   ├── models/      # Data models
-│   │   ├── services/    # Business logic
-│   │   ├── middleware/  # Express middleware
-│   │   └── database/    # Database configuration
-│   └── shared/          # Shared type definitions & utilities
-│       ├── types/       # TypeScript type definitions
-│       └── utils/       # Common utilities
-├── tests/               # Test files
-├── data/                # Database files
-└── dist/                # Build output
-```
-
-## Environment Variables
-
-| Variable | Description | Default Value |
-|----------|-------------|---------------|
-| `PORT` | Server port | 3000 |
-| `NODE_ENV` | Runtime environment | development |
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PORT` | Server port | 8000 |
+| `NODE_ENV` | Environment mode | development |
 | `DATABASE_URL` | PostgreSQL connection URL | postgresql://user:pass@localhost:5432/fuji_calendar |
 | `JWT_SECRET` | JWT signing secret ⚠️ **Change for production** | Default value |
 | `REFRESH_SECRET` | Refresh token secret ⚠️ **Change for production** | Default value |
 | `REDIS_HOST` | Redis host | localhost |
 | `REDIS_PORT` | Redis port | 6379 |
-| `FRONTEND_URL` | Frontend URL (for production) | - |
+| `FRONTEND_URL` | Frontend URL (production) | - |
 | `LOG_LEVEL` | Log level | info (prod), debug (dev) |
-| `ENABLE_FILE_LOGGING` | File log output | false |
+| `ENABLE_FILE_LOGGING` | Enable file logging | false |
 | `LOG_DIR` | Log directory path | ./logs |
 
-## Features in Detail
+## 📚 API Endpoints
 
-### Diamond Fuji Photography
-Diamond Fuji occurs when the sun appears to sit atop Mt. Fuji, creating a diamond-like effect. The application calculates precise times and locations where this phenomenon can be observed and photographed.
+### Calendar API
+- `GET /api/calendar/:year/:month` - Monthly calendar data
+- `GET /api/events/:date` - Event details for specific date
+- `GET /api/events/upcoming` - Upcoming events
+- `GET /api/calendar/:year/:month/best` - Recommended shooting dates
+- `POST /api/calendar/suggest` - Shooting plan suggestions
 
-### Pearl Fuji Photography
-Pearl Fuji occurs when the moon appears to sit atop Mt. Fuji. The application provides detailed calculations for moonrise/moonset times and optimal viewing locations.
+### Location API
+- `GET /api/locations` - Location list
+- `GET /api/locations/:id` - Location details
+- `GET /api/locations/:id/yearly/:year` - Annual events for specific location
 
-### High-Precision Calculations
-- Uses Astronomy Engine for accurate celestial mechanics
-- Atmospheric refraction corrections
-- Earth ellipsoid model considerations
-- Automatic season detection for optimal viewing periods
-- Azimuth precision within ±1.5 degrees
-- 10-second interval calculation for optimal timing
+### Admin API
+- `POST /api/auth/login` - Admin login
+- `POST /api/auth/logout` - Logout
+- `POST /api/auth/refresh` - Token refresh
+- `POST /api/admin/locations` - Create location
+- `PUT /api/admin/locations/:id` - Update location
+- `DELETE /api/admin/locations/:id` - Delete location
 
-### Weather Information System
-- 7-day weather forecast integration (mock implementation)
-- Shooting condition recommendations based on weather
-- Visual weather icons and color-coded recommendations
-- Integration with event detail displays
+### System API
+- `GET /api/health` - Health check
+- Weather forecast data integration (mock implementation)
 
-### Admin Management Features
-- Location management with pagination and search
-- JSON import/export for bulk operations
-- Password change functionality
-- Comprehensive location database with 28+ famous viewing spots
-- JWT-based authentication with account lockout protection
-- Brute force attack prevention
+## 🏗️ Monorepo Benefits
 
-### UI/UX Improvements
-- Responsive design with 1280px max-width layout
-- Tailwind CSS integration for consistent styling
-- Enhanced calendar visibility with better event icons
-- Smooth animations and hover effects
-- Accessible keyboard navigation
-- Intuitive route navigation with 🗺️ icon integration
-- One-click route planning to photography locations
+1. **Code Sharing**: Efficient sharing of type definitions, utilities, and UI components
+2. **Consistency**: Unified toolchain and configuration
+3. **Development Efficiency**: Integrated development in a single repository
+4. **Dependency Management**: Efficient dependency management with workspace features
 
-## Contributing
+### Package Configuration
 
-Pull requests and issue reports are welcome.
+- **@fuji-calendar/types**: Common type definitions and interfaces
+- **@fuji-calendar/utils**: Time processing, logging, formatters, and other utilities
+- **@fuji-calendar/ui**: Reusable React components
+- **@fuji-calendar/client**: React frontend application
+- **@fuji-calendar/server**: Express.js backend application
 
-## Support
+## 📝 Development Guidelines
 
-For questions or issues, please feel free to ask on GitHub Issues.
+1. **Type Safety**: Leverage TypeScript for type-safe development
+2. **Component Design**: Create reusable UI components
+3. **Performance**: Efficient bundle size and runtime performance
+4. **Maintainability**: Clear separation of concerns and modularization
 
-## License
+## 🤝 Contributing
+
+1. Create a feature branch
+2. Implement changes
+3. Run tests and linting
+4. Create a pull request
+
+## 📄 License
 
 MIT License
 
-## Acknowledgments
+## 🙏 Acknowledgments
 
 - Astronomy Engine for precise astronomical calculations
-- Contributors to the photography location database
-- The photography community for valuable feedback and suggestions
+- Contributors to the shooting location database
+- Photography community for valuable feedback and suggestions

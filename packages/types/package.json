@@ -1,0 +1,19 @@
+{
+  "name": "@fuji-calendar/types",
+  "version": "0.3.0",
+  "description": "Shared type definitions for Fuji Calendar",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.2.2"
+  },
+  "files": [
+    "dist"
+  ]
+}

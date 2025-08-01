@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Location } from '@fuji-calendar/types';
 import { APP_CONFIG } from '@fuji-calendar/shared';
 import LocationPicker from '../components/LocationPicker';
-import { Icon } from '../components/icons/IconMap';
+import { Icon } from '@fuji-calendar/ui';
 import { authService } from '../services/authService';
 import QueueManager from '../components/admin/QueueManager';
 

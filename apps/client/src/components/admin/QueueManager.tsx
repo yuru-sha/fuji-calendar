@@ -13,7 +13,7 @@ interface QueueStats {
   failedJobs: Array<{
     id: string;
     name: string;
-    data: any;
+    data: Record<string, unknown>;
     failedReason: string;
     attemptsMade: number;
     timestamp: number;
@@ -41,7 +41,6 @@ interface BackgroundJobsStatus {
 
 
 const QueueManager: React.FC = () => {
-  console.log('QueueManager component is rendering');
   
   const [stats, setStats] = useState<QueueStats | null>(null);
   const [backgroundJobs, setBackgroundJobs] = useState<BackgroundJobsStatus | null>(null);
@@ -236,19 +235,16 @@ const QueueManager: React.FC = () => {
     const initializeComponent = async () => {
       try {
         logger.info('QueueManager 初期化開始');
-        console.log('QueueManager: 初期化開始');
         
         // 認証状態を確認
         const token = authService.getToken();
-        console.log('QueueManager: 認証トークン確認', { hasToken: !!token });
+        logger.debug('認証トークン確認', { hasToken: !!token });
         
         await fetchStats();
         await fetchBackgroundJobs();
         logger.info('QueueManager 初期化完了');
-        console.log('QueueManager: 初期化完了');
       } catch (error) {
         logger.error('QueueManager 初期化エラー', error);
-        console.error('QueueManager: 初期化エラー', error);
         // エラーが発生してもコンポーネントが表示されるように最小限の stats を設定
         setStats({
           enabled: false,
@@ -277,11 +273,9 @@ const QueueManager: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  console.log('QueueManager render - stats:', stats);
 
   // エラー状態の場合
   if (renderError) {
-    console.log('QueueManager render - showing error state:', renderError);
     return (
       <div className="max-w-6xl mx-auto p-6">
         <div className="bg-red-50 border border-red-200 rounded-lg p-6">
@@ -302,7 +296,6 @@ const QueueManager: React.FC = () => {
   }
 
   if (!stats) {
-    console.log('QueueManager render - showing loading state');
     return (
       <div className="max-w-6xl mx-auto p-6">
         <div className="bg-white rounded-lg shadow p-6 text-center">
@@ -313,7 +306,6 @@ const QueueManager: React.FC = () => {
     );
   }
 
-  console.log('QueueManager render - showing main content');
   
   try {
     return (
@@ -395,7 +387,7 @@ const QueueManager: React.FC = () => {
                   <div>
                     <div className="font-medium">ジョブ ID: {job.id}</div>
                     <div className="text-sm text-gray-600">
-                      地点: {job.data.locationId}, 年: {job.data.startYear}-{job.data.endYear}
+                      地点: {String(job.data.locationId || 'N/A')}, 年: {String(job.data.startYear || 'N/A')}-{String(job.data.endYear || 'N/A')}
                     </div>
                     <div className="text-sm text-red-600 mt-1">{job.failedReason}</div>
                   </div>
@@ -492,7 +484,6 @@ const QueueManager: React.FC = () => {
     </div>
     );
   } catch (error) {
-    console.error('QueueManager render error:', error);
     setRenderError(`レンダリングエラー: ${error instanceof Error ? error.message : 'Unknown error'}`);
     return (
       <div className="max-w-6xl mx-auto p-6">

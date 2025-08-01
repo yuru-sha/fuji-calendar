@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { CalendarEvent } from '@fuji-calendar/types';
-import { Icon } from './icons/IconMap';
+import { Icon } from '@fuji-calendar/ui';
 
 interface SimpleCalendarProps {
   year: number;

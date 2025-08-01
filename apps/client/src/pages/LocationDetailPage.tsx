@@ -6,7 +6,6 @@ import { timeUtils } from '@fuji-calendar/utils';
 import { useFavorites } from '../hooks/useFavorites';
 import SimpleMap from '../components/SimpleMap';
 import styles from './LocationDetailPage.module.css';
-import { FujiIcon } from '../components/icons/FujiIcons';
 import { Icon } from '@fuji-calendar/ui';
 
 const LocationDetailPage: React.FC = () => {
@@ -289,7 +288,7 @@ const LocationDetailPage: React.FC = () => {
                   {upcomingEvents.map((event, index) => (
                     <div key={event.id || index} className={styles.eventItem}>
                       <div className={styles.eventIcon}>
-                        <FujiIcon type={event.type} size={32} />
+                        <Icon name={event.type === 'diamond' ? 'sun' : 'moon'} size={32} className={event.type === 'diamond' ? 'text-orange-500' : 'text-blue-500'} />
                       </div>
                       
                       <div className={styles.eventInfo}>

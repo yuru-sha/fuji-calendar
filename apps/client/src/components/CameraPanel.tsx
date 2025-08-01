@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Icon } from './icons/IconMap';
+import { Icon } from '@fuji-calendar/ui';
 
 // よく使われる焦点距離
 export const COMMON_FOCAL_LENGTHS = [
@@ -68,7 +68,7 @@ const CameraPanel: React.FC<CameraPanelProps> = ({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Icon name="camera" size={16} />
+          <Icon name="settings" size={16} />
           撮影設定
         </div>
         <span style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
@@ -147,7 +147,7 @@ const CameraPanel: React.FC<CameraPanelProps> = ({
               </label>
               <select
                 value={cameraSettings.sensorType}
-                onChange={(e) => updateSettings({ sensorType: e.target.value as any })}
+                onChange={(e) => updateSettings({ sensorType: e.target.value as 'fullframe' | 'apsc' | 'micro43' })}
                 style={{
                   width: '100%',
                   padding: '0.375rem',
@@ -169,7 +169,7 @@ const CameraPanel: React.FC<CameraPanelProps> = ({
               </label>
               <select
                 value={cameraSettings.aspectRatio}
-                onChange={(e) => updateSettings({ aspectRatio: e.target.value as any })}
+                onChange={(e) => updateSettings({ aspectRatio: e.target.value as '3:2' | '4:3' | '16:9' | '1:1' })}
                 style={{
                   width: '100%',
                   padding: '0.375rem',

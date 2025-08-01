@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
-import { Icon } from '../components/icons/IconMap';
+import { Icon } from '@fuji-calendar/ui';
 import { Location, FujiEvent, CalendarResponse, WeatherInfo } from '@fuji-calendar/types';
 import { apiClient } from '../services/apiClient';
 import { timeUtils } from '@fuji-calendar/utils';

@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useFavorites } from '../hooks/useFavorites';
 import { timeUtils } from '@fuji-calendar/utils';
 import styles from './FavoritesPage.module.css';
-import { FujiIcon } from '../components/icons/FujiIcons';
 import { Icon } from '@fuji-calendar/ui';
 
 const FavoritesPage: React.FC = () => {
@@ -244,7 +243,7 @@ const FavoritesPage: React.FC = () => {
                     className={styles.checkbox}
                   />
                   <div className={styles.eventIcon}>
-                    <FujiIcon type={event.type} size={32} />
+                    <Icon name={event.type === 'diamond' ? 'sun' : 'moon'} size={32} className={event.type === 'diamond' ? 'text-orange-500' : 'text-blue-500'} />
                   </div>
                   <div className={styles.eventInfo}>
                     <div className={styles.eventTitle}>
@@ -296,7 +295,7 @@ const FavoritesPage: React.FC = () => {
                     className={styles.checkbox}
                   />
                   <div className={styles.eventIcon}>
-                    <FujiIcon type={event.type} size={32} />
+                    <Icon name={event.type === 'diamond' ? 'sun' : 'moon'} size={32} className={event.type === 'diamond' ? 'text-orange-500' : 'text-blue-500'} />
                   </div>
                   <div className={styles.eventInfo}>
                     <div className={styles.eventTitle}>

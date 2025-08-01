@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Icon } from './icons/IconMap';
+import { Icon } from '@fuji-calendar/ui';
 
 const Layout: React.FC = () => {
   const location = useLocation();

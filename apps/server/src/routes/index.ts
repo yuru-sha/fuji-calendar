@@ -2,7 +2,9 @@ import { Express, Request, Response } from 'express';
 import path from 'path';
 import { getComponentLogger } from '@fuji-calendar/utils';
 import LocationController from '../controllers/LocationControllerRefactored';
-import AuthController from '../controllers/AuthController';
+import { CalendarControllerRefactored } from '../controllers/CalendarControllerRefactored';
+import { AuthControllerRefactored } from '../controllers/AuthControllerRefactored';
+import { BackgroundJobController } from '../controllers/BackgroundJobController';
 import { authenticateAdmin, authRateLimit, adminApiRateLimit } from '../middleware/auth';
 import { DIContainer } from '../di/DIContainer';
 
@@ -10,10 +12,11 @@ const serverLogger = getComponentLogger('server');
 
 export function setupRoutes(app: Express, container: DIContainer): void {
 
-  // コントローラーのインスタンス化
+  // コントローラーのインスタンス化（DI コンテナから取得）
   const locationController = container.resolve('LocationController') as LocationController;
-  const calendarController = container.resolve('CalendarController') as any;
-  const authController = new AuthController();
+  const calendarController = container.resolve('CalendarController') as CalendarControllerRefactored;
+  const authController = container.resolve('AuthController') as AuthControllerRefactored;
+  const backgroundJobController = new BackgroundJobController(container);
 
   // ヘルスチェック
   app.get('/api/health', (req: Request, res: Response) => {
@@ -33,6 +36,86 @@ export function setupRoutes(app: Express, container: DIContainer): void {
     } catch (error) {
       serverLogger.error('キュー統計取得エラー', error);
       res.status(500).json({ error: 'Failed to get queue stats' });
+    }
+  });
+
+  // 管理者向けキュー管理 API
+  app.get('/api/admin/queue/stats', authenticateAdmin, async (req: Request, res: Response) => {
+    try {
+      const queueService = container.resolve('QueueService') as any;
+      const stats = await queueService.getQueueStats();
+      res.json(stats);
+    } catch (error) {
+      serverLogger.error('管理者キュー統計取得エラー', error);
+      res.status(500).json({ error: 'Failed to get queue stats' });
+    }
+  });
+
+  // バックグラウンドジョブ管理 API
+  app.get('/api/admin/background-jobs', authenticateAdmin, backgroundJobController.getBackgroundJobs.bind(backgroundJobController));
+  app.post('/api/admin/background-jobs/:jobId/toggle', authenticateAdmin, adminApiRateLimit, backgroundJobController.toggleBackgroundJob.bind(backgroundJobController));
+  app.post('/api/admin/background-jobs/:jobId/trigger', authenticateAdmin, adminApiRateLimit, backgroundJobController.triggerBackgroundJob.bind(backgroundJobController));
+
+  // 失敗したジョブをクリア
+  app.post('/api/admin/queue/clean-failed', authenticateAdmin, adminApiRateLimit, async (req: Request, res: Response) => {
+    try {
+      const queueService = container.resolve('QueueService') as any;
+      const { olderThanDays = 0 } = req.body; // デフォルト 0 で全ての失敗ジョブをクリア
+      
+      const cleanedCount = await queueService.cleanFailedJobs(olderThanDays);
+      
+      serverLogger.info('管理者による失敗ジョブクリア', { 
+        cleanedCount, 
+        olderThanDays,
+        requestedBy: (req as any).admin?.username 
+      });
+      
+      res.json({
+        success: true,
+        message: `${cleanedCount} 個の失敗したジョブをクリアしました`,
+        cleanedCount
+      });
+    } catch (error) {
+      serverLogger.error('失敗ジョブクリアエラー', error);
+      res.status(500).json({ error: 'Failed to clean failed jobs' });
+    }
+  });
+
+  // 地点の再計算ジョブを手動で追加
+  app.post('/api/admin/queue/recalculate-location', authenticateAdmin, adminApiRateLimit, async (req: Request, res: Response) => {
+    try {
+      const queueService = container.resolve('QueueService') as any;
+      const { locationId, startYear, endYear, priority = 'high' } = req.body;
+      
+      if (!locationId || !startYear || !endYear) {
+        return res.status(400).json({ error: 'locationId, startYear, endYear are required' });
+      }
+      
+      const jobId = await queueService.scheduleLocationCalculation(
+        locationId,
+        startYear,
+        endYear,
+        priority
+      );
+      
+      serverLogger.info('管理者による地点再計算ジョブ追加', { 
+        locationId, 
+        startYear, 
+        endYear, 
+        priority,
+        jobId,
+        requestedBy: (req as any).admin?.username 
+      });
+      
+      res.json({
+        success: true,
+        message: `地点${locationId}の${startYear}-${endYear}年の再計算ジョブを追加しました`,
+        jobId
+      });
+      
+    } catch (error) {
+      serverLogger.error('地点再計算ジョブ追加エラー', error);
+      res.status(500).json({ error: 'Failed to schedule location calculation' });
     }
   });
 
@@ -56,59 +139,65 @@ export function setupRoutes(app: Express, container: DIContainer): void {
   app.get('/api/auth/verify', authRateLimit, authController.verifyToken.bind(authController));
   app.post('/api/auth/change-password', authRateLimit, authenticateAdmin, authController.changePassword.bind(authController));
 
-  // 管理者向け一括再計算（既存の locations データを元に全イベントを再検出）
+  // 管理者向け一括再計算（キューベース処理）
   app.post('/api/admin/regenerate-all', authenticateAdmin, adminApiRateLimit, async (req: Request, res: Response) => {
     try {
-      const eventCacheService = container.resolve('EventCacheService') as any;
+      const queueService = container.resolve('QueueService') as any;
+      const locationRepository = container.resolve('LocationRepository') as any;
       const { years } = req.body;
       
       // デフォルトで 2024-2026 年を対象
       const targetYears = years || [2024, 2025, 2026];
       
-      serverLogger.info('既存地点データを元に一括再計算開始', { 
+      serverLogger.info('キューベース一括再計算開始', { 
         targetYears,
         requestedBy: (req as any).admin?.username 
       });
       
-      let totalEvents = 0;
-      const results = [];
+      // 全地点を取得
+      const locations = await locationRepository.findAll();
       
-      for (const year of targetYears) {
-        serverLogger.info(`${year}年の再計算開始`);
-        const result = await eventCacheService.generateYearlyCache(year);
-        results.push({
-          year,
-          success: result.success,
-          totalEvents: result.totalEvents,
-          timeMs: result.timeMs,
-          error: result.error?.message
-        });
-        
-        if (result.success) {
-          totalEvents += result.totalEvents;
-          serverLogger.info(`${year}年完了: ${result.totalEvents}件`);
-        } else {
-          serverLogger.error(`${year}年失敗`, result.error);
+      // 各地点・各年をキューに登録
+      let totalJobsScheduled = 0;
+      const jobIds = [];
+      
+      for (const location of locations) {
+        for (const year of targetYears) {
+          const jobId = await queueService.scheduleLocationCalculation(
+            location.id,
+            year,
+            year,
+            'high' // 管理者による一括処理は高優先度
+          );
+          
+          if (jobId) {
+            jobIds.push(jobId);
+            totalJobsScheduled++;
+          }
         }
       }
       
-      serverLogger.info('一括再計算完了', { 
+      serverLogger.info('キューベース一括再計算ジョブ登録完了', { 
         targetYears,
-        totalEvents,
-        results
+        totalLocations: locations.length,
+        totalJobsScheduled,
+        estimatedProcessingTime: `約${Math.ceil(totalJobsScheduled / 5)}分`
       });
       
       res.json({
         success: true,
-        message: `既存の全地点データを元に一括再計算が完了しました (${totalEvents.toLocaleString()}件)`,
-        totalEvents,
-        results
+        message: `全${locations.length}地点・${targetYears.length}年分の計算ジョブをキューに登録しました`,
+        totalLocations: locations.length,
+        totalJobsScheduled,
+        targetYears,
+        jobIds: jobIds.slice(0, 10), // 最初の 10 件のみ表示
+        estimatedProcessingTime: `約${Math.ceil(totalJobsScheduled / 5)}分`
       });
       
     } catch (error) {
-      serverLogger.error('一括再計算エラー', error);
+      serverLogger.error('キューベース一括再計算エラー', error);
       res.status(500).json({
-        error: '一括再計算中にエラーが発生しました',
+        error: 'キューベース一括再計算中にエラーが発生しました',
         message: error instanceof Error ? error.message : 'Unknown error'
       });
     }
@@ -127,64 +216,6 @@ export function setupRoutes(app: Express, container: DIContainer): void {
   app.get('/api/admin/locations/export', adminApiRateLimit, authenticateAdmin, locationController.exportLocations.bind(locationController));
   app.post('/api/admin/locations/import', adminApiRateLimit, authenticateAdmin, locationController.importLocations.bind(locationController));
 
-  app.get('/api/calendar/:year/:month', (req: Request, res: Response) => {
-    const { year, month } = req.params;
-    const events = [
-      {
-        date: `${year}-${month.padStart(2, '0')}-15`,
-        type: 'diamond',
-        events: [
-          {
-            id: '1',
-            type: 'diamond',
-            subType: 'sunrise',
-            time: `${year}-${month.padStart(2, '0')}-15T06:30:00+09:00`,
-            location: {
-              id: 1,
-              name: 'サンプル地点',
-              prefecture: '静岡県',
-              latitude: 35.3606,
-              longitude: 138.7274,
-              elevation: 1000
-            },
-            azimuth: 120,
-            elevation: 15
-          }
-        ]
-      }
-    ];
-    
-    res.json({
-      year: parseInt(year),
-      month: parseInt(month),
-      events
-    });
-  });
-
-  app.get('/api/events/:date', (req: Request, res: Response) => {
-    const { date } = req.params;
-    const events = [
-      {
-        id: '1',
-        type: 'diamond',
-        subType: 'sunrise',
-        time: `${date}T06:30:00+09:00`,
-        location: {
-          id: 1,
-          name: 'サンプル地点',
-          prefecture: '静岡県',
-          latitude: 35.3606,
-          longitude: 138.7274,
-          elevation: 1000,
-          fujiDistance: 50000
-        },
-        azimuth: 120,
-        elevation: 15
-      }
-    ];
-    
-    res.json({ events });
-  });
 
   // SPA 用のフォールバック（本番環境）
   if (process.env.NODE_ENV === 'production') {

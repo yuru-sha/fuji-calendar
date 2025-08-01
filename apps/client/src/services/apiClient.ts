@@ -105,15 +105,15 @@ class ApiClient {
       const data = await response.json();
       
       // 時刻文字列を Date オブジェクトに変換
-      const events = data.map((event: any) => ({
+      const events = data.events.map((event: any) => ({
         ...event,
         time: new Date(event.time)
       }));
 
-      return events;
+      return { events };
     } catch (error) {
       console.error('Failed to fetch upcoming events:', error);
-      return [];
+      return { events: [] };
     }
   }
 
@@ -126,15 +126,15 @@ class ApiClient {
       const data = await response.json();
       
       // 時刻文字列を Date オブジェクトに変換
-      const events = data.map((event: any) => ({
+      const recommendations = data.recommendations.map((event: any) => ({
         ...event,
         time: new Date(event.time)
       }));
 
-      return events;
+      return { recommendations };
     } catch (error) {
       console.error('Failed to fetch best shot days:', error);
-      return [];
+      return { recommendations: [] };
     }
   }
 

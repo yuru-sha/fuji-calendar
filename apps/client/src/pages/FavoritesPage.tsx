@@ -4,6 +4,7 @@ import { useFavorites } from '../hooks/useFavorites';
 import { timeUtils } from '@fuji-calendar/utils';
 import styles from './FavoritesPage.module.css';
 import { FujiIcon } from '../components/icons/FujiIcons';
+import { Icon } from '@fuji-calendar/ui';
 
 const FavoritesPage: React.FC = () => {
   const navigate = useNavigate();
@@ -254,7 +255,7 @@ const FavoritesPage: React.FC = () => {
                       {formatEventDate(event.time)} {formatEventTime(event.time)}
                     </div>
                     <div className={styles.eventLocation}>
-                      📍 {event.locationName}
+<Icon name="mapPin" size={14} className="inline mr-1" /> {event.locationName}
                     </div>
                   </div>
                   <div className={styles.eventActions}>
@@ -263,7 +264,7 @@ const FavoritesPage: React.FC = () => {
                       onClick={() => handleViewEventDetail(event)}
                       title="詳細を見る"
                     >
-                      📅 詳細を見る
+<Icon name="calendar" size={14} className="inline mr-1" /> 詳細を見る
                     </button>
                     <button
                       className={styles.removeButton}
@@ -306,7 +307,7 @@ const FavoritesPage: React.FC = () => {
                       {formatEventDate(event.time)} {formatEventTime(event.time)}
                     </div>
                     <div className={styles.eventLocation}>
-                      📍 {event.locationName}
+<Icon name="mapPin" size={14} className="inline mr-1" /> {event.locationName}
                     </div>
                   </div>
                   <div className={styles.eventActions}>
@@ -315,7 +316,7 @@ const FavoritesPage: React.FC = () => {
                       onClick={() => handleViewEventDetail(event)}
                       title="詳細を見る"
                     >
-                      📅 詳細を見る
+<Icon name="calendar" size={14} className="inline mr-1" /> 詳細を見る
                     </button>
                     <button
                       className={styles.removeButton}
@@ -348,10 +349,10 @@ const FavoritesPage: React.FC = () => {
                   />
                   <div className={styles.locationInfo}>
                     <div className={styles.locationName}>
-                      ⭐ {location.name}
+<Icon name="star" size={16} className="inline mr-1" /> {location.name}
                     </div>
                     <div className={styles.locationPrefecture}>
-                      📍 {location.prefecture}
+<Icon name="mapPin" size={14} className="inline mr-1" /> {location.prefecture}
                     </div>
                     <div className={styles.locationCoords}>
                       座標: {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}
@@ -366,7 +367,7 @@ const FavoritesPage: React.FC = () => {
                       onClick={() => handleViewLocationDetail(location)}
                       title="詳細を見る"
                     >
-                      🗺️ 詳細を見る
+<Icon name="map" size={14} className="inline mr-1" /> 詳細を見る
                     </button>
                     <button
                       className={styles.removeButton}

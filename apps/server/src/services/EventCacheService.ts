@@ -31,9 +31,10 @@ export class EventCacheService {
       this.logger.info('年間キャッシュ生成開始', { year });
 
       // 既存データを削除
-      await prisma.locationEvent.deleteMany({
+      const deletedCount = await prisma.locationEvent.deleteMany({
         where: { calculationYear: year }
       });
+      this.logger.info('既存データ削除完了', { year, deletedCount: deletedCount.count });
 
       // 全地点を取得
       const locations = await prisma.location.findMany();
@@ -52,45 +53,95 @@ export class EventCacheService {
         fujiDistance: loc.fujiDistance ? Number(loc.fujiDistance) : undefined
       }));
 
-      // 年間イベントを計算（各地点・各月ごとに実行）
+      this.logger.info('地点データ取得完了', { year, locationCount: locationTyped.length });
+
+      // 年間イベントを計算（バッチ処理で進捗報告）
       const allEvents: Array<{ location: Location; events: FujiEvent[] }> = [];
+      const batchSize = 5; // 一度に処理する地点数を制限
       
-      for (const location of locationTyped) {
-        const events = await this.astronomicalCalculator.calculateLocationYearlyEvents(year, location);
-        allEvents.push({ location, events });
+      for (let i = 0; i < locationTyped.length; i += batchSize) {
+        const batch = locationTyped.slice(i, i + batchSize);
+        const progress = Math.round((i / locationTyped.length) * 100);
+        
+        this.logger.info('バッチ処理進行中', { 
+          year, 
+          progress: `${progress}%`,
+          currentBatch: `${i + 1}-${Math.min(i + batchSize, locationTyped.length)}`,
+          totalLocations: locationTyped.length
+        });
+
+        // バッチ内の地点を並列処理
+        const batchResults = await Promise.all(
+          batch.map(async (location) => {
+            try {
+              const events = await this.astronomicalCalculator.calculateLocationYearlyEvents(year, location);
+              return { location, events };
+            } catch (error) {
+              this.logger.error('地点別計算エラー', error, { 
+                year, 
+                locationId: location.id, 
+                locationName: location.name 
+              });
+              return { location, events: [] }; // エラー時は空配列を返す
+            }
+          })
+        );
+
+        allEvents.push(...batchResults);
       }
 
       const events = allEvents.flatMap(item => 
         item.events.map(event => ({ ...event, location: item.location }))
       );
 
-      // データベースに保存
-      const savedEvents = await Promise.all(
-        events.map(event => 
-          prisma.locationEvent.create({
-            data: {
-              locationId: event.location.id,
-              eventDate: this.createJstDateOnly(event.time),
-              eventTime: event.time,
-              azimuth: event.azimuth || 0,
-              altitude: event.elevation || 0,
-              qualityScore: this.getQualityScore(event.accuracy),
-              moonPhase: event.moonPhase,
-              moonIllumination: event.moonIllumination,
-              calculationYear: year,
-              eventType: this.getEventType(event),
-              accuracy: this.mapAccuracy(event.accuracy)
-            }
-          })
-        )
-      );
+      this.logger.info('全イベント計算完了', { year, totalEvents: events.length });
+
+      // データベースに保存（バッチ保存）
+      const savedEvents = [];
+      const saveBatchSize = 100; // データベース保存のバッチサイズ
+      
+      for (let i = 0; i < events.length; i += saveBatchSize) {
+        const batch = events.slice(i, i + saveBatchSize);
+        const progress = Math.round((i / events.length) * 100);
+        
+        this.logger.debug('データベース保存進行中', { 
+          year, 
+          progress: `${progress}%`,
+          currentBatch: `${i + 1}-${Math.min(i + saveBatchSize, events.length)}`,
+          totalEvents: events.length
+        });
+
+        const batchSaved = await Promise.all(
+          batch.map(event => 
+            prisma.locationEvent.create({
+              data: {
+                locationId: event.location.id,
+                eventDate: this.createJstDateOnly(event.time),
+                eventTime: event.time,
+                azimuth: event.azimuth || 0,
+                altitude: event.elevation || 0,
+                qualityScore: this.getQualityScore(event.accuracy),
+                moonPhase: event.moonPhase,
+                moonIllumination: event.moonIllumination,
+                calculationYear: year,
+                eventType: this.getEventType(event),
+                accuracy: this.mapAccuracy(event.accuracy)
+              }
+            })
+          )
+        );
+        
+        savedEvents.push(...batchSaved);
+      }
 
       const endTime = Date.now();
       
       this.logger.info('年間キャッシュ生成完了', {
         year,
         totalEvents: savedEvents.length,
-        timeMs: endTime - startTime
+        timeMs: endTime - startTime,
+        locations: locationTyped.length,
+        avgEventsPerLocation: Math.round(savedEvents.length / locationTyped.length)
       });
 
       return {

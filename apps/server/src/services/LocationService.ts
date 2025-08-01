@@ -207,30 +207,11 @@ export class LocationService {
           finalFujiDistance = currentLocation.fujiDistance ?? calculatedMetrics.distance;
         }
         
+        // 仰角は非同期計算するため、まず現在値または 0 を設定
         if (data.fujiElevation !== undefined) {
-          finalFujiElevation = data.fujiElevation ?? (() => {
-            const tempLocation: Location = {
-              ...currentLocation,
-              latitude: newLatitude,
-              longitude: newLongitude,
-              elevation: newElevation,
-              fujiDistance: finalFujiDistance,
-              fujiAzimuth: finalFujiAzimuth,
-            };
-            return this.astronomicalCalculator.calculateElevationToFuji(tempLocation);
-          })();
+          finalFujiElevation = data.fujiElevation ?? currentLocation.fujiElevation ?? 0;
         } else {
-          finalFujiElevation = currentLocation.fujiElevation ?? (() => {
-            const tempLocation: Location = {
-              ...currentLocation,
-              latitude: newLatitude,
-              longitude: newLongitude,
-              elevation: newElevation,
-              fujiDistance: finalFujiDistance,
-              fujiAzimuth: finalFujiAzimuth,
-            };
-            return this.astronomicalCalculator.calculateElevationToFuji(tempLocation);
-          })();
+          finalFujiElevation = currentLocation.fujiElevation ?? 0;
         }
 
         logger.info('ユーザー入力値を更新に適用', {
@@ -248,8 +229,8 @@ export class LocationService {
         
         finalFujiAzimuth = fujiMetrics.azimuth;
         finalFujiDistance = fujiMetrics.distance;
-        // 仰角計算は後で非同期実行するため、一時的に 0 に設定
-        finalFujiElevation = 0;
+        // 仰角計算は後で非同期実行するため、一時的に現在値または 0 に設定
+        finalFujiElevation = currentLocation.fujiElevation ?? 0;
 
         logger.info('位置変更により富士山関連データを自動計算', {
           locationId: id,
@@ -270,7 +251,7 @@ export class LocationService {
     if (updatedLocation) {
       logger.info('地点更新完了', { locationId: id });
 
-      // 位置が変更された場合、仰角を非同期で再計算
+      // 位置が変更された場合、仰角を非同期で再計算（ユーザー入力値がない場合のみ）
       if ((data.latitude !== undefined || data.longitude !== undefined || data.elevation !== undefined) && 
           data.fujiElevation === undefined) { // ユーザー入力値がない場合のみ
         setTimeout(async () => {

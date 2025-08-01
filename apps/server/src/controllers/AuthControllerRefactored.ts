@@ -50,7 +50,11 @@ export class AuthControllerRefactored {
         return res.json({
           success: true,
           accessToken: result.accessToken,
-          message: result.message
+          message: result.message,
+          admin: {
+            id: result.admin?.id,
+            username: result.admin?.username
+          }
         });
       } else {
         this.logger.warn('ログイン失敗', { username, ipAddress, message: result.message });
@@ -172,13 +176,14 @@ export class AuthControllerRefactored {
       }
 
       // 認証済みの管理者 ID を取得（ミドルウェアで設定される想定）
-      const adminId = (req as any).adminId;
-      if (!adminId) {
+      const admin = (req as any).admin;
+      if (!admin || !admin.id) {
         return res.status(401).json({
           error: 'Unauthorized',
           message: '認証されていません。'
         });
       }
+      const adminId = admin.id;
 
       this.logger.info('パスワード変更試行', { adminId });
 

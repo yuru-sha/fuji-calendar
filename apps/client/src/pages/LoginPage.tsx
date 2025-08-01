@@ -32,7 +32,10 @@ const LoginPage: React.FC = () => {
       const result = await authService.login({ username, password });
       
       if (result.success) {
-        navigate('/admin');
+        // LocalStorage への保存を確実にするため少し待つ
+        setTimeout(() => {
+          navigate('/admin');
+        }, 100);
       } else {
         setError(result.message || 'ログインに失敗しました');
       }
@@ -47,9 +50,6 @@ const LoginPage: React.FC = () => {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
-          <div className="mx-auto h-12 w-12 flex items-center justify-center bg-white rounded-lg border border-gray-200">
-            <span className="text-2xl">🗻</span>
-          </div>
           <h2 className="mt-6 text-center text-3xl font-bold text-gray-900">
             管理者ログイン
           </h2>

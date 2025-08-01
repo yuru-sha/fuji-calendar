@@ -3,12 +3,7 @@ import path from 'path';
 import { getComponentLogger } from '@fuji-calendar/utils';
 import { DIContainer } from './di/DIContainer';
 import { QueueService } from './services/interfaces/QueueService';
-import BackgroundJobSchedulerPrisma from './services/BackgroundJobSchedulerPrisma';
-
 const logger = getComponentLogger('bootstrap');
-
-// スケジューラーのインスタンス
-let backgroundScheduler: BackgroundJobSchedulerPrisma | null = null;
 
 export interface BootstrapConfig {
   app: Express;
@@ -35,13 +30,17 @@ export class Bootstrap {
       logger.warn('QueueService 初期化エラー', error);
     }
 
-    // BackgroundJobSchedulerPrisma の開始
+    // BackgroundJobScheduler を初期化・開始
     try {
-      backgroundScheduler = new BackgroundJobSchedulerPrisma();
-      backgroundScheduler.start();
-      logger.info('BackgroundJobSchedulerPrisma 開始完了');
+      const { BackgroundJobScheduler } = await import('./services/BackgroundJobScheduler');
+      const backgroundJobScheduler = new BackgroundJobScheduler(container);
+      backgroundJobScheduler.start();
+      
+      // ファクトリー関数として登録
+      container.register('BackgroundJobScheduler', () => backgroundJobScheduler);
+      logger.info('BackgroundJobScheduler 初期化完了');
     } catch (error) {
-      logger.warn('BackgroundJobSchedulerPrisma 開始エラー', error);
+      logger.warn('BackgroundJobScheduler 初期化エラー', error);
     }
     
     logger.info('アプリケーション初期化完了');
@@ -86,14 +85,17 @@ export class Bootstrap {
       logger.error('QueueService シャットダウンエラー', error);
     }
 
-    // BackgroundJobSchedulerPrisma の停止
+    // BackgroundJobScheduler の終了処理
     try {
-      if (backgroundScheduler) {
-        backgroundScheduler.stop();
-        logger.info('BackgroundJobSchedulerPrisma 停止完了');
+      if (container) {
+        const backgroundJobScheduler = container.resolve('BackgroundJobScheduler') as any;
+        if (backgroundJobScheduler && typeof backgroundJobScheduler.stop === 'function') {
+          backgroundJobScheduler.stop();
+          logger.info('BackgroundJobScheduler シャットダウン完了');
+        }
       }
     } catch (error) {
-      logger.error('BackgroundJobSchedulerPrisma 停止エラー', error);
+      logger.error('BackgroundJobScheduler シャットダウンエラー', error);
     }
     
     logger.info('グレースフルシャットダウン完了');

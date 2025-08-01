@@ -7,6 +7,7 @@ import { useFavorites } from '../hooks/useFavorites';
 import SimpleMap from '../components/SimpleMap';
 import styles from './LocationDetailPage.module.css';
 import { FujiIcon } from '../components/icons/FujiIcons';
+import { Icon } from '@fuji-calendar/ui';
 
 const LocationDetailPage: React.FC = () => {
   const { locationId } = useParams<{ locationId: string }>();
@@ -163,7 +164,7 @@ const LocationDetailPage: React.FC = () => {
           
           <div className={styles.titleSection}>
             <h1 className={styles.title}>
-              📍 {location.name}
+              <Icon name="mapPin" size={20} className="inline mr-2" /> {location.name}
             </h1>
             <div className={styles.subtitle}>
               {location.prefecture}
@@ -175,13 +176,21 @@ const LocationDetailPage: React.FC = () => {
               className={`${styles.favoriteButton} ${isLocationFavorite(location.id) ? styles.favorited : styles.unfavorited}`}
               onClick={() => toggleLocationFavorite(location)}
             >
-              {isLocationFavorite(location.id) ? '⭐ お気に入り済み' : '☆ お気に入り追加'}
+{isLocationFavorite(location.id) ? (
+                <>
+                  <Icon name="star" size={16} className="inline mr-1" /> お気に入り済み
+                </>
+              ) : (
+                <>
+                  <Icon name="star" size={16} className="inline mr-1" /> お気に入り追加
+                </>
+              )}
             </button>
             <button
               className={styles.googleMapsButton}
               onClick={handleGoogleMapsClick}
             >
-              🗺️ ルート検索
+<Icon name="route" size={16} className="inline mr-1" /> ルート検索
             </button>
           </div>
         </div>
@@ -192,7 +201,9 @@ const LocationDetailPage: React.FC = () => {
           <div className={styles.leftColumn}>
             {/* 基本情報 */}
             <div className={styles.infoCard}>
-              <h2 className={styles.cardTitle}>📊 基本情報</h2>
+              <h2 className={styles.cardTitle}>
+                <Icon name="barChart" size={18} className="inline mr-2" /> 基本情報
+              </h2>
               <div className={styles.infoGrid}>
                 <div className={styles.infoItem}>
                   <span className={styles.infoLabel}>所在地:</span>
@@ -230,25 +241,33 @@ const LocationDetailPage: React.FC = () => {
             {/* アクセス情報 */}
             {(location.accessInfo || location.parkingInfo || location.description) && (
               <div className={styles.infoCard}>
-                <h2 className={styles.cardTitle}>ℹ️ アクセス・注意事項</h2>
+                <h2 className={styles.cardTitle}>
+                  <Icon name="info" size={18} className="inline mr-2" /> アクセス・注意事項
+                </h2>
                 
                 {location.accessInfo && (
                   <div className={styles.accessInfo}>
-                    <h3 className={styles.accessTitle}>🚗 アクセス情報</h3>
+                    <h3 className={styles.accessTitle}>
+                      <Icon name="navigation" size={16} className="inline mr-1" /> アクセス情報
+                    </h3>
                     <p>{location.accessInfo}</p>
                   </div>
                 )}
                 
                 {location.parkingInfo && (
                   <div className={styles.parkingInfo}>
-                    <h3 className={styles.parkingTitle}>🅿️ 駐車場情報</h3>
+                    <h3 className={styles.parkingTitle}>
+                      <Icon name="parking" size={16} className="inline mr-1" /> 駐車場情報
+                    </h3>
                     <p>{location.parkingInfo}</p>
                   </div>
                 )}
                 
                 {location.description && (
                   <div className={styles.warnings}>
-                    <h3 className={styles.warningsTitle}>⚠️ 注意事項</h3>
+                    <h3 className={styles.warningsTitle}>
+                      <Icon name="warning" size={16} className="inline mr-1" /> 注意事項
+                    </h3>
                     <p>{location.description}</p>
                   </div>
                 )}
@@ -257,7 +276,9 @@ const LocationDetailPage: React.FC = () => {
 
             {/* 今後のイベント */}
             <div className={styles.infoCard}>
-              <h2 className={styles.cardTitle}>📅 今後の撮影チャンス</h2>
+              <h2 className={styles.cardTitle}>
+                <Icon name="calendar" size={18} className="inline mr-2" /> 今後の撮影チャンス
+              </h2>
               
               {upcomingEvents.length === 0 ? (
                 <div className={styles.noEvents}>
@@ -291,7 +312,15 @@ const LocationDetailPage: React.FC = () => {
                           className={`${styles.scheduleButton} ${isEventFavorite(event.id) ? styles.scheduled : styles.unscheduled}`}
                           onClick={() => toggleEventFavorite(event)}
                         >
-                          {isEventFavorite(event.id) ? '📅 予定済み' : '📅 予定追加'}
+{isEventFavorite(event.id) ? (
+                            <>
+                              <Icon name="calendar" size={14} className="inline mr-1" /> 予定済み
+                            </>
+                          ) : (
+                            <>
+                              <Icon name="calendar" size={14} className="inline mr-1" /> 予定追加
+                            </>
+                          )}
                         </button>
                         <button
                           className={styles.detailButton}
@@ -310,7 +339,9 @@ const LocationDetailPage: React.FC = () => {
           {/* 右カラム: 地図 */}
           <div className={styles.rightColumn}>
             <div className={styles.mapCard}>
-              <h2 className={styles.cardTitle}>🗺️ 位置情報</h2>
+              <h2 className={styles.cardTitle}>
+                <Icon name="map" size={18} className="inline mr-2" /> 位置情報
+              </h2>
               <div className={styles.mapContainer}>
                 <SimpleMap
                   locations={[location]}

@@ -137,6 +137,23 @@ fuji-calendar/
 - Docker & Docker Compose v2 **Recommended**
 - Node.js 18+ (for initial setup only)
 
+### Environment Configuration
+
+The project supports different environment configurations:
+
+- **`.env`**: Docker-based development (default)
+- **`.env.local`**: Local development without Docker  
+- **`.env.example`**: Template with all available options
+
+```bash
+# Docker-based development (default)
+cp .env.example .env
+
+# For local development without Docker
+cp .env.example .env.local
+# Edit .env.local to use localhost instead of container names
+```
+
 ### Docker Setup (Recommended)
 
 ```bash
@@ -145,16 +162,12 @@ git clone <repository-url>
 cd fuji-calendar
 cp .env.example .env
 
-# 2. Database Migration
-docker-compose -f docker-compose.dev.yml up postgres -d
-sleep 15
-DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" npx prisma migrate deploy
+# 2. Start Services
+docker-compose up -d
 
-# 3. Initial Setup
-DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" node scripts/admin/create-admin.js
-
-# 4. Start Application
-docker-compose -f docker-compose.dev.yml up -d
+# 3. Database Setup
+docker-compose exec backend npx prisma migrate deploy
+docker-compose exec backend node scripts/admin/create-admin.js
 ```
 
 ### Access

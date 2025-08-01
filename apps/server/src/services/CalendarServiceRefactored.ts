@@ -24,6 +24,18 @@ export class CalendarServiceImpl implements CalendarService {
 
       const events = await this.calendarRepository.getMonthlyEvents(year, month);
       
+      // カレンダーの日付範囲を動的に計算
+      const monthStartDate = new Date(year, month - 1, 1);
+      const monthEndDate = new Date(year, month, 0);
+      
+      // カレンダーの開始日（月初の週の日曜日）
+      const calendarStartDate = new Date(monthStartDate);
+      calendarStartDate.setDate(calendarStartDate.getDate() - calendarStartDate.getDay());
+      
+      // カレンダーの終了日（月末が含まれる週の土曜日）
+      const calendarEndDate = new Date(monthEndDate);
+      calendarEndDate.setDate(calendarEndDate.getDate() + (6 - calendarEndDate.getDay()));
+      
       // 日付ごとにイベントをグループ化
       const eventsByDate = new Map<string, FujiEvent[]>();
       events.forEach(event => {
@@ -34,12 +46,22 @@ export class CalendarServiceImpl implements CalendarService {
         eventsByDate.get(dateStr)!.push(event);
       });
 
-      // レスポンス形式に変換
-      const responseEvents = Array.from(eventsByDate.entries()).map(([date, dayEvents]) => ({
-        date,
-        type: this.determineEventType(dayEvents),
-        events: dayEvents.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()),
-      }));
+      // 42 日分すべての日付に対してレスポンスを作成
+      const responseEvents = [];
+      const currentDate = new Date(calendarStartDate);
+      
+      while (currentDate <= calendarEndDate) {
+        const dateStr = timeUtils.formatDateString(currentDate);
+        const dayEvents = eventsByDate.get(dateStr) || [];
+        
+        responseEvents.push({
+          date: dateStr,
+          type: dayEvents.length > 0 ? this.determineEventType(dayEvents) : 'diamond',
+          events: dayEvents.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()),
+        });
+        
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
 
       const processingTime = Date.now() - startTime;
       logger.info('月間カレンダーデータ取得完了', {
@@ -53,7 +75,7 @@ export class CalendarServiceImpl implements CalendarService {
       return {
         year,
         month,
-        events: responseEvents.sort((a, b) => a.date.localeCompare(b.date)),
+        events: responseEvents, // 既にソート済み（日付順）
       };
     } catch (error) {
       logger.error('月間カレンダーデータ取得エラー', { year, month, error });

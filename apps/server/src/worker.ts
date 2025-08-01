@@ -87,8 +87,18 @@ async function main() {
     // サービスを登録
     ServiceRegistry.configure(diContainer);
     
-    // QueueService を取得
+    // EventService を先に解決して依存関係注入を確実に実行
+    const eventService = diContainer.resolve('EventService');
+    logger.info('EventService 解決完了', { hasEventService: !!eventService });
+    
+    // QueueService を取得（この時点で EventService が注入済み）
     queueService = diContainer.resolve<QueueService>('QueueService');
+    
+    // 依存関係が正しく注入されたことを確認
+    logger.info('依存関係注入確認', {
+      hasQueueService: !!queueService,
+      hasEventService: !!eventService
+    });
     
     logger.info('キューワーカーが正常に開始されました');
     

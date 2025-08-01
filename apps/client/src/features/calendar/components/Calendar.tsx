@@ -31,8 +31,11 @@ const Calendar: React.FC<CalendarProps> = memo(({
     // 月の最初の週の日曜日から開始
     startDate.setDate(startDate.getDate() - startDate.getDay());
     
-    // 月の最後の週の土曜日まで
+    // 月末が含まれる週の土曜日まで
     endDate.setDate(endDate.getDate() + (6 - endDate.getDay()));
+    
+    // カレンダーは 5 行（35 日）または 6 行（42 日）になる
+    
     
     const days: Array<{
       date: Date;
@@ -302,7 +305,7 @@ const Calendar: React.FC<CalendarProps> = memo(({
                   {day.date.getDate()}
                 </div>
                 
-                {day.eventType && day.events.length > 0 && (
+                {day.events.length > 0 && day.eventType && (
                   <div className={styles.eventIndicator}>
                     <span className={styles.eventIcon}>
                       {getEventIcon(day.eventType)}

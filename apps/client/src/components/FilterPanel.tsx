@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Icon } from './icons/IconMap';
+import { Icon } from '@fuji-calendar/ui';
 
 export interface FilterOptions {
   distance: 'all' | 'very_near' | 'near' | 'medium' | 'far' | 'very_far'; // 全て | 50km 以内 | 100km 以内 | 200km 以内 | 300km 以内 | 300km 以上
@@ -96,7 +96,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
           fontWeight: '600',
           color: '#1f2937'
         }}>
-          <span>🔍</span>
+          <Icon name="search" size={14} />
           撮影地点フィルター
         </div>
         <span style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
@@ -150,7 +150,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
               color: '#6b7280',
               marginBottom: '0.25rem'
             }}>
-              📏 距離
+<Icon name="ruler" size={12} className="inline mr-1" /> 距離
             </label>
             <select
               value={filters.distance}
@@ -293,7 +293,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
               color: '#6b7280',
               marginBottom: '0.25rem'
             }}>
-              ✨ 特別
+<Icon name="star" size={12} className="inline mr-1" /> 特別
             </label>
             <div style={{
               display: 'grid',
@@ -317,7 +317,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                   onChange={(e) => updateSpecialEvent('solarEclipse', e.target.checked)}
                   style={{ margin: 0, width: '8px', height: '8px', marginRight: '2px' }}
                 />
-                <span>🌑</span>
+                <Icon name="newMoon" size={12} />
               </label>
 
               <label style={{
@@ -337,7 +337,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                   onChange={(e) => updateSpecialEvent('lunarEclipse', e.target.checked)}
                   style={{ margin: 0, width: '8px', height: '8px', marginRight: '2px' }}
                 />
-                <span>🌕</span>
+                <Icon name="fullMoon" size={12} />
               </label>
 
               <label style={{
@@ -357,7 +357,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                   onChange={(e) => updateSpecialEvent('supermoon', e.target.checked)}
                   style={{ margin: 0, width: '8px', height: '8px', marginRight: '2px' }}
                 />
-                <span>🌕✨</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
+                  <Icon name="fullMoon" size={12} />
+                  <Icon name="star" size={8} />
+                </span>
               </label>
             </div>
           </div>

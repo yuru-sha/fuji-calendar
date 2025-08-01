@@ -119,22 +119,34 @@ export class CelestialPositionCalculator {
   calculateSolarNoon(date: Date, location: { latitude: number; longitude: number }): Date | null {
     try {
       const observer = new Astronomy.Observer(location.latitude, location.longitude, 0);
-      // 指定日の正午から検索開始
-      const noon = new Date(date);
-      noon.setHours(12, 0, 0, 0);
       
-      // Astronomy Engineの南中時刻計算
+      // 指定日の0:00 UTC から検索開始（より広い時間範囲で検索）
+      const startTime = new Date(date);
+      startTime.setUTCHours(0, 0, 0, 0);
+      
+      // Astronomy Engine の南中時刻計算
       const transit = Astronomy.SearchHourAngle(
         Astronomy.Body.Sun,
         observer,
         0, // 南中は時角0
-        noon,
-        1 // 1日以内に検索
+        startTime,
+        2 // 2日以内に検索（より広い検索範囲）
       );
       
       if (transit) {
+        this.logger.debug('太陽南中時刻計算成功', {
+          date: date.toISOString(),
+          transitTime: transit.time.date.toISOString(),
+          location: `${location.latitude},${location.longitude}`
+        });
         return transit.time.date;
       }
+      
+      this.logger.warn('太陽南中時刻が見つかりません', {
+        date: date.toISOString(),
+        location: `${location.latitude},${location.longitude}`,
+        reason: '2日以内に南中時刻が存在しない'
+      });
       return null;
     } catch (error) {
       this.logger.error('太陽南中時刻計算エラー', error, {
@@ -151,22 +163,34 @@ export class CelestialPositionCalculator {
   calculateLunarTransit(date: Date, location: { latitude: number; longitude: number }): Date | null {
     try {
       const observer = new Astronomy.Observer(location.latitude, location.longitude, 0);
-      // 指定日の0時から検索開始
-      const startTime = new Date(date);
-      startTime.setHours(0, 0, 0, 0);
       
-      // Astronomy Engineの南中時刻計算
+      // 指定日の0:00 UTC から検索開始
+      const startTime = new Date(date);
+      startTime.setUTCHours(0, 0, 0, 0);
+      
+      // Astronomy Engine の南中時刻計算
       const transit = Astronomy.SearchHourAngle(
         Astronomy.Body.Moon,
         observer,
         0, // 南中は時角0
         startTime,
-        1 // 1日以内に検索
+        2 // 2日以内に検索（月の軌道周期を考慮）
       );
       
       if (transit) {
+        this.logger.debug('月南中時刻計算成功', {
+          date: date.toISOString(),
+          transitTime: transit.time.date.toISOString(),
+          location: `${location.latitude},${location.longitude}`
+        });
         return transit.time.date;
       }
+      
+      this.logger.warn('月南中時刻が見つかりません', {
+        date: date.toISOString(),
+        location: `${location.latitude},${location.longitude}`,
+        reason: '2日以内に南中時刻が存在しない'
+      });
       return null;
     } catch (error) {
       this.logger.error('月南中時刻計算エラー', error, {

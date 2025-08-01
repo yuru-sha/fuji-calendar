@@ -5,6 +5,10 @@ export interface AuthService {
     accessToken?: string;
     refreshToken?: string;
     message: string;
+    admin?: {
+      id: number;
+      username: string;
+    };
   }>;
 
   // トークン関連

@@ -6,6 +6,7 @@ import { APP_CONFIG } from '@fuji-calendar/shared';
 import LocationPicker from '../components/LocationPicker';
 import { Icon } from '../components/icons/IconMap';
 import { authService } from '../services/authService';
+import QueueManager from '../components/admin/QueueManager';
 
 // Types
 interface LocationFormData {
@@ -78,6 +79,7 @@ const AdminPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPrefecture, setFilterPrefecture] = useState('');
   const [activeView, setActiveView] = useState<'dashboard' | 'locations' | 'events' | 'queue' | 'users' | 'data' | 'settings'>('dashboard');
+  const [queueStats, setQueueStats] = useState<any>(null);
 
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [showLocationForm, setShowLocationForm] = useState(false);
@@ -93,24 +95,60 @@ const AdminPage: React.FC = () => {
   useEffect(() => {
     const checkAuthAndLoadData = async () => {
       const authState = authService.getAuthState();
+      console.log('AdminPage 認証状態チェック:', {
+        isAuthenticated: authState.isAuthenticated,
+        hasToken: !!authState.token,
+        hasAdmin: !!authState.admin
+      });
+      
       if (!authState.isAuthenticated) {
+        console.log('AdminPage: Not authenticated, redirecting to login');
         navigate('/admin/login');
         return;
       }
 
       // Verify token
+      console.log('AdminPage: Verifying token...');
       const verifyResult = await authService.verifyToken();
+      console.log('トークン検証結果:', verifyResult);
+      
       if (!verifyResult.success) {
+        console.log('トークン検証失敗、ログインページにリダイレクト');
         navigate('/admin/login');
         return;
       }
 
+      console.log('AdminPage: Authentication successful, loading locations');
       // Load locations if authenticated
       loadLocations();
     };
 
     checkAuthAndLoadData();
   }, [navigate]);
+
+  // キュー統計を取得
+  useEffect(() => {
+    const fetchQueueStats = async () => {
+      try {
+        const response = await authService.authenticatedFetch('/api/admin/queue/stats');
+        if (response.ok) {
+          const data = await response.json();
+          setQueueStats(data);
+        }
+      } catch (error) {
+        console.error('キュー統計取得エラー:', error);
+        setQueueStats(null);
+      }
+    };
+
+    // ダッシュボード表示時のみ統計を取得
+    if (activeView === 'dashboard') {
+      fetchQueueStats();
+      // 5 秒間隔で更新
+      const interval = setInterval(fetchQueueStats, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [activeView]);
 
   // Handle click outside of user menu
   useEffect(() => {
@@ -276,6 +314,36 @@ const AdminPage: React.FC = () => {
       measurementNotes: '' // 新規フィールドなので空文字
     });
     setShowLocationForm(true);
+  };
+
+  const handleRecalculate = async (location: Location) => {
+    if (!confirm(`「${location.name}」の 2025 年データを再計算しますか？\n\n 処理に時間がかかる場合があります。`)) return;
+
+    try {
+      setLoading(true);
+      const response = await authService.authenticatedFetch('/api/admin/queue/recalculate-location', {
+        method: 'POST',
+        body: JSON.stringify({
+          locationId: location.id,
+          startYear: 2025,
+          endYear: 2025,
+          priority: 'high'
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        alert(`再計算ジョブを追加しました！\n\n ジョブ ID: ${data.jobId}\n\n キュー管理画面で進行状況を確認できます。`);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || '再計算ジョブの追加に失敗しました');
+      }
+    } catch (error) {
+      console.error('再計算エラー:', error);
+      alert(`再計算中にエラーが発生しました: ${error instanceof Error ? error.message : '不明なエラー'}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const resetForm = () => {
@@ -588,8 +656,8 @@ const AdminPage: React.FC = () => {
                     </div>
                     <div className="flex-1">
                       <p className="text-sm text-gray-500">計算キュー</p>
-                      <p className="text-2xl font-bold text-gray-900">0</p>
-                      <p className="text-xs text-gray-500">処理中: 0 件, 完了: 0 件</p>
+                      <p className="text-2xl font-bold text-gray-900">{queueStats?.waiting || 0}</p>
+                      <p className="text-xs text-gray-500">処理中: {queueStats?.active || 0} 件, 完了: {queueStats?.completed || 0} 件</p>
                     </div>
                   </div>
                 </div>
@@ -637,51 +705,46 @@ const AdminPage: React.FC = () => {
                     <div className="mb-6">
                       <div className="flex justify-between items-center mb-3">
                         <h3 className="text-sm font-medium text-gray-900">撮影計算キュー</h3>
-                        <div className="text-sm text-gray-500">0 件 処理予定</div>
+                        <div className="text-sm text-gray-500">{(queueStats?.waiting || 0) + (queueStats?.active || 0)} 件 処理予定</div>
                       </div>
                       <div className="grid grid-cols-4 gap-6">
                         <div className="text-center">
-                          <div className="text-sm text-orange-600">0</div>
+                          <div className="text-sm text-orange-600">{queueStats?.waiting || 0}</div>
                           <div className="text-xs text-gray-500">待機</div>
                         </div>
                         <div className="text-center">
-                          <div className="text-sm text-blue-600">0</div>
+                          <div className="text-sm text-blue-600">{queueStats?.active || 0}</div>
                           <div className="text-xs text-gray-500">処理中</div>
                         </div>
                         <div className="text-center">
-                          <div className="text-sm text-green-600">0</div>
+                          <div className="text-sm text-green-600">{queueStats?.completed || 0}</div>
                           <div className="text-xs text-gray-500">完了</div>
                         </div>
                         <div className="text-center">
-                          <div className="text-sm text-red-600">0</div>
+                          <div className="text-sm text-red-600">{queueStats?.failed || 0}</div>
                           <div className="text-xs text-gray-500">失敗</div>
                         </div>
                       </div>
                     </div>
 
-                    {/* 地点イベントキュー */}
+                    {/* キュー詳細情報 */}
                     <div>
-                      <div className="flex justify-between items-center mb-3">
-                        <h3 className="text-sm font-medium text-gray-900">地点イベントキュー</h3>
-                        <div className="text-sm text-gray-500">0 件 処理予定</div>
-                      </div>
-                      <div className="grid grid-cols-4 gap-6">
-                        <div className="text-center">
-                          <div className="text-sm text-orange-600">0</div>
-                          <div className="text-xs text-gray-500">待機</div>
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <h3 className="text-sm font-medium text-gray-900 mb-2">処理の種類</h3>
+                        <div className="space-y-1 text-xs text-gray-600">
+                          <p>• <strong>地点計算</strong>: 各地点の年間ダイヤモンド富士・パール富士データ生成</p>
+                          <p>• <strong>月間計算</strong>: 複数地点の月間イベント一括計算</p>
                         </div>
-                        <div className="text-center">
-                          <div className="text-sm text-blue-600">0</div>
-                          <div className="text-xs text-gray-500">処理中</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-sm text-green-600">0</div>
-                          <div className="text-xs text-gray-500">完了</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-sm text-red-600">0</div>
-                          <div className="text-xs text-gray-500">失敗</div>
-                        </div>
+                        {queueStats?.enabled && (
+                          <div className="mt-3 pt-3 border-t border-gray-200">
+                            <div className="text-xs text-gray-500">
+                              Redis: <span className="text-green-600">接続中</span>
+                              {queueStats.failed > 0 && (
+                                <span className="ml-2 text-red-600">失敗ジョブ {queueStats.failed} 件</span>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -870,8 +933,17 @@ const AdminPage: React.FC = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <button
+                              onClick={() => handleRecalculate(location)}
+                              disabled={loading}
+                              className="text-green-600 hover:text-green-900 mr-3 disabled:opacity-50"
+                              title="2025 年データを再計算"
+                            >
+                              <Icon name="refresh" size={16} className="inline mr-1" />
+                              再計算
+                            </button>
+                            <button
                               onClick={() => handleEdit(location)}
-                              className="text-blue-600 hover:text-blue-900 mr-4"
+                              className="text-blue-600 hover:text-blue-900 mr-3"
                             >
                               編集
                             </button>
@@ -916,61 +988,31 @@ const AdminPage: React.FC = () => {
                 <p className="text-gray-600 mt-1">アプリケーションの設定を管理します</p>
               </div>
               
-              {/* データ再計算セクション */}
+              {/* キュー管理セクション */}
               <div className="bg-white rounded-lg shadow-sm border">
                 <div className="px-6 py-4 border-b border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900">データ再計算</h3>
-                  <p className="text-sm text-gray-600 mt-1">既存の全撮影地点について、ダイヤモンド富士・パール富士イベントを再計算します</p>
+                  <h3 className="text-lg font-semibold text-gray-900">バックグラウンド処理管理</h3>
+                  <p className="text-sm text-gray-600 mt-1">データ再計算とキュー管理を統合して行います</p>
                 </div>
                 <div className="p-6">
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
                     <div className="flex">
-                      <Icon name="warning" size={20} className="text-yellow-600 mt-0.5 mr-3" />
+                      <Icon name="info" size={20} className="text-blue-600 mt-0.5 mr-3" />
                       <div>
-                        <h4 className="text-sm font-medium text-yellow-800">注意事項</h4>
-                        <p className="text-sm text-yellow-700 mt-1">
-                          この処理は時間がかかる場合があります。処理中は他の操作を控えてください。
+                        <h4 className="text-sm font-medium text-blue-800">キュー管理について</h4>
+                        <p className="text-sm text-blue-700 mt-1">
+                          データ再計算、キュー統計、失敗したジョブの管理を専用画面で行えます。重い処理は自動的にバックグラウンドで実行されます。
                         </p>
                       </div>
                     </div>
                   </div>
                   
                   <button
-                    onClick={async () => {
-                      if (!confirm('既存の全地点データを元に、2024-2026 年のダイヤモンド富士・パール富士イベントを再計算しますか？\n\n この処理には時間がかかる場合があります。')) {
-                        return;
-                      }
-                      
-                      try {
-                        setLoading(true);
-                        const response = await fetch('/api/admin/regenerate-all', {
-                          method: 'POST',
-                          headers: {
-                            'Content-Type': 'application/json',
-                            ...authService.getAuthHeaders()
-                          },
-                          body: JSON.stringify({ years: [2024, 2025, 2026] })
-                        });
-                        
-                        if (!response.ok) {
-                          throw new Error('再計算に失敗しました');
-                        }
-                        
-                        const result = await response.json();
-                        alert(`一括再計算が完了しました！\n\n 生成されたイベント数: ${result.totalEvents.toLocaleString()}件\n\n 詳細:\n${result.results.map((r: any) => `${r.year}年: ${r.success ? r.totalEvents.toLocaleString() + '件' : '失敗'}`).join('\n')}`);
-                        
-                      } catch (error) {
-                        console.error('再計算エラー:', error);
-                        alert('再計算中にエラーが発生しました: ' + (error instanceof Error ? error.message : '不明なエラー'));
-                      } finally {
-                        setLoading(false);
-                      }
-                    }}
-                    disabled={loading}
-                    className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => setActiveView('queue')}
+                    className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
                   >
-                    <Icon name="refresh" size={16} className="mr-2" />
-                    {loading ? '再計算中...' : '全データを再計算'}
+                    <Icon name="settings" size={16} className="mr-2" />
+                    キュー管理を開く
                   </button>
                 </div>
               </div>
@@ -986,8 +1028,16 @@ const AdminPage: React.FC = () => {
             </div>
           )}
 
+          {/* Queue Management View */}
+          {activeView === 'queue' && (
+            <div>
+              {console.log('AdminPage: Rendering QueueManager, activeView:', activeView)}
+              <QueueManager />
+            </div>
+          )}
+
           {/* Other views placeholder */}
-          {activeView !== 'dashboard' && activeView !== 'locations' && activeView !== 'data' && activeView !== 'settings' && (
+          {activeView !== 'dashboard' && activeView !== 'locations' && activeView !== 'data' && activeView !== 'settings' && activeView !== 'queue' && (
             <div className="space-y-6">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900 capitalize">{activeView}</h1>

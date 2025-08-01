@@ -2,8 +2,7 @@ import React, { memo, useState } from 'react';
 import { FujiEvent, WeatherInfo, Location } from '@fuji-calendar/types';
 import { timeUtils } from '@fuji-calendar/utils';
 import { useFavorites } from '../hooks/useFavorites';
-import { Icon } from './icons/IconMap';
-import { Sun, Moon } from 'lucide-react';
+import { Icon } from '@fuji-calendar/ui';
 import styles from './EventDetail.module.css';
 
 interface EventDetailProps {
@@ -50,30 +49,38 @@ const EventDetail: React.FC<EventDetailProps> = memo(({
     return directions[index];
   };
 
-  const getMoonPhaseName = (moonPhase: number): { name: string; emoji: string } => {
+  const getMoonPhaseName = (moonPhase: number): { name: string; icon: React.ReactNode } => {
     // moonPhase は 0-360 度の値なので正規化
     const normalizedPhase = ((moonPhase % 360) + 360) % 360;
     
-    if (normalizedPhase < 22.5 || normalizedPhase >= 337.5) return { name: '新月', emoji: '🌑' };
-    if (normalizedPhase < 67.5) return { name: '三日月', emoji: '🌒' };
-    if (normalizedPhase < 112.5) return { name: '上弦の月', emoji: '🌓' };
-    if (normalizedPhase < 157.5) return { name: '十三夜月', emoji: '🌔' };
-    if (normalizedPhase < 202.5) return { name: '満月', emoji: '🌕' };
-    if (normalizedPhase < 247.5) return { name: '十六夜月', emoji: '🌖' };
-    if (normalizedPhase < 292.5) return { name: '下弦の月', emoji: '🌗' };
-    return { name: '二十六夜月', emoji: '🌘' };
+    if (normalizedPhase < 22.5 || normalizedPhase >= 337.5) return { name: '新月', icon: <Icon name="newMoon" size={16} className="text-gray-800" /> };
+    if (normalizedPhase < 67.5) return { name: '三日月', icon: <Icon name="waxingCrescent" size={16} className="text-yellow-400" /> };
+    if (normalizedPhase < 112.5) return { name: '上弦の月', icon: <Icon name="firstQuarter" size={16} className="text-yellow-300" /> };
+    if (normalizedPhase < 157.5) return { name: '十三夜月', icon: <Icon name="waxingGibbous" size={16} className="text-yellow-200" /> };
+    if (normalizedPhase < 202.5) return { name: '満月', icon: <Icon name="fullMoon" size={16} className="text-yellow-100" /> };
+    if (normalizedPhase < 247.5) return { name: '十六夜月', icon: <Icon name="waningGibbous" size={16} className="text-yellow-200" /> };
+    if (normalizedPhase < 292.5) return { name: '下弦の月', icon: <Icon name="lastQuarter" size={16} className="text-yellow-300" /> };
+    return { name: '二十六夜月', icon: <Icon name="waningCrescent" size={16} className="text-yellow-400" /> };
   };
 
   const formatEventTitle = (event: FujiEvent): string => {
     const typeLabel = event.type === 'diamond' ? 'ダイヤモンド富士' : 'パール富士';
-    const subTypeLabel = event.subType === 'rising' ? '昇る' : '沈む';
+    let subTypeLabel = '';
+    
+    if (event.type === 'diamond') {
+      subTypeLabel = event.subType === 'sunrise' ? '昇る' : '沈む';
+    } else {
+      subTypeLabel = event.subType === 'rising' ? '昇る' : '沈む';
+    }
+    
+    
     return `【${subTypeLabel}${typeLabel}】`;
   };
 
   const getEventIcon = (event: FujiEvent): JSX.Element => {
     return event.type === 'diamond' 
-      ? <Sun className={`${styles.eventIcon} text-orange-500`} />
-      : <Moon className={`${styles.eventIcon} text-blue-500`} />;
+      ? <Icon name="sun" className={`${styles.eventIcon} text-orange-500`} />
+      : <Icon name="moon" className={`${styles.eventIcon} text-blue-500`} />;
   };
 
   const getWeatherIcon = (condition: string): JSX.Element => {
@@ -340,7 +347,7 @@ const EventDetail: React.FC<EventDetailProps> = memo(({
                               <div className={styles.detailItem}>
                                 <span className={styles.detailLabel}>月相:</span>
                                 <span className={styles.detailValue}>
-                                  {getMoonPhaseName(event.moonPhase).emoji} {getMoonPhaseName(event.moonPhase).name}
+                                  {getMoonPhaseName(event.moonPhase).icon} {getMoonPhaseName(event.moonPhase).name}
                                   {event.moonIllumination !== undefined && (
                                     <small style={{ marginLeft: '8px', opacity: 0.7 }}>
                                       ({Math.round(event.moonIllumination * 100)}%)

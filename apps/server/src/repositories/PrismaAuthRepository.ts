@@ -31,6 +31,19 @@ export class PrismaAuthRepository implements AuthRepository {
     }
   }
 
+  async updateAdminPassword(adminId: number, passwordHash: string): Promise<void> {
+    try {
+      await this.prisma.admin.update({
+        where: { id: adminId },
+        data: { passwordHash }
+      });
+      logger.info('管理者パスワード更新完了', { adminId });
+    } catch (error) {
+      logger.error('管理者パスワード更新エラー', { adminId, error });
+      throw error;
+    }
+  }
+
   async saveRefreshToken(adminId: number, _refreshToken: string, _expiresAt: Date): Promise<void> {
     // Refresh token 機能は未実装（JWT のみ使用）
     logger.debug('リフレッシュトークン機能は未実装', { adminId });

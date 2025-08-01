@@ -104,7 +104,6 @@ interface SimpleMapProps {
 
 const SimpleMap: React.FC<SimpleMapProps> = ({
   locations: _locations,
-  selectedDate,
   selectedEvents,
   selectedLocationId,
   selectedEventId,
@@ -333,20 +332,47 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
       }
     });
 
-    // イベントがある撮影地点がある場合、すべてが見えるように表示範囲を調整
+    // 地図の表示範囲とズームレベルを調整
     if (uniqueEventLocations.length > 0) {
-      const bounds = L.latLngBounds([]);
-      
-      // 富士山も含める
-      bounds.extend([FUJI_COORDINATES.latitude, FUJI_COORDINATES.longitude]);
-      
-      // イベントがある撮影地点を含める
-      uniqueEventLocations.forEach(location => {
-        bounds.extend([location.latitude, location.longitude]);
-      });
-      
-      // 適切なズームレベルで表示（パディングを追加）
-      map.fitBounds(bounds, { padding: [20, 20] });
+      if (selectedLocationId) {
+        // 特定の地点が選択されている場合
+        const selectedLocation = uniqueEventLocations.find(loc => loc.id === selectedLocationId);
+        if (selectedLocation) {
+          // 富士山との距離に応じてズームレベルを決定
+          const distanceKm = (selectedLocation.fujiDistance || 0) / 1000;
+          let zoomLevel = 10; // デフォルト
+          
+          if (distanceKm <= 30) {
+            zoomLevel = 12; // 30km 以内：詳細表示
+          } else if (distanceKm <= 100) {
+            zoomLevel = 11; // 100km 以内：中詳細表示
+          } else if (distanceKm <= 200) {
+            zoomLevel = 10; // 200km 以内：標準表示
+          } else {
+            zoomLevel = 9;  // 200km 以上：広域表示
+          }
+          
+          // 選択された地点と富士山の中点を中心にして表示
+          const centerLat = (selectedLocation.latitude + FUJI_COORDINATES.latitude) / 2;
+          const centerLng = (selectedLocation.longitude + FUJI_COORDINATES.longitude) / 2;
+          
+          map.setView([centerLat, centerLng], zoomLevel);
+        }
+      } else {
+        // 地点が選択されていない場合は全体を表示
+        const bounds = L.latLngBounds([]);
+        
+        // 富士山も含める
+        bounds.extend([FUJI_COORDINATES.latitude, FUJI_COORDINATES.longitude]);
+        
+        // イベントがある撮影地点を含める
+        uniqueEventLocations.forEach(location => {
+          bounds.extend([location.latitude, location.longitude]);
+        });
+        
+        // 適切なズームレベルで表示（パディングを追加）
+        map.fitBounds(bounds, { padding: [20, 20] });
+      }
     }
   }, [selectedLocationId, selectedEventId, selectedEvents, onLocationSelect, cameraSettings]);
 
@@ -358,24 +384,19 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
       boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
     }}>
       <div style={{
-        padding: '1rem',
+        padding: '0.75rem 1rem',
         borderBottom: '1px solid #e5e7eb',
         backgroundColor: '#f9fafb'
       }}>
         <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: '600' }}>
-          撮影地点マップ
+          撮影地点
         </h3>
-        {selectedDate && (
-          <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.875rem', color: '#6b7280' }}>
-            {selectedDate.toLocaleDateString('ja-JP')}の撮影可能地点
-          </p>
-        )}
       </div>
       
       <div 
         ref={mapRef}
         style={{ 
-          height: '400px',
+          aspectRatio: '3 / 2',
           width: '100%'
         }}
       />

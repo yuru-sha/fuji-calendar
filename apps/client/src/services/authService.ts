@@ -1,4 +1,8 @@
-import { Admin } from '@fuji-calendar/types';
+// 認証用の軽量な管理者型
+interface AuthAdmin {
+  id: number;
+  username: string;
+}
 
 interface LoginRequest {
   username: string;
@@ -8,7 +12,7 @@ interface LoginRequest {
 interface LoginResponse {
   success: boolean;
   token?: string;
-  admin?: Admin;
+  admin?: AuthAdmin;
   expiresIn?: string;
   message: string;
   error?: string;
@@ -16,7 +20,7 @@ interface LoginResponse {
 
 interface AuthState {
   isAuthenticated: boolean;
-  admin: Admin | null;
+  admin: AuthAdmin | null;
   token: string | null;
 }
 
@@ -28,7 +32,7 @@ class AuthService {
   constructor() {
     this.baseUrl = process.env.NODE_ENV === 'production' 
       ? '/api' 
-      : 'http://localhost:3001/api';
+      : '/api'; // Vite proxy を使用
   }
 
   /**
@@ -46,10 +50,16 @@ class AuthService {
 
       const data = await response.json();
 
-      if (data.success && data.token) {
-        // トークンと管理者情報をローカルストレージに保存
-        localStorage.setItem(this.tokenKey, data.token);
-        localStorage.setItem(this.adminKey, JSON.stringify(data.admin));
+      if (data.success && data.accessToken) {
+        // アクセストークンとリフレッシュトークンをローカルストレージに保存
+        localStorage.setItem(this.tokenKey, data.accessToken);
+        if (data.refreshToken) {
+          localStorage.setItem('fuji_calendar_refresh_token', data.refreshToken);
+        }
+        // 管理者情報がある場合のみ保存
+        if (data.admin) {
+          localStorage.setItem(this.adminKey, JSON.stringify(data.admin));
+        }
       }
 
       return data;
@@ -83,6 +93,7 @@ class AuthService {
     } finally {
       // ローカルストレージからトークンと管理者情報を削除
       localStorage.removeItem(this.tokenKey);
+      localStorage.removeItem('fuji_calendar_refresh_token');
       localStorage.removeItem(this.adminKey);
     }
   }
@@ -90,12 +101,15 @@ class AuthService {
   /**
    * トークン検証
    */
-  async verifyToken(): Promise<{ success: boolean; admin?: Admin }> {
+  async verifyToken(): Promise<{ success: boolean; admin?: AuthAdmin }> {
     try {
       const token = this.getToken();
       if (!token) {
+        console.log('verifyToken: No token found');
         return { success: false };
       }
+
+      console.log('verifyToken: Sending request with token:', token.substring(0, 20) + '...');
 
       const response = await fetch(`${this.baseUrl}/auth/verify`, {
         headers: {
@@ -103,14 +117,29 @@ class AuthService {
         },
       });
 
-      const data = await response.json();
+      console.log('verifyToken: Response status:', response.status);
+      
+      if (!response.ok) {
+        console.log('verifyToken: Response not OK, clearing auth');
+        this.clearAuth();
+        return { success: false };
+      }
 
-      if (data.success) {
-        // 管理者情報を更新
-        localStorage.setItem(this.adminKey, JSON.stringify(data.admin));
-        return { success: true, admin: data.admin };
+      const data = await response.json();
+      console.log('verifyToken: Response data:', data);
+
+      if (data.valid) {
+        // 管理者情報を更新（API レスポンス形式に合わせる）
+        const admin = {
+          id: data.adminId,
+          username: data.username
+        };
+        console.log('verifyToken: Saving admin to localStorage:', admin);
+        localStorage.setItem(this.adminKey, JSON.stringify(admin));
+        return { success: true, admin };
       } else {
         // トークンが無効な場合はクリア
+        console.log('verifyToken: Token invalid, clearing auth');
         this.clearAuth();
         return { success: false };
       }

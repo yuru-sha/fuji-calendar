@@ -9,7 +9,7 @@ const logger = getComponentLogger('auth-service');
 export class AuthServiceImpl implements AuthService {
   private readonly jwtSecret: string;
   private readonly refreshSecret: string;
-  private readonly accessTokenExpiry = '15m'; // 15 分
+  private readonly accessTokenExpiry = '24h'; // 24 時間
   private readonly refreshTokenExpiry = '7d'; // 7 日
 
   constructor(private authRepository: AuthRepository) {
@@ -27,6 +27,10 @@ export class AuthServiceImpl implements AuthService {
     accessToken?: string;
     refreshToken?: string;
     message: string;
+    admin?: {
+      id: number;
+      username: string;
+    };
   }> {
     try {
       logger.info('認証試行開始', { username, ipAddress });
@@ -71,7 +75,11 @@ export class AuthServiceImpl implements AuthService {
         success: true,
         accessToken,
         refreshToken,
-        message: '認証に成功しました。'
+        message: '認証に成功しました。',
+        admin: {
+          id: admin.id,
+          username: admin.username
+        }
       };
     } catch (error) {
       logger.error('認証処理エラー', { username, ipAddress, error });
@@ -156,15 +164,33 @@ export class AuthServiceImpl implements AuthService {
     try {
       logger.info('パスワード変更試行', { adminId });
 
-      // 現在のパスワード検証（実装省略 - 実際のプロジェクトでは管理者情報を取得して検証）
-      logger.debug('現在のパスワード検証をスキップ', { currentPasswordLength: currentPassword.length });
+      // 現在の管理者情報を取得
+      const admin = await this.authRepository.findAdminByUsername('admin'); // 簡易実装: admin 固定
+      if (!admin || admin.id !== adminId) {
+        logger.warn('パスワード変更失敗 - 管理者が見つかりません', { adminId });
+        return {
+          success: false,
+          message: '管理者情報が見つかりません。'
+        };
+      }
+
+      // 現在のパスワード検証
+      const isCurrentPasswordValid = await bcrypt.compare(currentPassword, admin.passwordHash);
+      if (!isCurrentPasswordValid) {
+        logger.warn('パスワード変更失敗 - 現在のパスワードが正しくありません', { adminId });
+        return {
+          success: false,
+          message: '現在のパスワードが正しくありません。'
+        };
+      }
       
       // 新しいパスワードのハッシュ化
       const saltRounds = 12;
       const newPasswordHash = await bcrypt.hash(newPassword, saltRounds);
       logger.debug('新しいパスワードハッシュ生成完了', { hashLength: newPasswordHash.length });
 
-      // パスワード更新（実装省略 - 実際のプロジェクトでは Repository に更新メソッドを追加）
+      // パスワード更新
+      await this.authRepository.updateAdminPassword(adminId, newPasswordHash);
 
       logger.info('パスワード変更成功', { adminId });
 

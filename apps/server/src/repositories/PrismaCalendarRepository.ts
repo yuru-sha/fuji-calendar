@@ -10,24 +10,35 @@ export class PrismaCalendarRepository implements CalendarRepository {
   private prisma = PrismaClientManager.getInstance();
 
   async getMonthlyEvents(year: number, month: number): Promise<FujiEvent[]> {
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0);
-    // 月末日の 23:59:59.999 に設定して、その日のイベントも確実に含める
-    endDate.setHours(23, 59, 59, 999);
+    // 月の範囲を計算
+    const monthStartDate = new Date(year, month - 1, 1);
+    const monthEndDate = new Date(year, month, 0);
+    
+    // カレンダー表示範囲の計算（前月末〜翌月初を含む）
+    // 月初の日曜日を取得
+    const calendarStartDate = new Date(monthStartDate);
+    calendarStartDate.setDate(calendarStartDate.getDate() - calendarStartDate.getDay());
+    
+    // 月末が含まれる週の土曜日まで
+    const calendarEndDate = new Date(monthEndDate);
+    calendarEndDate.setDate(calendarEndDate.getDate() + (6 - calendarEndDate.getDay()));
+    calendarEndDate.setHours(23, 59, 59, 999);
     
     logger.debug('getMonthlyEvents: 日付範囲設定', {
       year,
       month,
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString(),
-      endDateLocal: endDate.toLocaleString('ja-JP')
+      monthStart: monthStartDate.toISOString(),
+      monthEnd: monthEndDate.toISOString(),
+      calendarStart: calendarStartDate.toISOString(),
+      calendarEnd: calendarEndDate.toISOString(),
+      totalDaysCalculated: Math.ceil((calendarEndDate.getTime() - calendarStartDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
     });
     
     const events = await this.prisma.locationEvent.findMany({
       where: {
         eventDate: {
-          gte: startDate,
-          lte: endDate,
+          gte: calendarStartDate,
+          lte: calendarEndDate,
         },
       },
       include: {

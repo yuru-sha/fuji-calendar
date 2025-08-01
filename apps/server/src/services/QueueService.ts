@@ -86,8 +86,8 @@ export class QueueService implements IQueueService {
       this.eventCalculationQueue = new Queue('event-calculation', {
         connection: this.redis,
         defaultJobOptions: {
-          removeOnComplete: 10,
-          removeOnFail: 5,
+          removeOnComplete: 100,  // 完了したジョブを 100 個まで保持
+          removeOnFail: 50,       // 失敗したジョブを 50 個まで保持
           attempts: 3,
           backoff: {
             type: 'exponential',
@@ -102,11 +102,11 @@ export class QueueService implements IQueueService {
         this.processJob.bind(this),
         { 
           connection: this.redis,
-          concurrency: 2 // 同時実行数を制限
+          concurrency: 5 // 同時実行数を増やして処理速度向上
         }
       );
 
-      logger.info('ワーカー作成完了', { queueName: 'event-calculation', concurrency: 2 });
+      logger.info('ワーカー作成完了', { queueName: 'event-calculation', concurrency: 5 });
 
       // ワーカーイベントハンドラー
       this.worker.on('active', (job: Job) => {
@@ -246,20 +246,22 @@ export class QueueService implements IQueueService {
     const { locationId, startYear, endYear } = data;
     logger.info('地点計算処理開始', { locationId, startYear, endYear });
     
-    if (!this.eventService) {
-      logger.error('EventService が注入されていません', {
+    // 遅延解決で EventService を取得
+    let eventService = this.eventService;
+    if (!eventService) {
+      logger.error('EventService が設定されていません', {
         locationId,
         startYear,
         endYear
       });
-      throw new Error('EventService is not injected');
+      throw new Error('EventService is not available');
     }
     
     const results = [];
 
     for (let year = startYear; year <= endYear; year++) {
       logger.info('年間計算開始', { locationId, year });
-      const result = await this.eventService.generateLocationCache(locationId, year);
+      const result = await eventService!.generateLocationCache(locationId, year);
       logger.info('年間計算完了', { locationId, year, success: result.success });
       results.push(result);
     }
@@ -281,16 +283,18 @@ export class QueueService implements IQueueService {
   }): Promise<any> {
     const { year, month, locationIds } = data;
     
-    if (!this.eventService) {
-      logger.error('EventService が注入されていません', {
+    // 遅延解決で EventService を取得
+    let eventService = this.eventService;
+    if (!eventService) {
+      logger.error('EventService が設定されていません', {
         year,
         month,
         locationIds
       });
-      throw new Error('EventService is not injected');
+      throw new Error('EventService is not available');
     }
     
-    const result = await this.eventService.calculateMonthlyEvents(year, month, locationIds);
+    const result = await eventService!.calculateMonthlyEvents(year, month, locationIds);
     
     return {
       success: result.success,
@@ -305,7 +309,15 @@ export class QueueService implements IQueueService {
    */
   async getQueueStats(): Promise<any> {
     if (!this.eventCalculationQueue) {
-      return { enabled: false };
+      return { 
+        enabled: false,
+        waiting: 0,
+        active: 0,
+        completed: 0,
+        failed: 0,
+        failedJobs: [],
+        message: 'Redis キューが初期化されていません。Redis サーバーが起動していることを確認してください。'
+      };
     }
 
     try {
@@ -314,16 +326,36 @@ export class QueueService implements IQueueService {
       const completed = await this.eventCalculationQueue.getCompleted();
       const failed = await this.eventCalculationQueue.getFailed();
 
+      // 失敗したジョブの詳細を取得
+      const failedJobDetails = failed.slice(0, 5).map(job => ({
+        id: job.id,
+        name: job.name,
+        data: job.data,
+        failedReason: job.failedReason,
+        attemptsMade: job.attemptsMade,
+        timestamp: job.timestamp
+      }));
+
       return {
         enabled: true,
         waiting: waiting.length,
         active: active.length,
         completed: completed.length,
-        failed: failed.length
+        failed: failed.length,
+        failedJobs: failedJobDetails
       };
     } catch (error) {
       logger.error('キュー統計取得エラー', error);
-      return { enabled: true, error: 'Failed to get stats' };
+      return { 
+        enabled: false,
+        waiting: 0,
+        active: 0,
+        completed: 0,
+        failed: 0,
+        failedJobs: [],
+        error: 'Redis 接続エラー。Redis サーバーが起動していることを確認してください。',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      };
     }
   }
 
@@ -408,6 +440,39 @@ export class QueueService implements IQueueService {
       case 'normal': return 5;
       case 'low': return 1;
       default: return 5;
+    }
+  }
+
+  /**
+   * 失敗したジョブをクリア
+   */
+  async cleanFailedJobs(olderThanDays: number = 1): Promise<number> {
+    if (!this.eventCalculationQueue) {
+      return 0;
+    }
+
+    try {
+      const failed = await this.eventCalculationQueue.getFailed();
+      const cutoffTime = Date.now() - (olderThanDays * 24 * 60 * 60 * 1000);
+      
+      let cleanedCount = 0;
+      for (const job of failed) {
+        if (job.timestamp < cutoffTime) {
+          await job.remove();
+          cleanedCount++;
+        }
+      }
+
+      logger.info('失敗したジョブをクリア', { 
+        olderThanDays, 
+        cleanedCount, 
+        totalFailed: failed.length 
+      });
+
+      return cleanedCount;
+    } catch (error) {
+      logger.error('失敗したジョブのクリアエラー', error);
+      return 0;
     }
   }
 

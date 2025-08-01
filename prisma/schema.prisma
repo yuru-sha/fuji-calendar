@@ -80,3 +80,20 @@ enum Accuracy {
   good
   fair
 }
+
+model BackgroundJobConfig {
+  id          String   @id @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  description String?  @db.VarChar(500)
+  schedule    String   @db.VarChar(50)
+  enabled     Boolean  @default(true)
+  lastRun     DateTime? @map("last_run") @db.Timestamptz(6)
+  nextRun     DateTime? @map("next_run") @db.Timestamptz(6)
+  runCount    Int      @default(0) @map("run_count")
+  errorCount  Int      @default(0) @map("error_count")
+  lastError   String?  @map("last_error") @db.Text
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("background_job_configs")
+}

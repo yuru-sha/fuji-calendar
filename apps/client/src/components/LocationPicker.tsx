@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import styles from './LocationPicker.module.css';
+import { Icon } from '@fuji-calendar/ui';
 
 interface LocationPickerProps {
   onLocationSelect: (lat: number, lng: number) => void;
@@ -79,7 +80,9 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
     <div className={styles.modalOverlay} onClick={onClose}>
       <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}>
-          <h3>📍 地図から座標を選択</h3>
+          <h3>
+            <Icon name="mapPin" size={18} className="inline mr-2" /> 地図から座標を選択
+          </h3>
           <button className={styles.closeButton} onClick={onClose}>✕</button>
         </div>
         <div className={styles.instructions}>

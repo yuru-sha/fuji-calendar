@@ -1,11 +1,11 @@
 services:
-  # PostgreSQL (本番用)
+  # PostgreSQL (Docker 内部アクセスのみ)
   postgres:
     image: postgres:15-alpine
     container_name: fuji_calendar_postgres
     restart: unless-stopped
-    ports:
-      - "5432:5432"
+    expose:
+      - "5432"  # Docker 内部のみアクセス可
     environment:
       POSTGRES_DB: ${DB_NAME:-fuji_calendar}
       POSTGRES_USER: ${DB_USER:-fuji_user}
@@ -24,13 +24,13 @@ services:
     networks:
       - fuji_calendar_network
 
-  # Redis (キューシステム用)
+  # Redis (キューシステム用・内部アクセスのみ)
   redis:
     image: redis:7-alpine
     container_name: fuji_calendar_redis
     restart: unless-stopped
-    ports:
-      - "6379:6379"
+    expose:
+      - "6379"  # 外部ポート公開なし（Docker 内部のみアクセス可）
     environment:
       TZ: Asia/Tokyo
     volumes:
@@ -111,6 +111,45 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    networks:
+      - fuji_calendar_network
+
+  # ワーカー（バックグラウンドジョブ処理）
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.monolith
+    container_name: fuji_calendar_worker
+    restart: unless-stopped
+    command: ["npm", "run", "start:worker"]
+    environment:
+      NODE_ENV: production
+      # PostgreSQL 接続設定（Prisma 対応）
+      DATABASE_URL: postgresql://${DB_USER:-fuji_user}:${DB_PASSWORD:-prod_password_change_me}@postgres:5432/${DB_NAME:-fuji_calendar}
+      # Redis 設定
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      # ログ設定
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      ENABLE_FILE_LOGGING: ${ENABLE_FILE_LOGGING:-true}
+      LOG_DIR: /app/logs
+      # タイムゾーン
+      TZ: Asia/Tokyo
+      # ワーカー設定
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-5}
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "worker"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     networks:
       - fuji_calendar_network
 

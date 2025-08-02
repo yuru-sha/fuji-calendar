@@ -1,7 +1,7 @@
 import { Location } from '@fuji-calendar/types';
 import { PrismaClientManager } from '../database/prisma';
 import { EventCacheService } from './EventCacheService';
-import { AstronomicalCalculator, AstronomicalCalculatorImpl } from './AstronomicalCalculator';
+import { AstronomicalCalculator } from './AstronomicalCalculator';
 import { getComponentLogger, StructuredLogger } from '@fuji-calendar/utils';
 
 /**
@@ -118,12 +118,20 @@ export class BatchCalculationService {
       let totalEvents = 0;
       let processedLocations = 0;
       
+      // 全地点を一括取得（N+1 クエリ問題の解決）
+      const locations = await this.prisma.location.findMany({
+        where: {
+          id: { in: locationIds }
+        }
+      });
+      
+      // 地点 ID をキーとする Map を作成（高速検索用）
+      const locationMap = new Map(locations.map(loc => [loc.id, loc]));
+      
       // 各地点で月間計算を実行
       for (const locationId of locationIds) {
         try {
-          const location = await this.prisma.location.findUnique({
-            where: { id: locationId }
-          });
+          const location = locationMap.get(locationId);
           
           if (!location) {
             locationResults.push({
@@ -158,9 +166,7 @@ export class BatchCalculationService {
           });
           
         } catch (locationError) {
-          const location = await this.prisma.location.findUnique({
-            where: { id: locationId }
-          }).catch(() => null);
+          const location = locationMap.get(locationId);
           
           locationResults.push({
             locationId,

@@ -25,7 +25,14 @@
     "clean": "npm run clean --workspaces --if-present && rm -rf node_modules",
     "worker": "npm run worker --workspace=apps/server",
     "create-admin": "node scripts/admin/create-admin.js",
-    "init-system-settings": "node scripts/init-system-settings.js"
+    "init-system-settings": "node scripts/init-system-settings.js",
+    "check-circular": "madge --circular --extensions ts,tsx --exclude 'node_modules' apps/ packages/",
+    "dependency-graph": "madge --image dependency-graph.svg --extensions ts,tsx --exclude 'node_modules' apps/ packages/",
+    "analyze-deps": "madge --extensions ts,tsx --exclude 'node_modules' --summary apps/ packages/",
+    "analyze-deps-json": "madge --extensions ts,tsx --exclude 'node_modules' --json apps/ packages/",
+    "validate-architecture": "node scripts/architecture/validate.js",
+    "analyze-bundle": "node scripts/performance/analyze-bundle.js",
+    "performance-check": "npm run analyze-bundle && npm run analyze-deps"
   },
   "keywords": [
     "fuji",
@@ -39,11 +46,13 @@
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^20.9.0",
-    "typescript": "^5.2.2",
-    "concurrently": "^8.2.2",
     "@typescript-eslint/eslint-plugin": "^6.10.0",
     "@typescript-eslint/parser": "^6.10.0",
-    "eslint": "^8.53.0"
+    "concurrently": "^8.2.2",
+    "eslint": "^8.53.0",
+    "js-yaml": "^4.1.0",
+    "madge": "^7.0.0",
+    "typescript": "^5.2.2"
   },
   "engines": {
     "node": ">=18.0.0",

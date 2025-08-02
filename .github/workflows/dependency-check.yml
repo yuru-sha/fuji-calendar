@@ -1,0 +1,47 @@
+name: Dependency Analysis
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  dependency-analysis:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Check circular dependencies
+        run: npm run check-circular
+        
+      - name: Generate dependency graph
+        run: npm run dependency-graph
+        
+      - name: Upload dependency graph
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-graph
+          path: dependency-graph.svg
+          retention-days: 30
+      
+      - name: Fail on circular dependencies
+        run: |
+          if npm run check-circular | grep -q "Circular dependency"; then
+            echo "❌ Circular dependencies detected!"
+            exit 1
+          else
+            echo "✅ No circular dependencies found"
+          fi

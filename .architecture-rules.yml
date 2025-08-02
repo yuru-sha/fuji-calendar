@@ -1,0 +1,83 @@
+# Architecture Rules for fuji-calendar monorepo
+
+rules:
+  # モノレポ構造のルール
+  - name: "Apps to Packages Only"
+    source: "apps/**"
+    allowed: ["packages/**", "apps/**/src/**"]
+    forbidden: ["apps/server/src/**/*.tsx", "apps/client/src/**/*.ts"]
+    severity: "error"
+    message: "アプリケーションは packages のみに依存すべきです"
+
+  - name: "No Packages to Apps"
+    source: "packages/**"
+    forbidden: ["apps/**"]
+    severity: "error"
+    message: "パッケージはアプリケーションに依存してはいけません"
+
+  # パッケージ間の依存関係
+  - name: "Types Package Independence"
+    source: "packages/types/**"
+    forbidden: ["packages/utils/**", "packages/ui/**", "packages/shared/**"]
+    severity: "error"
+    message: "types パッケージは他のパッケージに依存してはいけません"
+
+  - name: "Utils Package Independence"
+    source: "packages/utils/**"
+    allowed: ["packages/types/**"]
+    forbidden: ["packages/ui/**", "packages/shared/**", "apps/**"]
+    severity: "error"
+    message: "utils パッケージは types のみに依存可能です"
+
+  # バックエンドアーキテクチャ
+  - name: "Controller-Service Boundary"
+    source: "apps/server/src/controllers/**"
+    allowed: ["apps/server/src/services/**", "apps/server/src/middleware/**", "@fuji-calendar/**"]
+    forbidden: ["apps/server/src/repositories/**", "@prisma/client"]
+    severity: "error"
+    message: "コントローラーは直接リポジトリや Prisma にアクセスしてはいけません"
+
+  - name: "Service-Repository Boundary"
+    source: "apps/server/src/services/**"
+    allowed: ["apps/server/src/repositories/**", "@fuji-calendar/**"]
+    forbidden: ["apps/server/src/controllers/**"]
+    severity: "error"
+    message: "サービスはコントローラーに依存してはいけません"
+
+  - name: "Repository Implementation"
+    source: "apps/server/src/repositories/**"
+    allowed: ["@prisma/client", "@fuji-calendar/types"]
+    forbidden: ["apps/server/src/services/**", "apps/server/src/controllers/**"]
+    severity: "error"
+    message: "リポジトリはサービスやコントローラーに依存してはいけません"
+
+  # フロントエンドアーキテクチャ
+  - name: "React Component Dependencies"
+    source: "apps/client/src/components/**"
+    allowed: ["react", "@fuji-calendar/**", "apps/client/src/hooks/**", "apps/client/src/services/**"]
+    forbidden: ["apps/server/**"]
+    severity: "error"
+    message: "React コンポーネントはサーバーコードに依存してはいけません"
+
+  - name: "Page Component Dependencies"
+    source: "apps/client/src/pages/**"
+    allowed: ["apps/client/src/components/**", "apps/client/src/hooks/**", "apps/client/src/services/**", "@fuji-calendar/**"]
+    forbidden: ["apps/server/**"]
+    severity: "error"
+    message: "ページコンポーネントはサーバーコードに依存してはいけません"
+
+# 除外設定
+exclude:
+  - "**/*.test.ts"
+  - "**/*.spec.ts"
+  - "**/*.test.tsx"
+  - "**/*.spec.tsx"
+  - "**/node_modules/**"
+  - "**/dist/**"
+  - "**/build/**"
+
+# しきい値設定
+thresholds:
+  max_dependencies: 25  # ServiceRegistry.ts が 25 なので現状維持
+  max_depth: 5
+  coupling_threshold: 0.7

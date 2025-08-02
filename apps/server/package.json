@@ -16,8 +16,8 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@fuji-calendar/types": "*",
-    "@fuji-calendar/utils": "*",
+    "@fuji-calendar/types": "^0.3.0",
+    "@fuji-calendar/utils": "^0.3.0",
     "@prisma/client": "^6.12.0",
     "@types/pg": "^8.15.4",
     "astronomy-engine": "^2.1.19",

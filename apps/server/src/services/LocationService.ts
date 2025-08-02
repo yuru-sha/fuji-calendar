@@ -106,22 +106,10 @@ export class LocationService {
     });
 
     // 富士山仰角を非同期で計算・更新
-    setTimeout(async () => {
-      try {
-        const actualFujiElevation = this.astronomicalCalculator.calculateElevationToFuji(location);
-        await this.locationRepository.updateFujiMetrics(location.id, {
-          fujiAzimuth: finalFujiAzimuth,
-          fujiElevation: actualFujiElevation,
-          fujiDistance: finalFujiDistance
-        });
-        logger.info('富士山仰角計算完了', {
-          locationId: location.id,
-          fujiElevation: actualFujiElevation
-        });
-      } catch (error) {
+    this.calculateFujiElevationAsync(location.id, location, finalFujiAzimuth, finalFujiDistance)
+      .catch(error => {
         logger.error('富士山仰角計算エラー', error, { locationId: location.id });
-      }
-    }, 0);
+      });
 
     // キューに天体計算ジョブを追加（前年・当年・翌年の 3 年分）
     const currentYear = new Date().getFullYear();
@@ -254,22 +242,10 @@ export class LocationService {
       // 位置が変更された場合、仰角を非同期で再計算（ユーザー入力値がない場合のみ）
       if ((data.latitude !== undefined || data.longitude !== undefined || data.elevation !== undefined) && 
           data.fujiElevation === undefined) { // ユーザー入力値がない場合のみ
-        setTimeout(async () => {
-          try {
-            const actualFujiElevation = this.astronomicalCalculator.calculateElevationToFuji(updatedLocation);
-            await this.locationRepository.updateFujiMetrics(updatedLocation.id, {
-              fujiAzimuth: updatedLocation.fujiAzimuth || 0,
-              fujiElevation: actualFujiElevation,
-              fujiDistance: updatedLocation.fujiDistance || 0
-            });
-            logger.info('富士山仰角再計算完了', {
-              locationId: updatedLocation.id,
-              fujiElevation: actualFujiElevation
-            });
-          } catch (error) {
+        this.recalculateFujiElevationAsync(updatedLocation)
+          .catch(error => {
             logger.error('富士山仰角再計算エラー', error, { locationId: updatedLocation.id });
-          }
-        }, 0);
+          });
       }
       
       // 位置情報が変更された場合は天体計算を再実行（前年・当年・翌年の 3 年分）
@@ -390,5 +366,42 @@ export class LocationService {
    */
   private toDegrees(radians: number): number {
     return radians * (180 / Math.PI);
+  }
+
+  /**
+   * 富士山仰角計算の非同期実行（新規地点作成時）
+   */
+  private async calculateFujiElevationAsync(
+    locationId: number,
+    location: Location,
+    fujiAzimuth: number,
+    fujiDistance: number
+  ): Promise<void> {
+    const actualFujiElevation = this.astronomicalCalculator.calculateElevationToFuji(location);
+    await this.locationRepository.updateFujiMetrics(locationId, {
+      fujiAzimuth,
+      fujiElevation: actualFujiElevation,
+      fujiDistance
+    });
+    logger.info('富士山仰角計算完了', {
+      locationId,
+      fujiElevation: actualFujiElevation
+    });
+  }
+
+  /**
+   * 富士山仰角の再計算（地点更新時）
+   */
+  private async recalculateFujiElevationAsync(location: Location): Promise<void> {
+    const actualFujiElevation = this.astronomicalCalculator.calculateElevationToFuji(location);
+    await this.locationRepository.updateFujiMetrics(location.id, {
+      fujiAzimuth: location.fujiAzimuth || 0,
+      fujiElevation: actualFujiElevation,
+      fujiDistance: location.fujiDistance || 0
+    });
+    logger.info('富士山仰角再計算完了', {
+      locationId: location.id,
+      fujiElevation: actualFujiElevation
+    });
   }
 }

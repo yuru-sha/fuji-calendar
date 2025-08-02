@@ -1,0 +1,5 @@
+{
+  "fileExtensions": ["ts", "tsx"],
+  "excludeRegExp": [".*\\.test\\.", ".*\\.spec\\.", "node_modules"],
+  "tsConfig": "./tsconfig.json"
+}

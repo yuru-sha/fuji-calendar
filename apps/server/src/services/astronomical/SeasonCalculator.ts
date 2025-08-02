@@ -1,11 +1,11 @@
-import { getComponentLogger } from '@fuji-calendar/utils';
+import { getComponentLogger } from "@fuji-calendar/utils";
 
 /**
  * 季節・可視性判定を担当するクラス
  * ダイアモンド富士の撮影シーズン判定
  */
 export class SeasonCalculator {
-  private logger = getComponentLogger('SeasonCalculator');
+  private logger = getComponentLogger("SeasonCalculator");
 
   /**
    * ダイアモンド富士の撮影シーズンかを判定
@@ -15,7 +15,11 @@ export class SeasonCalculator {
     const day = date.getDate();
 
     // 冬季シーズン：12 月中旬～1 月上旬（年末年始）
-    const winterStartThisYear = this.createDateInYear(date.getFullYear(), 12, 15);
+    const winterStartThisYear = this.createDateInYear(
+      date.getFullYear(),
+      12,
+      15,
+    );
     const winterEndThisYear = this.createDateInYear(date.getFullYear(), 12, 31);
     const winterStartNextYear = this.createDateInYear(date.getFullYear(), 1, 1);
     const winterEndNextYear = this.createDateInYear(date.getFullYear(), 1, 10);
@@ -32,23 +36,33 @@ export class SeasonCalculator {
     const autumnStart = this.createDateInYear(date.getFullYear(), 8, 15);
     const autumnEnd = this.createDateInYear(date.getFullYear(), 10, 31);
 
-    const currentDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const currentDate = new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate(),
+    );
 
-    const isWinterSeason = (currentDate >= winterStartThisYear && currentDate <= winterEndThisYear) ||
-                          (currentDate >= winterStartNextYear && currentDate <= winterEndNextYear);
-    const isSpringSeason = currentDate >= springStart && currentDate <= springEnd;
-    const isSummerSeason = currentDate >= summerStart && currentDate <= summerEnd;
-    const isAutumnSeason = currentDate >= autumnStart && currentDate <= autumnEnd;
+    const isWinterSeason =
+      (currentDate >= winterStartThisYear &&
+        currentDate <= winterEndThisYear) ||
+      (currentDate >= winterStartNextYear && currentDate <= winterEndNextYear);
+    const isSpringSeason =
+      currentDate >= springStart && currentDate <= springEnd;
+    const isSummerSeason =
+      currentDate >= summerStart && currentDate <= summerEnd;
+    const isAutumnSeason =
+      currentDate >= autumnStart && currentDate <= autumnEnd;
 
-    this.logger.debug('ダイアモンド富士シーズン判定', {
-      date: date.toISOString().split('T')[0],
+    this.logger.debug("ダイアモンド富士シーズン判定", {
+      date: date.toISOString().split("T")[0],
       month,
       day,
       isWinterSeason,
       isSpringSeason,
       isSummerSeason,
       isAutumnSeason,
-      isDiamondSeason: isWinterSeason || isSpringSeason || isSummerSeason || isAutumnSeason
+      isDiamondSeason:
+        isWinterSeason || isSpringSeason || isSummerSeason || isAutumnSeason,
     });
 
     return isWinterSeason || isSpringSeason || isSummerSeason || isAutumnSeason;
@@ -59,17 +73,17 @@ export class SeasonCalculator {
    */
   getDiamondFujiSeasonMessage(date: Date): string {
     if (!this.isDiamondFujiSeason(date)) {
-      return 'ダイアモンド富士の撮影シーズンではありません（12 月中旬～1 月上旬、2 月中旬～4 月末、6 月中旬～7 月上旬、8 月中旬～10 月末が最適）';
+      return "ダイアモンド富士の撮影シーズンではありません（12 月中旬～1 月上旬、2 月中旬～4 月末、6 月中旬～7 月上旬、8 月中旬～10 月末が最適）";
     }
 
     const month = date.getMonth() + 1;
     if (month >= 2 && month <= 4) {
-      return '春のダイアモンド富士シーズンです（日の出時刻）';
+      return "春のダイアモンド富士シーズンです（日の出時刻）";
     } else if (month >= 8 && month <= 10) {
-      return '秋のダイアモンド富士シーズンです（日の入り時刻）';
+      return "秋のダイアモンド富士シーズンです（日の入り時刻）";
     }
 
-    return 'ダイアモンド富士の撮影に適した時期です';
+    return "ダイアモンド富士の撮影に適した時期です";
   }
 
   /**
@@ -91,9 +105,9 @@ export class SeasonCalculator {
    * 天候による撮影適性を判定
    */
   isFavorableWeatherCondition(
-    cloudCover: number, 
-    visibility: number, 
-    precipitation: number = 0
+    cloudCover: number,
+    visibility: number,
+    precipitation: number = 0,
   ): boolean {
     return (
       cloudCover <= 30 && // 雲量 30% 以下
@@ -109,9 +123,9 @@ export class SeasonCalculator {
     date: Date,
     moonIllumination?: number,
     cloudCover?: number,
-    visibility?: number
+    visibility?: number,
   ): {
-    rating: 'excellent' | 'good' | 'fair' | 'poor';
+    rating: "excellent" | "good" | "fair" | "poor";
     reasons: string[];
   } {
     const reasons: string[] = [];
@@ -120,18 +134,18 @@ export class SeasonCalculator {
     // シーズン判定（最重要）
     if (this.isDiamondFujiSeason(date)) {
       score += 40;
-      reasons.push('ダイアモンド富士シーズン');
+      reasons.push("ダイアモンド富士シーズン");
     } else {
-      reasons.push('シーズン外');
+      reasons.push("シーズン外");
     }
 
     // 月相判定（パール富士の場合）
     if (moonIllumination !== undefined) {
       if (this.isFavorableLunarCondition(moonIllumination)) {
         score += 30;
-        reasons.push('良好な月相');
+        reasons.push("良好な月相");
       } else {
-        reasons.push('月が暗い');
+        reasons.push("月が暗い");
       }
     } else {
       score += 20; // ダイアモンド富士の場合は月相を考慮しない
@@ -141,25 +155,25 @@ export class SeasonCalculator {
     if (cloudCover !== undefined && visibility !== undefined) {
       if (this.isFavorableWeatherCondition(cloudCover, visibility)) {
         score += 30;
-        reasons.push('良好な天候');
+        reasons.push("良好な天候");
       } else {
-        if (cloudCover > 30) reasons.push('曇り空');
-        if (visibility < 10) reasons.push('視界不良');
+        if (cloudCover > 30) reasons.push("曇り空");
+        if (visibility < 10) reasons.push("視界不良");
       }
     } else {
       score += 15; // 天候データなしの場合は中程度のスコア
     }
 
     // 評価判定
-    let rating: 'excellent' | 'good' | 'fair' | 'poor';
+    let rating: "excellent" | "good" | "fair" | "poor";
     if (score >= 85) {
-      rating = 'excellent';
+      rating = "excellent";
     } else if (score >= 65) {
-      rating = 'good';
+      rating = "good";
     } else if (score >= 40) {
-      rating = 'fair';
+      rating = "fair";
     } else {
-      rating = 'poor';
+      rating = "poor";
     }
 
     return { rating, reasons };

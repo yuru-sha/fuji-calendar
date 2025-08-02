@@ -1,9 +1,9 @@
-import { Admin } from '@fuji-calendar/types';
-import { AuthRepository } from './interfaces/AuthRepository';
-import { PrismaClientManager } from '../database/prisma';
-import { getComponentLogger } from '@fuji-calendar/utils';
+import { Admin } from "@fuji-calendar/types";
+import { AuthRepository } from "./interfaces/AuthRepository";
+import { PrismaClientManager } from "../database/prisma";
+import { getComponentLogger } from "@fuji-calendar/utils";
 
-const logger = getComponentLogger('prisma-auth-repository');
+const logger = getComponentLogger("prisma-auth-repository");
 
 export class PrismaAuthRepository implements AuthRepository {
   private prisma = PrismaClientManager.getInstance();
@@ -11,7 +11,7 @@ export class PrismaAuthRepository implements AuthRepository {
   async findAdminByUsername(username: string): Promise<Admin | null> {
     try {
       const admin = await this.prisma.admin.findUnique({
-        where: { username }
+        where: { username },
       });
 
       if (!admin) {
@@ -26,63 +26,76 @@ export class PrismaAuthRepository implements AuthRepository {
         createdAt: admin.createdAt,
       };
     } catch (error) {
-      logger.error('管理者取得エラー', { username, error });
+      logger.error("管理者取得エラー", { username, error });
       throw error;
     }
   }
 
-  async updateAdminPassword(adminId: number, passwordHash: string): Promise<void> {
+  async updateAdminPassword(
+    adminId: number,
+    passwordHash: string,
+  ): Promise<void> {
     try {
       await this.prisma.admin.update({
         where: { id: adminId },
-        data: { passwordHash }
+        data: { passwordHash },
       });
-      logger.info('管理者パスワード更新完了', { adminId });
+      logger.info("管理者パスワード更新完了", { adminId });
     } catch (error) {
-      logger.error('管理者パスワード更新エラー', { adminId, error });
+      logger.error("管理者パスワード更新エラー", { adminId, error });
       throw error;
     }
   }
 
-  async saveRefreshToken(adminId: number, _refreshToken: string, _expiresAt: Date): Promise<void> {
+  async saveRefreshToken(
+    adminId: number,
+    _refreshToken: string,
+    _expiresAt: Date,
+  ): Promise<void> {
     // Refresh token 機能は未実装（JWT のみ使用）
-    logger.debug('リフレッシュトークン機能は未実装', { adminId });
+    logger.debug("リフレッシュトークン機能は未実装", { adminId });
   }
 
-  async findValidRefreshToken(_token: string): Promise<{ adminId: number; expiresAt: Date } | null> {
+  async findValidRefreshToken(
+    _token: string,
+  ): Promise<{ adminId: number; expiresAt: Date } | null> {
     // Refresh token 機能は未実装（JWT のみ使用）
-    logger.debug('リフレッシュトークン機能は未実装');
+    logger.debug("リフレッシュトークン機能は未実装");
     return null;
   }
 
   async revokeRefreshToken(_token: string): Promise<void> {
     // Refresh token 機能は未実装（JWT のみ使用）
-    logger.debug('リフレッシュトークン機能は未実装');
+    logger.debug("リフレッシュトークン機能は未実装");
   }
 
   async revokeAllRefreshTokens(adminId: number): Promise<void> {
     // Refresh token 機能は未実装（JWT のみ使用）
-    logger.debug('リフレッシュトークン機能は未実装', { adminId });
+    logger.debug("リフレッシュトークン機能は未実装", { adminId });
   }
 
   async cleanupExpiredTokens(): Promise<number> {
     // Refresh token 機能は未実装（JWT のみ使用）
-    logger.debug('リフレッシュトークン機能は未実装');
+    logger.debug("リフレッシュトークン機能は未実装");
     return 0;
   }
 
-  async recordLoginAttempt(username: string, success: boolean, ipAddress?: string): Promise<void> {
+  async recordLoginAttempt(
+    username: string,
+    success: boolean,
+    ipAddress?: string,
+  ): Promise<void> {
     try {
       // login_attempts テーブルがある場合の実装
       // 現在のスキーマにはないため、ログ出力のみ行う
-      logger.info('ログイン試行記録', {
+      logger.info("ログイン試行記録", {
         username,
         success,
         ipAddress,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
-      logger.error('ログイン試行記録エラー', { username, success, error });
+      logger.error("ログイン試行記録エラー", { username, success, error });
       // この機能は補助的なものなので、エラーでも処理を継続
     }
   }
@@ -91,10 +104,10 @@ export class PrismaAuthRepository implements AuthRepository {
     try {
       // login_attempts テーブルがある場合の実装
       // 現在のスキーマにはないため、0 を返す
-      logger.debug('失敗ログイン試行回数取得', { username, since });
+      logger.debug("失敗ログイン試行回数取得", { username, since });
       return 0;
     } catch (error) {
-      logger.error('失敗ログイン試行回数取得エラー', { username, error });
+      logger.error("失敗ログイン試行回数取得エラー", { username, error });
       return 0;
     }
   }
@@ -103,9 +116,9 @@ export class PrismaAuthRepository implements AuthRepository {
     try {
       // login_attempts テーブルがある場合の実装
       // 現在のスキーマにはないため、ログ出力のみ行う
-      logger.debug('失敗ログイン試行回数リセット', { username });
+      logger.debug("失敗ログイン試行回数リセット", { username });
     } catch (error) {
-      logger.error('失敗ログイン試行回数リセットエラー', { username, error });
+      logger.error("失敗ログイン試行回数リセットエラー", { username, error });
       // この機能は補助的なものなので、エラーでも処理を継続
     }
   }

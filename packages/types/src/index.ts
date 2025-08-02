@@ -1,5 +1,5 @@
 // 共通型定義をインポート
-export * from './common';
+export * from "./common";
 
 // 詳細な Location インターフェース
 export interface Location {
@@ -11,11 +11,11 @@ export interface Location {
   elevation: number;
   description?: string | null;
   accessInfo?: string | null;
-  parkingInfo?: string | null;    // 駐車場情報
+  parkingInfo?: string | null; // 駐車場情報
   // 富士山への事前計算値（高速化のため）
-  fujiAzimuth?: number | null;    // 富士山への方位角（度）
-  fujiElevation?: number | null;  // 富士山頂への仰角（度）
-  fujiDistance?: number | null;   // 富士山までの距離（km）
+  fujiAzimuth?: number | null; // 富士山への方位角（度）
+  fujiElevation?: number | null; // 富士山頂への仰角（度）
+  fujiDistance?: number | null; // 富士山までの距離（km）
   measurementNotes?: string | null; // 測定メモ（ユーザー入力）
   createdAt: Date;
   updatedAt: Date;
@@ -23,28 +23,28 @@ export interface Location {
 
 export interface FujiEvent {
   id: string;
-  type: 'diamond' | 'pearl';
-  subType: 'sunrise' | 'sunset' | 'rising' | 'setting';
+  type: "diamond" | "pearl";
+  subType: "sunrise" | "sunset" | "rising" | "setting";
   time: Date;
   location: Location;
   azimuth: number;
   elevation?: number;
   qualityScore?: number;
-  accuracy?: 'perfect' | 'excellent' | 'good' | 'fair';
+  accuracy?: "perfect" | "excellent" | "good" | "fair";
   moonPhase?: number;
   moonIllumination?: number;
 }
 
 export interface CalendarEvent {
   date: Date;
-  type: 'diamond' | 'pearl' | 'both';
+  type: "diamond" | "pearl" | "both";
   events: FujiEvent[];
 }
 
 // API response 用の型（日付文字列版）
 export interface CalendarEventResponse {
   date: string;
-  type: 'diamond' | 'pearl' | 'both';
+  type: "diamond" | "pearl" | "both";
   events: FujiEventResponse[];
   diamondFujiSeason?: boolean; // ダイヤモンド富士の観測期間かどうか
   seasonMessage?: string; // 観測期間外の場合のメッセージ
@@ -52,8 +52,8 @@ export interface CalendarEventResponse {
 
 export interface FujiEventResponse {
   id: string;
-  type: 'diamond' | 'pearl';
-  subType: 'sunrise' | 'sunset' | 'rising' | 'setting';
+  type: "diamond" | "pearl";
+  subType: "sunrise" | "sunset" | "rising" | "setting";
   time: string;
   location: Location;
   azimuth: number;
@@ -67,8 +67,8 @@ export interface HistoricalEvent {
   year: number;
   month: number;
   day: number;
-  eventType: 'diamond' | 'pearl';
-  subType: 'sunrise' | 'sunset';
+  eventType: "diamond" | "pearl";
+  subType: "sunrise" | "sunset";
   eventTime: Date;
   azimuth: number;
   elevation: number;
@@ -77,7 +77,7 @@ export interface HistoricalEvent {
   visibilityRating?: number; // 1-5
   photoSuccessReported: boolean;
   calculationAccuracy: number;
-  dataSource: 'calculated' | 'observed' | 'reported';
+  dataSource: "calculated" | "observed" | "reported";
   notes?: string;
   archivedAt: Date;
   createdAt: Date;
@@ -89,8 +89,8 @@ export interface HistoricalEventResponse {
   year: number;
   month: number;
   day: number;
-  eventType: 'diamond' | 'pearl';
-  subType: 'sunrise' | 'sunset';
+  eventType: "diamond" | "pearl";
+  subType: "sunrise" | "sunset";
   eventTime: string;
   azimuth: number;
   elevation: number;
@@ -99,7 +99,7 @@ export interface HistoricalEventResponse {
   visibilityRating?: number;
   photoSuccessReported: boolean;
   calculationAccuracy: number;
-  dataSource: 'calculated' | 'observed' | 'reported';
+  dataSource: "calculated" | "observed" | "reported";
   notes?: string;
   archivedAt: string;
   createdAt: string;
@@ -108,8 +108,8 @@ export interface HistoricalEventResponse {
 export interface HistoricalStats {
   locationId: number;
   year: number;
-  eventType: 'diamond' | 'pearl';
-  subType: 'sunrise' | 'sunset';
+  eventType: "diamond" | "pearl";
+  subType: "sunrise" | "sunset";
   totalEvents: number;
   successfulPhotos: number;
   successRatePercent: number;
@@ -122,7 +122,7 @@ export interface MonthlyHistoricalSummary {
   locationId: number;
   year: number;
   month: number;
-  eventType: 'diamond' | 'pearl';
+  eventType: "diamond" | "pearl";
   eventCount: number;
   successCount: number;
   avgVisibility: number;
@@ -133,11 +133,11 @@ export interface HistoricalSearchOptions {
   locationId?: number;
   yearStart?: number;
   yearEnd?: number;
-  eventType?: 'diamond' | 'pearl';
-  subType?: 'sunrise' | 'sunset';
+  eventType?: "diamond" | "pearl";
+  subType?: "sunrise" | "sunset";
   photoSuccessOnly?: boolean;
   minVisibility?: number;
-  dataSource?: 'calculated' | 'observed' | 'reported';
+  dataSource?: "calculated" | "observed" | "reported";
   limit?: number;
   offset?: number;
 }
@@ -161,7 +161,7 @@ export interface LocationRequest {
   suggestedLatitude?: number;
   suggestedLongitude?: number;
   requesterIp: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: "pending" | "approved" | "rejected";
   createdAt: Date;
   processedAt?: Date;
   processedBy?: number;
@@ -171,7 +171,7 @@ export interface WeatherInfo {
   condition: string;
   cloudCover: number;
   visibility: number;
-  recommendation: 'excellent' | 'good' | 'fair' | 'poor';
+  recommendation: "excellent" | "good" | "fair" | "poor";
 }
 
 // API レスポンス型
@@ -232,13 +232,13 @@ export interface LoginRequest {
 
 // エラー型
 export enum ErrorType {
-  VALIDATION_ERROR = 'VALIDATION_ERROR',
-  AUTHENTICATION_ERROR = 'AUTHENTICATION_ERROR',
-  AUTHORIZATION_ERROR = 'AUTHORIZATION_ERROR',
-  DATABASE_ERROR = 'DATABASE_ERROR',
-  CALCULATION_ERROR = 'CALCULATION_ERROR',
-  EXTERNAL_API_ERROR = 'EXTERNAL_API_ERROR',
-  RATE_LIMIT_ERROR = 'RATE_LIMIT_ERROR'
+  VALIDATION_ERROR = "VALIDATION_ERROR",
+  AUTHENTICATION_ERROR = "AUTHENTICATION_ERROR",
+  AUTHORIZATION_ERROR = "AUTHORIZATION_ERROR",
+  DATABASE_ERROR = "DATABASE_ERROR",
+  CALCULATION_ERROR = "CALCULATION_ERROR",
+  EXTERNAL_API_ERROR = "EXTERNAL_API_ERROR",
+  RATE_LIMIT_ERROR = "RATE_LIMIT_ERROR",
 }
 
 export interface ApiError {
@@ -294,7 +294,7 @@ export interface FavoriteLocation {
 
 export interface FavoriteEvent {
   id: string;
-  type: 'diamond' | 'pearl';
+  type: "diamond" | "pearl";
   subType: string;
   time: string; // ISO 文字列
   locationId: number;
@@ -309,5 +309,20 @@ export interface Favorites {
   events: FavoriteEvent[];
 }
 
+// システム設定関連型
+export interface SystemSetting {
+  id: number;
+  settingKey: string;
+  settingType: "number" | "string" | "boolean";
+  numberValue?: number | null;
+  stringValue?: string | null;
+  booleanValue?: boolean | null;
+  description?: string | null;
+  category: string;
+  editable: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // キャッシュ関連の型定義をエクスポート
-export * from './cache';
+export * from "./cache";

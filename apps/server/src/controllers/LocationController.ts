@@ -1,8 +1,8 @@
-import { Request, Response } from 'express';
-import { LocationService } from '../services/LocationService';
-import { getComponentLogger } from '@fuji-calendar/utils';
+import { Request, Response } from "express";
+import { LocationService } from "../services/LocationService";
+import { getComponentLogger } from "@fuji-calendar/utils";
 
-const logger = getComponentLogger('LocationController');
+const logger = getComponentLogger("LocationController");
 
 /**
  * リファクタリング後の LocationController
@@ -18,21 +18,21 @@ export class LocationController {
     try {
       const locations = await this.locationService.getAllLocations();
 
-      logger.info('撮影地点一覧取得成功', {
-        locationCount: locations.length
+      logger.info("撮影地点一覧取得成功", {
+        locationCount: locations.length,
       });
 
       res.json({
         success: true,
         locations,
-        count: locations.length
+        count: locations.length,
       });
     } catch (error) {
-      logger.error('撮影地点一覧取得エラー', error);
+      logger.error("撮影地点一覧取得エラー", error);
       res.status(500).json({
         success: false,
-        error: 'Internal server error',
-        message: '撮影地点の取得中にエラーが発生しました。'
+        error: "Internal server error",
+        message: "撮影地点の取得中にエラーが発生しました。",
       });
     }
   }
@@ -46,8 +46,8 @@ export class LocationController {
       if (isNaN(id)) {
         res.status(400).json({
           success: false,
-          error: 'Invalid ID',
-          message: '有効な ID を指定してください。'
+          error: "Invalid ID",
+          message: "有効な ID を指定してください。",
         });
         return;
       }
@@ -57,29 +57,29 @@ export class LocationController {
       if (!location) {
         res.status(404).json({
           success: false,
-          error: 'Location not found',
-          message: '指定された撮影地点が見つかりません。'
+          error: "Location not found",
+          message: "指定された撮影地点が見つかりません。",
         });
         return;
       }
 
-      logger.info('撮影地点詳細取得成功', {
+      logger.info("撮影地点詳細取得成功", {
         locationId: id,
-        locationName: location.name
+        locationName: location.name,
       });
 
       res.json({
         success: true,
-        location
+        location,
       });
     } catch (error) {
-      logger.error('撮影地点詳細取得エラー', error, {
-        locationId: req.params.id
+      logger.error("撮影地点詳細取得エラー", error, {
+        locationId: req.params.id,
       });
       res.status(500).json({
         success: false,
-        error: 'Internal server error',
-        message: '撮影地点の取得中にエラーが発生しました。'
+        error: "Internal server error",
+        message: "撮影地点の取得中にエラーが発生しました。",
       });
     }
   }
@@ -100,15 +100,21 @@ export class LocationController {
         fujiAzimuth,
         fujiElevation,
         fujiDistance,
-        measurementNotes
+        measurementNotes,
       } = req.body;
 
       // バリデーション
-      if (!name || !prefecture || latitude === undefined || longitude === undefined || elevation === undefined) {
+      if (
+        !name ||
+        !prefecture ||
+        latitude === undefined ||
+        longitude === undefined ||
+        elevation === undefined
+      ) {
         res.status(400).json({
           success: false,
-          error: 'Validation error',
-          message: '必須フィールドが不足しています。'
+          error: "Validation error",
+          message: "必須フィールドが不足しています。",
         });
         return;
       }
@@ -124,27 +130,27 @@ export class LocationController {
         fujiAzimuth: fujiAzimuth ? parseFloat(fujiAzimuth) : undefined,
         fujiElevation: fujiElevation ? parseFloat(fujiElevation) : undefined,
         fujiDistance: fujiDistance ? parseFloat(fujiDistance) : undefined,
-        measurementNotes
+        measurementNotes,
       };
 
       const location = await this.locationService.createLocation(createData);
 
-      logger.info('撮影地点作成成功', {
+      logger.info("撮影地点作成成功", {
         locationId: location.id,
-        locationName: location.name
+        locationName: location.name,
       });
 
       res.status(201).json({
         success: true,
         location,
-        message: '撮影地点が正常に作成されました。天体計算を開始します。'
+        message: "撮影地点が正常に作成されました。天体計算を開始します。",
       });
     } catch (error) {
-      logger.error('撮影地点作成エラー', error);
+      logger.error("撮影地点作成エラー", error);
       res.status(500).json({
         success: false,
-        error: 'Internal server error',
-        message: '撮影地点の作成中にエラーが発生しました。'
+        error: "Internal server error",
+        message: "撮影地点の作成中にエラーが発生しました。",
       });
     }
   }
@@ -158,8 +164,8 @@ export class LocationController {
       if (isNaN(id)) {
         res.status(400).json({
           success: false,
-          error: 'Invalid ID',
-          message: '有効な ID を指定してください。'
+          error: "Invalid ID",
+          message: "有効な ID を指定してください。",
         });
         return;
       }
@@ -175,7 +181,7 @@ export class LocationController {
         fujiAzimuth,
         fujiElevation,
         fujiDistance,
-        measurementNotes
+        measurementNotes,
       } = req.body;
 
       const updateData: any = {};
@@ -186,40 +192,51 @@ export class LocationController {
       if (elevation !== undefined) updateData.elevation = parseFloat(elevation);
       if (description !== undefined) updateData.description = description;
       if (accessInfo !== undefined) updateData.accessInfo = accessInfo;
-      if (fujiAzimuth !== undefined) updateData.fujiAzimuth = fujiAzimuth ? parseFloat(fujiAzimuth) : null;
-      if (fujiElevation !== undefined) updateData.fujiElevation = fujiElevation ? parseFloat(fujiElevation) : null;
-      if (fujiDistance !== undefined) updateData.fujiDistance = fujiDistance ? parseFloat(fujiDistance) : null;
-      if (measurementNotes !== undefined) updateData.measurementNotes = measurementNotes;
+      if (fujiAzimuth !== undefined)
+        updateData.fujiAzimuth = fujiAzimuth ? parseFloat(fujiAzimuth) : null;
+      if (fujiElevation !== undefined)
+        updateData.fujiElevation = fujiElevation
+          ? parseFloat(fujiElevation)
+          : null;
+      if (fujiDistance !== undefined)
+        updateData.fujiDistance = fujiDistance
+          ? parseFloat(fujiDistance)
+          : null;
+      if (measurementNotes !== undefined)
+        updateData.measurementNotes = measurementNotes;
 
-      const location = await this.locationService.updateLocation(id, updateData);
+      const location = await this.locationService.updateLocation(
+        id,
+        updateData,
+      );
 
       if (!location) {
         res.status(404).json({
           success: false,
-          error: 'Location not found',
-          message: '指定された撮影地点が見つかりません。'
+          error: "Location not found",
+          message: "指定された撮影地点が見つかりません。",
         });
         return;
       }
 
-      logger.info('撮影地点更新成功', {
+      logger.info("撮影地点更新成功", {
         locationId: id,
-        locationName: location.name
+        locationName: location.name,
       });
 
       res.json({
         success: true,
         location,
-        message: '撮影地点が正常に更新されました。'
+        message: "撮影地点が正常に更新されました。",
       });
     } catch (error) {
-      logger.error('撮影地点更新エラー', error, {
-        locationId: req.params.id
+      logger.error("撮影地点更新エラー", error, {
+        locationId: req.params.id,
       });
       res.status(500).json({
         success: false,
-        error: 'Internal server error',
-        message: '撮影地点の更新中にエラーが発生しました。'
+        error: "Internal server error",
+        message: "撮影地点の更新中にエラーが発生しました。",
       });
     }
   }
@@ -233,28 +250,28 @@ export class LocationController {
       if (isNaN(id)) {
         res.status(400).json({
           success: false,
-          error: 'Invalid ID',
-          message: '有効な ID を指定してください。'
+          error: "Invalid ID",
+          message: "有効な ID を指定してください。",
         });
         return;
       }
 
       await this.locationService.deleteLocation(id);
 
-      logger.info('撮影地点削除成功', { locationId: id });
+      logger.info("撮影地点削除成功", { locationId: id });
 
       res.json({
         success: true,
-        message: '撮影地点が正常に削除されました。'
+        message: "撮影地点が正常に削除されました。",
       });
     } catch (error) {
-      logger.error('撮影地点削除エラー', error, {
-        locationId: req.params.id
+      logger.error("撮影地点削除エラー", error, {
+        locationId: req.params.id,
       });
       res.status(500).json({
         success: false,
-        error: 'Internal server error',
-        message: '撮影地点の削除中にエラーが発生しました。'
+        error: "Internal server error",
+        message: "撮影地点の削除中にエラーが発生しました。",
       });
     }
   }
@@ -268,28 +285,30 @@ export class LocationController {
 
       const condition: any = {};
       if (prefecture) condition.prefecture = prefecture as string;
-      if (minElevation) condition.minElevation = parseFloat(minElevation as string);
-      if (maxElevation) condition.maxElevation = parseFloat(maxElevation as string);
+      if (minElevation)
+        condition.minElevation = parseFloat(minElevation as string);
+      if (maxElevation)
+        condition.maxElevation = parseFloat(maxElevation as string);
 
       const locations = await this.locationService.searchLocations(condition);
 
-      logger.info('撮影地点検索成功', {
+      logger.info("撮影地点検索成功", {
         condition,
-        locationCount: locations.length
+        locationCount: locations.length,
       });
 
       res.json({
         success: true,
         locations,
         count: locations.length,
-        searchCondition: condition
+        searchCondition: condition,
       });
     } catch (error) {
-      logger.error('撮影地点検索エラー', error);
+      logger.error("撮影地点検索エラー", error);
       res.status(500).json({
         success: false,
-        error: 'Internal server error',
-        message: '撮影地点の検索中にエラーが発生しました。'
+        error: "Internal server error",
+        message: "撮影地点の検索中にエラーが発生しました。",
       });
     }
   }
@@ -301,19 +320,22 @@ export class LocationController {
     try {
       const locations = await this.locationService.getAllLocations();
 
-      logger.info('撮影地点エクスポート成功', {
-        locationCount: locations.length
+      logger.info("撮影地点エクスポート成功", {
+        locationCount: locations.length,
       });
 
-      res.setHeader('Content-Type', 'application/json');
-      res.setHeader('Content-Disposition', `attachment; filename="locations_export_${new Date().toISOString().split('T')[0]}.json"`);
+      res.setHeader("Content-Type", "application/json");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="locations_export_${new Date().toISOString().split("T")[0]}.json"`,
+      );
       res.json(locations);
     } catch (error) {
-      logger.error('撮影地点エクスポートエラー', error);
+      logger.error("撮影地点エクスポートエラー", error);
       res.status(500).json({
         success: false,
-        error: 'Internal server error',
-        message: '撮影地点のエクスポート中にエラーが発生しました。'
+        error: "Internal server error",
+        message: "撮影地点のエクスポート中にエラーが発生しました。",
       });
     }
   }
@@ -323,23 +345,23 @@ export class LocationController {
    */
   async importLocations(req: Request, res: Response): Promise<void> {
     try {
-      logger.info('撮影地点インポート開始', {
+      logger.info("撮影地点インポート開始", {
         bodyType: typeof req.body,
         isArray: Array.isArray(req.body),
-        bodyLength: Array.isArray(req.body) ? req.body.length : 'N/A'
+        bodyLength: Array.isArray(req.body) ? req.body.length : "N/A",
       });
 
       const locations = req.body;
 
       if (!Array.isArray(locations)) {
-        logger.warn('無効なデータ形式', {
+        logger.warn("無効なデータ形式", {
           bodyType: typeof req.body,
-          body: req.body
+          body: req.body,
         });
         res.status(400).json({
           success: false,
-          error: 'Invalid data format',
-          message: '配列形式の JSON が必要です。'
+          error: "Invalid data format",
+          message: "配列形式の JSON が必要です。",
         });
         return;
       }
@@ -352,10 +374,16 @@ export class LocationController {
       for (const locationData of locations) {
         try {
           // 必須フィールドのバリデーション
-          if (!locationData.name || !locationData.prefecture || 
-              locationData.latitude === undefined || locationData.longitude === undefined || 
-              locationData.elevation === undefined) {
-            errors.push(`地点「${locationData.name || '名前なし'}」: 必須フィールドが不足しています`);
+          if (
+            !locationData.name ||
+            !locationData.prefecture ||
+            locationData.latitude === undefined ||
+            locationData.longitude === undefined ||
+            locationData.elevation === undefined
+          ) {
+            errors.push(
+              `地点「${locationData.name || "名前なし"}」: 必須フィールドが不足しています`,
+            );
             errorCount++;
             continue;
           }
@@ -368,49 +396,59 @@ export class LocationController {
             elevation: parseFloat(locationData.elevation),
             description: locationData.description || null,
             accessInfo: locationData.accessInfo || null,
-            fujiAzimuth: locationData.fujiAzimuth ? parseFloat(locationData.fujiAzimuth) : undefined,
-            fujiElevation: locationData.fujiElevation ? parseFloat(locationData.fujiElevation) : undefined,
-            fujiDistance: locationData.fujiDistance ? parseFloat(locationData.fujiDistance) : undefined,
-            measurementNotes: locationData.measurementNotes || undefined
+            fujiAzimuth: locationData.fujiAzimuth
+              ? parseFloat(locationData.fujiAzimuth)
+              : undefined,
+            fujiElevation: locationData.fujiElevation
+              ? parseFloat(locationData.fujiElevation)
+              : undefined,
+            fujiDistance: locationData.fujiDistance
+              ? parseFloat(locationData.fujiDistance)
+              : undefined,
+            measurementNotes: locationData.measurementNotes || undefined,
           };
 
           await this.locationService.createLocation(createData);
           importedCount++;
-
         } catch (error) {
-          if (error instanceof Error && error.message.includes('Unique constraint failed')) {
+          if (
+            error instanceof Error &&
+            error.message.includes("Unique constraint failed")
+          ) {
             skippedCount++;
           } else {
-            errors.push(`地点「${locationData.name || '名前なし'}」: ${error instanceof Error ? error.message : '不明なエラー'}`);
+            errors.push(
+              `地点「${locationData.name || "名前なし"}」: ${error instanceof Error ? error.message : "不明なエラー"}`,
+            );
             errorCount++;
           }
         }
       }
 
-      logger.info('撮影地点インポート完了', {
+      logger.info("撮影地点インポート完了", {
         totalCount: locations.length,
         importedCount,
         skippedCount,
-        errorCount
+        errorCount,
       });
 
       res.json({
         success: true,
-        message: 'インポートが完了しました。',
+        message: "インポートが完了しました。",
         summary: {
           totalCount: locations.length,
           importedCount,
           skippedCount,
-          errorCount
+          errorCount,
         },
-        errors: errors.length > 0 ? errors : undefined
+        errors: errors.length > 0 ? errors : undefined,
       });
     } catch (error) {
-      logger.error('撮影地点インポートエラー', error);
+      logger.error("撮影地点インポートエラー", error);
       res.status(500).json({
         success: false,
-        error: 'Internal server error',
-        message: `撮影地点のインポート中にエラーが発生しました: ${error instanceof Error ? error.message : 'Unknown error'}`
+        error: "Internal server error",
+        message: `撮影地点のインポート中にエラーが発生しました: ${error instanceof Error ? error.message : "Unknown error"}`,
       });
     }
   }

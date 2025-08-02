@@ -1,6 +1,12 @@
-import { FavoriteLocation, FavoriteEvent, Favorites, Location, FujiEvent } from '@fuji-calendar/types';
+import {
+  FavoriteLocation,
+  FavoriteEvent,
+  Favorites,
+  Location,
+  FujiEvent,
+} from "@fuji-calendar/types";
 
-const STORAGE_KEY = 'fuji-calendar-favorites';
+const STORAGE_KEY = "fuji-calendar-favorites";
 
 /**
  * ローカルストレージベースのお気に入り管理サービス
@@ -18,30 +24,45 @@ export class FavoritesService {
   getFavorites(): Favorites {
     try {
       const data = this.storage.getItem(STORAGE_KEY);
-      console.log('[DEBUG] FavoritesService.getFavorites() - Raw localStorage data:', data);
-      
+      console.log(
+        "[DEBUG] FavoritesService.getFavorites() - Raw localStorage data:",
+        data,
+      );
+
       if (!data) {
-        console.log('[DEBUG] FavoritesService.getFavorites() - No data in localStorage, returning empty');
+        console.log(
+          "[DEBUG] FavoritesService.getFavorites() - No data in localStorage, returning empty",
+        );
         return { locations: [], events: [] };
       }
-      
+
       const parsed = JSON.parse(data) as Favorites;
-      console.log('[DEBUG] FavoritesService.getFavorites() - Parsed data:', parsed);
-      
+      console.log(
+        "[DEBUG] FavoritesService.getFavorites() - Parsed data:",
+        parsed,
+      );
+
       // データ構造の検証
       if (!parsed.locations || !Array.isArray(parsed.locations)) {
-        console.log('[DEBUG] FavoritesService.getFavorites() - Invalid locations, resetting to empty array');
+        console.log(
+          "[DEBUG] FavoritesService.getFavorites() - Invalid locations, resetting to empty array",
+        );
         parsed.locations = [];
       }
       if (!parsed.events || !Array.isArray(parsed.events)) {
-        console.log('[DEBUG] FavoritesService.getFavorites() - Invalid events, resetting to empty array');
+        console.log(
+          "[DEBUG] FavoritesService.getFavorites() - Invalid events, resetting to empty array",
+        );
         parsed.events = [];
       }
-      
-      console.log('[DEBUG] FavoritesService.getFavorites() - Final result:', parsed);
+
+      console.log(
+        "[DEBUG] FavoritesService.getFavorites() - Final result:",
+        parsed,
+      );
       return parsed;
     } catch (error) {
-      console.warn('Failed to load favorites from localStorage:', error);
+      console.warn("Failed to load favorites from localStorage:", error);
       return { locations: [], events: [] };
     }
   }
@@ -52,19 +73,28 @@ export class FavoritesService {
   private saveFavorites(favorites: Favorites): boolean {
     try {
       const jsonString = JSON.stringify(favorites);
-      console.log('[DEBUG] FavoritesService.saveFavorites() - Saving data:', favorites);
-      console.log('[DEBUG] FavoritesService.saveFavorites() - JSON string length:', jsonString.length);
-      
+      console.log(
+        "[DEBUG] FavoritesService.saveFavorites() - Saving data:",
+        favorites,
+      );
+      console.log(
+        "[DEBUG] FavoritesService.saveFavorites() - JSON string length:",
+        jsonString.length,
+      );
+
       this.storage.setItem(STORAGE_KEY, jsonString);
-      
+
       // 保存確認
       const saved = this.storage.getItem(STORAGE_KEY);
       const saveSuccess = saved === jsonString;
-      console.log('[DEBUG] FavoritesService.saveFavorites() - Save verification:', saveSuccess);
-      
+      console.log(
+        "[DEBUG] FavoritesService.saveFavorites() - Save verification:",
+        saveSuccess,
+      );
+
       return saveSuccess;
     } catch (error) {
-      console.error('Failed to save favorites to localStorage:', error);
+      console.error("Failed to save favorites to localStorage:", error);
       return false;
     }
   }
@@ -73,34 +103,51 @@ export class FavoritesService {
    * 撮影地点をお気に入りに追加
    */
   addLocationToFavorites(location: Location): boolean {
-    console.log('[DEBUG] FavoritesService.addLocationToFavorites() - Called with location:', location);
-    
+    console.log(
+      "[DEBUG] FavoritesService.addLocationToFavorites() - Called with location:",
+      location,
+    );
+
     const favorites = this.getFavorites();
-    console.log('[DEBUG] FavoritesService.addLocationToFavorites() - Current favorites:', favorites);
-    
+    console.log(
+      "[DEBUG] FavoritesService.addLocationToFavorites() - Current favorites:",
+      favorites,
+    );
+
     // 既に登録済みかチェック
-    if (favorites.locations.some(fav => fav.id === location.id)) {
-      console.log('[DEBUG] FavoritesService.addLocationToFavorites() - Location already exists, returning false');
+    if (favorites.locations.some((fav) => fav.id === location.id)) {
+      console.log(
+        "[DEBUG] FavoritesService.addLocationToFavorites() - Location already exists, returning false",
+      );
       return false; // 既に登録済み
     }
-    
+
     const favoriteLocation: FavoriteLocation = {
       id: location.id,
       name: location.name,
       prefecture: location.prefecture,
       latitude: location.latitude,
       longitude: location.longitude,
-      addedAt: new Date().toISOString()
+      addedAt: new Date().toISOString(),
     };
-    
-    console.log('[DEBUG] FavoritesService.addLocationToFavorites() - Creating favorite location:', favoriteLocation);
-    
+
+    console.log(
+      "[DEBUG] FavoritesService.addLocationToFavorites() - Creating favorite location:",
+      favoriteLocation,
+    );
+
     favorites.locations.push(favoriteLocation);
-    console.log('[DEBUG] FavoritesService.addLocationToFavorites() - Updated favorites before save:', favorites);
-    
+    console.log(
+      "[DEBUG] FavoritesService.addLocationToFavorites() - Updated favorites before save:",
+      favorites,
+    );
+
     const result = this.saveFavorites(favorites);
-    console.log('[DEBUG] FavoritesService.addLocationToFavorites() - Save result:', result);
-    
+    console.log(
+      "[DEBUG] FavoritesService.addLocationToFavorites() - Save result:",
+      result,
+    );
+
     return result;
   }
 
@@ -110,13 +157,15 @@ export class FavoritesService {
   removeLocationFromFavorites(locationId: number): boolean {
     const favorites = this.getFavorites();
     const initialLength = favorites.locations.length;
-    
-    favorites.locations = favorites.locations.filter(fav => fav.id !== locationId);
-    
+
+    favorites.locations = favorites.locations.filter(
+      (fav) => fav.id !== locationId,
+    );
+
     if (favorites.locations.length === initialLength) {
       return false; // 削除対象が見つからなかった
     }
-    
+
     return this.saveFavorites(favorites);
   }
 
@@ -125,7 +174,7 @@ export class FavoritesService {
    */
   isLocationFavorite(locationId: number): boolean {
     const favorites = this.getFavorites();
-    return favorites.locations.some(fav => fav.id === locationId);
+    return favorites.locations.some((fav) => fav.id === locationId);
   }
 
   /**
@@ -133,12 +182,12 @@ export class FavoritesService {
    */
   addEventToFavorites(event: FujiEvent): boolean {
     const favorites = this.getFavorites();
-    
+
     // 既に登録済みかチェック
-    if (favorites.events.some(fav => fav.id === event.id)) {
+    if (favorites.events.some((fav) => fav.id === event.id)) {
       return false; // 既に登録済み
     }
-    
+
     const favoriteEvent: FavoriteEvent = {
       id: event.id,
       type: event.type,
@@ -148,9 +197,9 @@ export class FavoritesService {
       locationName: event.location.name,
       azimuth: event.azimuth,
       elevation: event.elevation || 0,
-      addedAt: new Date().toISOString()
+      addedAt: new Date().toISOString(),
     };
-    
+
     favorites.events.push(favoriteEvent);
     return this.saveFavorites(favorites);
   }
@@ -161,13 +210,13 @@ export class FavoritesService {
   removeEventFromFavorites(eventId: string): boolean {
     const favorites = this.getFavorites();
     const initialLength = favorites.events.length;
-    
-    favorites.events = favorites.events.filter(fav => fav.id !== eventId);
-    
+
+    favorites.events = favorites.events.filter((fav) => fav.id !== eventId);
+
     if (favorites.events.length === initialLength) {
       return false; // 削除対象が見つからなかった
     }
-    
+
     return this.saveFavorites(favorites);
   }
 
@@ -176,7 +225,7 @@ export class FavoritesService {
    */
   isEventFavorite(eventId: string): boolean {
     const favorites = this.getFavorites();
-    return favorites.events.some(fav => fav.id === eventId);
+    return favorites.events.some((fav) => fav.id === eventId);
   }
 
   /**
@@ -186,7 +235,9 @@ export class FavoritesService {
     const favorites = this.getFavorites();
     return favorites.locations
       .slice()
-      .sort((a, b) => new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime());
+      .sort(
+        (a, b) => new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime(),
+      );
   }
 
   /**
@@ -204,8 +255,9 @@ export class FavoritesService {
    */
   getUpcomingFavoriteEvents(): FavoriteEvent[] {
     const now = new Date();
-    return this.getFavoriteEvents()
-      .filter(event => new Date(event.time) > now);
+    return this.getFavoriteEvents().filter(
+      (event) => new Date(event.time) > now,
+    );
   }
 
   /**
@@ -214,7 +266,7 @@ export class FavoritesService {
   getPastFavoriteEvents(): FavoriteEvent[] {
     const now = new Date();
     return this.getFavoriteEvents()
-      .filter(event => new Date(event.time) <= now)
+      .filter((event) => new Date(event.time) <= now)
       .reverse(); // 最新から順番に
   }
 
@@ -226,7 +278,7 @@ export class FavoritesService {
       this.storage.removeItem(STORAGE_KEY);
       return true;
     } catch (error) {
-      console.error('Failed to clear favorites:', error);
+      console.error("Failed to clear favorites:", error);
       return false;
     }
   }
@@ -245,19 +297,26 @@ export class FavoritesService {
   importFavorites(jsonData: string): boolean {
     try {
       const imported = JSON.parse(jsonData) as Favorites;
-      
+
       // データ構造の検証
-      if (typeof imported !== 'object' || !imported.locations || !imported.events) {
-        throw new Error('Invalid favorites data structure');
+      if (
+        typeof imported !== "object" ||
+        !imported.locations ||
+        !imported.events
+      ) {
+        throw new Error("Invalid favorites data structure");
       }
-      
-      if (!Array.isArray(imported.locations) || !Array.isArray(imported.events)) {
-        throw new Error('Invalid favorites data arrays');
+
+      if (
+        !Array.isArray(imported.locations) ||
+        !Array.isArray(imported.events)
+      ) {
+        throw new Error("Invalid favorites data arrays");
       }
-      
+
       return this.saveFavorites(imported);
     } catch (error) {
-      console.error('Failed to import favorites:', error);
+      console.error("Failed to import favorites:", error);
       return false;
     }
   }
@@ -267,13 +326,13 @@ export class FavoritesService {
    */
   getStorageInfo(): { used: number; total: number; available: number } {
     try {
-      const favoritesData = this.storage.getItem(STORAGE_KEY) || '';
+      const favoritesData = this.storage.getItem(STORAGE_KEY) || "";
       const used = new Blob([favoritesData]).size;
-      
+
       // ローカルストレージの概算容量（5MB）
       const total = 5 * 1024 * 1024;
       const available = total - used;
-      
+
       return { used, total, available };
     } catch (error) {
       return { used: 0, total: 0, available: 0 };
@@ -293,27 +352,44 @@ export class FavoritesService {
   } {
     const favorites = this.getFavorites();
     const now = new Date();
-    
+
     // デバッグログ
-    console.log('[DEBUG] FavoritesService.getFavoritesStats() - Raw favorites data:', favorites);
-    console.log('[DEBUG] FavoritesService.getFavoritesStats() - Current time:', now.toISOString());
-    
-    const upcomingEvents = favorites.events.filter(event => new Date(event.time) > now);
-    const pastEvents = favorites.events.filter(event => new Date(event.time) <= now);
-    const diamondEvents = favorites.events.filter(event => event.type === 'diamond');
-    const pearlEvents = favorites.events.filter(event => event.type === 'pearl');
-    
+    console.log(
+      "[DEBUG] FavoritesService.getFavoritesStats() - Raw favorites data:",
+      favorites,
+    );
+    console.log(
+      "[DEBUG] FavoritesService.getFavoritesStats() - Current time:",
+      now.toISOString(),
+    );
+
+    const upcomingEvents = favorites.events.filter(
+      (event) => new Date(event.time) > now,
+    );
+    const pastEvents = favorites.events.filter(
+      (event) => new Date(event.time) <= now,
+    );
+    const diamondEvents = favorites.events.filter(
+      (event) => event.type === "diamond",
+    );
+    const pearlEvents = favorites.events.filter(
+      (event) => event.type === "pearl",
+    );
+
     const stats = {
       totalLocations: favorites.locations.length,
       totalEvents: favorites.events.length,
       diamondEvents: diamondEvents.length,
       pearlEvents: pearlEvents.length,
       upcomingEvents: upcomingEvents.length,
-      pastEvents: pastEvents.length
+      pastEvents: pastEvents.length,
     };
-    
-    console.log('[DEBUG] FavoritesService.getFavoritesStats() - Calculated stats:', stats);
-    
+
+    console.log(
+      "[DEBUG] FavoritesService.getFavoritesStats() - Calculated stats:",
+      stats,
+    );
+
     return stats;
   }
 }

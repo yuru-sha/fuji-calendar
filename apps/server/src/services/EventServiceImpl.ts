@@ -1,16 +1,16 @@
-import { 
-  EventService, 
-  CacheResult, 
-  MonthlyEventResult, 
-  YearlyEventResult, 
-  CacheValidationResult 
-} from './interfaces/EventService';
-import { EventCacheService } from './EventCacheService';
-import { AstronomicalCalculator, AstronomicalCalculatorImpl } from './AstronomicalCalculator';
-import { PrismaClientManager } from '../database/prisma';
-import { getComponentLogger } from '@fuji-calendar/utils';
+import {
+  EventService,
+  CacheResult,
+  MonthlyEventResult,
+  YearlyEventResult,
+  CacheValidationResult,
+} from "./interfaces/EventService";
+import { EventCacheService } from "./EventCacheService";
+import { AstronomicalCalculator } from "./AstronomicalCalculator";
+import { PrismaClientManager } from "../database/prisma";
+import { getComponentLogger } from "@fuji-calendar/utils";
 
-const logger = getComponentLogger('EventServiceImpl');
+const logger = getComponentLogger("EventServiceImpl");
 
 /**
  * EventService の実装クラス
@@ -21,19 +21,25 @@ export class EventServiceImpl implements EventService {
   private astronomicalCalculator: AstronomicalCalculator;
   private prisma = PrismaClientManager.getInstance();
 
-  constructor(astronomicalCalculator: AstronomicalCalculator, eventCacheService: EventCacheService) {
+  constructor(
+    astronomicalCalculator: AstronomicalCalculator,
+    eventCacheService: EventCacheService,
+  ) {
     this.astronomicalCalculator = astronomicalCalculator;
     this.eventCacheService = eventCacheService;
   }
 
-  async generateLocationCache(locationId: number, year: number): Promise<CacheResult> {
+  async generateLocationCache(
+    locationId: number,
+    year: number,
+  ): Promise<CacheResult> {
     const startTime = Date.now();
-    logger.info('地点キャッシュ生成開始', { locationId, year });
+    logger.info("地点キャッシュ生成開始", { locationId, year });
 
     try {
       // 地点情報を取得
       const location = await this.prisma.location.findUnique({
-        where: { id: locationId }
+        where: { id: locationId },
       });
 
       if (!location) {
@@ -43,19 +49,22 @@ export class EventServiceImpl implements EventService {
           year,
           eventsGenerated: 0,
           processingTime: Date.now() - startTime,
-          errors: [`Location not found: ${locationId}`]
+          errors: [`Location not found: ${locationId}`],
         };
       }
 
       // EventCacheService を使用してキャッシュ生成
-      const result = await this.eventCacheService.generateLocationCache(locationId, year);
+      const result = await this.eventCacheService.generateLocationCache(
+        locationId,
+        year,
+      );
       const processingTime = Date.now() - startTime;
 
-      logger.info('地点キャッシュ生成完了', {
+      logger.info("地点キャッシュ生成完了", {
         locationId,
         year,
         eventsGenerated: result.totalEvents,
-        processingTime
+        processingTime,
       });
 
       return {
@@ -64,11 +73,11 @@ export class EventServiceImpl implements EventService {
         year,
         eventsGenerated: result.totalEvents,
         processingTime,
-        errors: result.success ? undefined : ['Generation failed']
+        errors: result.success ? undefined : ["Generation failed"],
       };
     } catch (error) {
       const processingTime = Date.now() - startTime;
-      logger.error('地点キャッシュ生成エラー', error, { locationId, year });
+      logger.error("地点キャッシュ生成エラー", error, { locationId, year });
 
       return {
         success: false,
@@ -76,14 +85,22 @@ export class EventServiceImpl implements EventService {
         year,
         eventsGenerated: 0,
         processingTime,
-        errors: [error instanceof Error ? error.message : 'Unknown error']
+        errors: [error instanceof Error ? error.message : "Unknown error"],
       };
     }
   }
 
-  async calculateMonthlyEvents(year: number, month: number, locationIds: number[]): Promise<MonthlyEventResult> {
+  async calculateMonthlyEvents(
+    year: number,
+    month: number,
+    locationIds: number[],
+  ): Promise<MonthlyEventResult> {
     const startTime = Date.now();
-    logger.info('月間イベント計算開始', { year, month, locationCount: locationIds.length });
+    logger.info("月間イベント計算開始", {
+      year,
+      month,
+      locationCount: locationIds.length,
+    });
 
     try {
       let totalEventsGenerated = 0;
@@ -92,24 +109,28 @@ export class EventServiceImpl implements EventService {
       // 各地点の月間イベントを計算
       for (const locationId of locationIds) {
         try {
-          const monthlyResult = await this.eventCacheService.generateLocationCache(locationId, year);
+          const monthlyResult =
+            await this.eventCacheService.generateLocationCache(
+              locationId,
+              year,
+            );
           totalEventsGenerated += monthlyResult.totalEvents;
         } catch (error) {
-          const errorMessage = `Location ${locationId}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+          const errorMessage = `Location ${locationId}: ${error instanceof Error ? error.message : "Unknown error"}`;
           errors.push(errorMessage);
-          logger.warn('地点別月間計算エラー', { locationId, error });
+          logger.warn("地点別月間計算エラー", { locationId, error });
         }
       }
 
       const processingTime = Date.now() - startTime;
 
-      logger.info('月間イベント計算完了', {
+      logger.info("月間イベント計算完了", {
         year,
         month,
         locationCount: locationIds.length,
         eventsGenerated: totalEventsGenerated,
         errors: errors.length,
-        processingTime
+        processingTime,
       });
 
       return {
@@ -119,11 +140,11 @@ export class EventServiceImpl implements EventService {
         locationCount: locationIds.length,
         eventsGenerated: totalEventsGenerated,
         processingTime,
-        errors: errors.length > 0 ? errors : undefined
+        errors: errors.length > 0 ? errors : undefined,
       };
     } catch (error) {
       const processingTime = Date.now() - startTime;
-      logger.error('月間イベント計算エラー', error, { year, month });
+      logger.error("月間イベント計算エラー", error, { year, month });
 
       return {
         success: false,
@@ -132,14 +153,20 @@ export class EventServiceImpl implements EventService {
         locationCount: locationIds.length,
         eventsGenerated: 0,
         processingTime,
-        errors: [error instanceof Error ? error.message : 'Unknown error']
+        errors: [error instanceof Error ? error.message : "Unknown error"],
       };
     }
   }
 
-  async calculateYearlyEvents(year: number, locationIds: number[]): Promise<YearlyEventResult> {
+  async calculateYearlyEvents(
+    year: number,
+    locationIds: number[],
+  ): Promise<YearlyEventResult> {
     const startTime = Date.now();
-    logger.info('年間イベント計算開始', { year, locationCount: locationIds.length });
+    logger.info("年間イベント計算開始", {
+      year,
+      locationCount: locationIds.length,
+    });
 
     try {
       let totalEventsGenerated = 0;
@@ -148,7 +175,7 @@ export class EventServiceImpl implements EventService {
       // 各地点の年間イベントを計算
       for (const locationId of locationIds) {
         const cacheResult = await this.generateLocationCache(locationId, year);
-        
+
         if (cacheResult.success) {
           totalEventsGenerated += cacheResult.eventsGenerated;
         } else {
@@ -158,12 +185,12 @@ export class EventServiceImpl implements EventService {
 
       const processingTime = Date.now() - startTime;
 
-      logger.info('年間イベント計算完了', {
+      logger.info("年間イベント計算完了", {
         year,
         locationCount: locationIds.length,
         eventsGenerated: totalEventsGenerated,
         errors: errors.length,
-        processingTime
+        processingTime,
       });
 
       return {
@@ -172,11 +199,11 @@ export class EventServiceImpl implements EventService {
         locationCount: locationIds.length,
         eventsGenerated: totalEventsGenerated,
         processingTime,
-        errors: errors.length > 0 ? errors : undefined
+        errors: errors.length > 0 ? errors : undefined,
       };
     } catch (error) {
       const processingTime = Date.now() - startTime;
-      logger.error('年間イベント計算エラー', error, { year });
+      logger.error("年間イベント計算エラー", error, { year });
 
       return {
         success: false,
@@ -184,13 +211,16 @@ export class EventServiceImpl implements EventService {
         locationCount: locationIds.length,
         eventsGenerated: 0,
         processingTime,
-        errors: [error instanceof Error ? error.message : 'Unknown error']
+        errors: [error instanceof Error ? error.message : "Unknown error"],
       };
     }
   }
 
-  async validateEventCache(locationId: number, year: number): Promise<CacheValidationResult> {
-    logger.debug('キャッシュ検証開始', { locationId, year });
+  async validateEventCache(
+    locationId: number,
+    year: number,
+  ): Promise<CacheValidationResult> {
+    logger.debug("キャッシュ検証開始", { locationId, year });
 
     try {
       // 現在のキャッシュ状況を確認
@@ -199,27 +229,29 @@ export class EventServiceImpl implements EventService {
           locationId,
           eventDate: {
             gte: new Date(`${year}-01-01`),
-            lt: new Date(`${year + 1}-01-01`)
-          }
-        }
+            lt: new Date(`${year + 1}-01-01`),
+          },
+        },
       });
 
       // 月別のイベント数を確認
       const monthlyEvents = await this.prisma.locationEvent.groupBy({
-        by: ['eventDate'],
+        by: ["eventDate"],
         where: {
           locationId,
           eventDate: {
             gte: new Date(`${year}-01-01`),
-            lt: new Date(`${year + 1}-01-01`)
-          }
+            lt: new Date(`${year + 1}-01-01`),
+          },
         },
-        _count: true
+        _count: true,
       });
 
       // 欠損している月を特定
       const existingMonths = new Set(
-        monthlyEvents.map((event: any) => new Date(event.eventDate).getMonth() + 1)
+        monthlyEvents.map(
+          (event: any) => new Date(event.eventDate).getMonth() + 1,
+        ),
       );
       const missingMonths: number[] = [];
       for (let month = 1; month <= 12; month++) {
@@ -236,19 +268,23 @@ export class EventServiceImpl implements EventService {
       const recommendations: string[] = [];
       if (!isValid) {
         if (existingEvents === 0) {
-          recommendations.push('キャッシュが全く存在しません。完全な再計算が必要です。');
+          recommendations.push(
+            "キャッシュが全く存在しません。完全な再計算が必要です。",
+          );
         } else if (missingMonths.length > 2) {
-          recommendations.push(`${missingMonths.length}ヶ月のデータが欠損しています。部分的な再計算を推奨します。`);
+          recommendations.push(
+            `${missingMonths.length}ヶ月のデータが欠損しています。部分的な再計算を推奨します。`,
+          );
         }
       }
 
-      logger.info('キャッシュ検証完了', {
+      logger.info("キャッシュ検証完了", {
         locationId,
         year,
         isValid,
         existingEvents,
         expectedEvents,
-        missingMonths: missingMonths.length
+        missingMonths: missingMonths.length,
       });
 
       return {
@@ -258,10 +294,11 @@ export class EventServiceImpl implements EventService {
         expectedEvents,
         actualEvents: existingEvents,
         missingMonths,
-        recommendations: recommendations.length > 0 ? recommendations : undefined
+        recommendations:
+          recommendations.length > 0 ? recommendations : undefined,
       };
     } catch (error) {
-      logger.error('キャッシュ検証エラー', error, { locationId, year });
+      logger.error("キャッシュ検証エラー", error, { locationId, year });
 
       return {
         isValid: false,
@@ -270,7 +307,7 @@ export class EventServiceImpl implements EventService {
         expectedEvents: 0,
         actualEvents: 0,
         missingMonths: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-        recommendations: ['検証エラーのため、完全な再計算が必要です。']
+        recommendations: ["検証エラーのため、完全な再計算が必要です。"],
       };
     }
   }

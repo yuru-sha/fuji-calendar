@@ -1,4 +1,4 @@
-import { Location, CreateLocationRequest } from '@fuji-calendar/types';
+import { Location, CreateLocationRequest } from "@fuji-calendar/types";
 
 /**
  * Location リポジトリインターフェース
@@ -18,22 +18,27 @@ export interface LocationRepository {
   /**
    * 新しい撮影地点を作成
    */
-  create(data: CreateLocationRequest & {
-    fujiAzimuth?: number;
-    fujiElevation?: number;
-    fujiDistance?: number;
-    measurementNotes?: string;
-  }): Promise<Location>;
+  create(
+    data: CreateLocationRequest & {
+      fujiAzimuth?: number;
+      fujiElevation?: number;
+      fujiDistance?: number;
+      measurementNotes?: string;
+    },
+  ): Promise<Location>;
 
   /**
    * 撮影地点を更新
    */
-  update(id: number, data: Partial<CreateLocationRequest> & {
-    fujiAzimuth?: number;
-    fujiElevation?: number;
-    fujiDistance?: number;
-    measurementNotes?: string;
-  }): Promise<Location>;
+  update(
+    id: number,
+    data: Partial<CreateLocationRequest> & {
+      fujiAzimuth?: number;
+      fujiElevation?: number;
+      fujiDistance?: number;
+      measurementNotes?: string;
+    },
+  ): Promise<Location>;
 
   /**
    * 撮影地点を削除
@@ -43,11 +48,14 @@ export interface LocationRepository {
   /**
    * 富士山への方位角・仰角・距離を更新
    */
-  updateFujiMetrics(id: number, metrics: {
-    fujiAzimuth: number;
-    fujiElevation: number;
-    fujiDistance: number;
-  }): Promise<void>;
+  updateFujiMetrics(
+    id: number,
+    metrics: {
+      fujiAzimuth: number;
+      fujiElevation: number;
+      fujiDistance: number;
+    },
+  ): Promise<void>;
 
   /**
    * 条件に基づいて撮影地点を検索

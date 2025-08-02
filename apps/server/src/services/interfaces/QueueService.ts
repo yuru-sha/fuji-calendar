@@ -1,4 +1,4 @@
-import { EventService } from './EventService';
+import { EventService } from "./EventService";
 
 /**
  * QueueService インターフェース
@@ -17,7 +17,7 @@ export interface QueueService {
     locationId: number,
     startYear: number,
     endYear: number,
-    priority?: 'low' | 'normal' | 'high'
+    priority?: "low" | "normal" | "high",
   ): Promise<string | null>;
 
   /**

@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { Icon } from '@fuji-calendar/ui';
-import { authService } from '../../services/authService';
+import React, { useState, useEffect } from "react";
+import { Icon } from "@fuji-calendar/ui";
+import { authService } from "../../services/authService";
 
 // 型定義
 interface SystemSetting {
   id: number;
   settingKey: string;
-  settingType: 'number' | 'string' | 'boolean';
+  settingType: "number" | "string" | "boolean";
   value: any;
   description?: string;
   editable: boolean;
@@ -26,30 +26,30 @@ interface SystemSettingsData {
 interface CategoryDisplayInfo {
   name: string;
   description: string;
-  icon: keyof typeof import('@fuji-calendar/ui').iconMap;
+  icon: keyof typeof import("@fuji-calendar/ui").iconMap;
   color: string;
 }
 
 // カテゴリ表示情報
 const categoryInfo: Record<string, CategoryDisplayInfo> = {
-  'astronomical': {
-    name: '天体計算設定',
-    description: 'ダイヤモンド富士・パール富士の計算精度に関する設定',
-    icon: 'sun',
-    color: 'blue'
+  astronomical: {
+    name: "天体計算設定",
+    description: "ダイヤモンド富士・パール富士の計算精度に関する設定",
+    icon: "sun",
+    color: "blue",
   },
-  'performance': {
-    name: 'パフォーマンス設定',
-    description: 'システムの性能とキャッシュに関する設定',
-    icon: 'rocket',
-    color: 'green'
+  performance: {
+    name: "パフォーマンス設定",
+    description: "システムの性能とキャッシュに関する設定",
+    icon: "rocket",
+    color: "green",
   },
-  'ui': {
-    name: 'UI 設定',
-    description: 'ユーザーインターフェースの表示に関する設定',
-    icon: 'palette',
-    color: 'purple'
-  }
+  ui: {
+    name: "UI 設定",
+    description: "ユーザーインターフェースの表示に関する設定",
+    icon: "palette",
+    color: "purple",
+  },
 };
 
 // 設定値入力コンポーネント
@@ -60,25 +60,30 @@ interface SettingInputProps {
   disabled: boolean;
 }
 
-const SettingInput: React.FC<SettingInputProps> = ({ setting, value, onChange, disabled }) => {
+const SettingInput: React.FC<SettingInputProps> = ({
+  setting,
+  value,
+  onChange,
+  disabled,
+}) => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
-    
+
     switch (setting.settingType) {
-      case 'number':
-        onChange(newValue === '' ? '' : parseFloat(newValue));
+      case "number":
+        onChange(newValue === "" ? "" : parseFloat(newValue));
         break;
-      case 'boolean':
+      case "boolean":
         onChange(e.target.checked);
         break;
-      case 'string':
+      case "string":
       default:
         onChange(newValue);
         break;
     }
   };
 
-  if (setting.settingType === 'boolean') {
+  if (setting.settingType === "boolean") {
     return (
       <label className="flex items-center">
         <input
@@ -88,34 +93,36 @@ const SettingInput: React.FC<SettingInputProps> = ({ setting, value, onChange, d
           disabled={disabled || !setting.editable}
           className="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
         />
-        <span className="text-sm text-gray-700">
-          {value ? '有効' : '無効'}
-        </span>
+        <span className="text-sm text-gray-700">{value ? "有効" : "無効"}</span>
       </label>
     );
   }
 
   return (
     <input
-      type={setting.settingType === 'number' ? 'number' : 'text'}
-      value={value || ''}
+      type={setting.settingType === "number" ? "number" : "text"}
+      value={value || ""}
       onChange={handleChange}
       disabled={disabled || !setting.editable}
-      step={setting.settingType === 'number' ? 'any' : undefined}
+      step={setting.settingType === "number" ? "any" : undefined}
       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:opacity-50"
-      placeholder={setting.editable ? '値を入力' : '読み取り専用'}
+      placeholder={setting.editable ? "値を入力" : "読み取り専用"}
     />
   );
 };
 
 // メインコンポーネント
 const SystemSettingsManager: React.FC = () => {
-  const [settingsData, setSettingsData] = useState<SystemSettingsData | null>(null);
+  const [settingsData, setSettingsData] = useState<SystemSettingsData | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editedValues, setEditedValues] = useState<Record<string, any>>({});
-  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+  const [expandedCategories, setExpandedCategories] = useState<
+    Record<string, boolean>
+  >({});
 
   // 設定を読み込む
   const loadSettings = async () => {
@@ -123,8 +130,10 @@ const SystemSettingsManager: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const response = await authService.authenticatedFetch('/api/admin/system-settings');
-      
+      const response = await authService.authenticatedFetch(
+        "/api/admin/system-settings",
+      );
+
       if (!response.ok) {
         throw new Error(`設定の取得に失敗しました: ${response.status}`);
       }
@@ -134,14 +143,15 @@ const SystemSettingsManager: React.FC = () => {
 
       // 全カテゴリを最初に展開
       const initialExpanded: Record<string, boolean> = {};
-      data.meta.categories.forEach(category => {
+      data.meta.categories.forEach((category) => {
         initialExpanded[category] = true;
       });
       setExpandedCategories(initialExpanded);
-
     } catch (err) {
-      console.error('設定読み込みエラー:', err);
-      setError(err instanceof Error ? err.message : '設定の読み込みに失敗しました');
+      console.error("設定読み込みエラー:", err);
+      setError(
+        err instanceof Error ? err.message : "設定の読み込みに失敗しました",
+      );
     } finally {
       setLoading(false);
     }
@@ -157,37 +167,43 @@ const SystemSettingsManager: React.FC = () => {
       setSaving(true);
       setError(null);
 
-      const settingsToUpdate = Object.entries(editedValues).map(([settingKey, value]) => ({
-        settingKey,
-        value
-      }));
+      const settingsToUpdate = Object.entries(editedValues).map(
+        ([settingKey, value]) => ({
+          settingKey,
+          value,
+        }),
+      );
 
-      const response = await authService.authenticatedFetch('/api/admin/system-settings', {
-        method: 'PUT',
-        body: JSON.stringify({ settings: settingsToUpdate })
-      });
+      const response = await authService.authenticatedFetch(
+        "/api/admin/system-settings",
+        {
+          method: "PUT",
+          body: JSON.stringify({ settings: settingsToUpdate }),
+        },
+      );
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `設定の保存に失敗しました: ${response.status}`);
+        throw new Error(
+          errorData.message || `設定の保存に失敗しました: ${response.status}`,
+        );
       }
 
       const result = await response.json();
-      
+
       if (result.success) {
         // 成功時は編集状態をクリアして再読み込み
         setEditedValues({});
         await loadSettings();
-        
+
         // 成功メッセージ表示
         alert(`${result.summary.success} 件の設定を更新しました`);
       } else {
-        throw new Error(result.message || '設定の保存に失敗しました');
+        throw new Error(result.message || "設定の保存に失敗しました");
       }
-
     } catch (err) {
-      console.error('設定保存エラー:', err);
-      setError(err instanceof Error ? err.message : '設定の保存に失敗しました');
+      console.error("設定保存エラー:", err);
+      setError(err instanceof Error ? err.message : "設定の保存に失敗しました");
     } finally {
       setSaving(false);
     }
@@ -195,16 +211,23 @@ const SystemSettingsManager: React.FC = () => {
 
   // キャッシュクリア
   const clearCache = async () => {
-    if (!confirm('設定キャッシュをクリアしますか？\n※クリア後は最新の設定値が反映されます。')) {
+    if (
+      !confirm(
+        "設定キャッシュをクリアしますか？\n※クリア後は最新の設定値が反映されます。",
+      )
+    ) {
       return;
     }
 
     try {
       setSaving(true);
-      
-      const response = await authService.authenticatedFetch('/api/admin/system-settings/clear-cache', {
-        method: 'POST'
-      });
+
+      const response = await authService.authenticatedFetch(
+        "/api/admin/system-settings/clear-cache",
+        {
+          method: "POST",
+        },
+      );
 
       if (!response.ok) {
         throw new Error(`キャッシュクリアに失敗しました: ${response.status}`);
@@ -212,15 +235,16 @@ const SystemSettingsManager: React.FC = () => {
 
       const result = await response.json();
       if (result.success) {
-        alert('キャッシュをクリアしました');
+        alert("キャッシュをクリアしました");
         await loadSettings(); // 設定を再読み込み
       } else {
-        throw new Error(result.message || 'キャッシュクリアに失敗しました');
+        throw new Error(result.message || "キャッシュクリアに失敗しました");
       }
-
     } catch (err) {
-      console.error('キャッシュクリアエラー:', err);
-      setError(err instanceof Error ? err.message : 'キャッシュクリアに失敗しました');
+      console.error("キャッシュクリアエラー:", err);
+      setError(
+        err instanceof Error ? err.message : "キャッシュクリアに失敗しました",
+      );
     } finally {
       setSaving(false);
     }
@@ -228,9 +252,9 @@ const SystemSettingsManager: React.FC = () => {
 
   // 編集値を更新
   const handleValueChange = (settingKey: string, value: any) => {
-    setEditedValues(prev => ({
+    setEditedValues((prev) => ({
       ...prev,
-      [settingKey]: value
+      [settingKey]: value,
     }));
   };
 
@@ -242,9 +266,9 @@ const SystemSettingsManager: React.FC = () => {
 
   // カテゴリの展開状態を切り替え
   const toggleCategory = (category: string) => {
-    setExpandedCategories(prev => ({
+    setExpandedCategories((prev) => ({
       ...prev,
-      [category]: !prev[category]
+      [category]: !prev[category],
     }));
   };
 
@@ -270,7 +294,9 @@ const SystemSettingsManager: React.FC = () => {
         <div className="flex items-center">
           <Icon name="xCircle" size={20} className="text-red-600 mr-3" />
           <div>
-            <h3 className="text-sm font-medium text-red-800">エラーが発生しました</h3>
+            <h3 className="text-sm font-medium text-red-800">
+              エラーが発生しました
+            </h3>
             <p className="text-sm text-red-700 mt-1">{error}</p>
           </div>
         </div>
@@ -289,7 +315,11 @@ const SystemSettingsManager: React.FC = () => {
   if (!settingsData) {
     return (
       <div className="text-center py-12">
-        <Icon name="settings" size={48} className="mx-auto text-gray-400 mb-4" />
+        <Icon
+          name="settings"
+          size={48}
+          className="mx-auto text-gray-400 mb-4"
+        />
         <p className="text-gray-600">設定データがありません</p>
       </div>
     );
@@ -303,7 +333,9 @@ const SystemSettingsManager: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">システム設定</h2>
-          <p className="text-gray-600 mt-1">アプリケーションの動作設定を管理します</p>
+          <p className="text-gray-600 mt-1">
+            アプリケーションの動作設定を管理します
+          </p>
         </div>
         <div className="flex items-center space-x-3">
           <button
@@ -347,38 +379,51 @@ const SystemSettingsManager: React.FC = () => {
 
       {/* 設定一覧 */}
       <div className="space-y-6">
-        {settingsData.meta.categories.map(category => {
+        {settingsData.meta.categories.map((category) => {
           const info = categoryInfo[category] || {
             name: category,
             description: `${category} カテゴリの設定`,
-            icon: 'settings' as const,
-            color: 'gray'
+            icon: "settings" as const,
+            color: "gray",
           };
-          
+
           const settings = settingsData.settings[category] || [];
           const isExpanded = expandedCategories[category];
 
           return (
-            <div key={category} className="bg-white rounded-lg shadow-sm border">
+            <div
+              key={category}
+              className="bg-white rounded-lg shadow-sm border"
+            >
               {/* カテゴリヘッダー */}
               <button
                 onClick={() => toggleCategory(category)}
                 className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
               >
                 <div className="flex items-center space-x-3">
-                  <div className={`w-10 h-10 bg-${info.color}-50 border border-${info.color}-200 rounded-lg flex items-center justify-center`}>
-                    <Icon name={info.icon} size={20} className={`text-${info.color}-600`} />
+                  <div
+                    className={`w-10 h-10 bg-${info.color}-50 border border-${info.color}-200 rounded-lg flex items-center justify-center`}
+                  >
+                    <Icon
+                      name={info.icon}
+                      size={20}
+                      className={`text-${info.color}-600`}
+                    />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900">{info.name}</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      {info.name}
+                    </h3>
                     <p className="text-sm text-gray-600">{info.description}</p>
-                    <p className="text-xs text-gray-500 mt-1">{settings.length} 件の設定</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {settings.length} 件の設定
+                    </p>
                   </div>
                 </div>
-                <Icon 
-                  name={isExpanded ? "chevronDown" : "chevronRight"} 
-                  size={20} 
-                  className="text-gray-400" 
+                <Icon
+                  name={isExpanded ? "chevronDown" : "chevronRight"}
+                  size={20}
+                  className="text-gray-400"
                 />
               </button>
 
@@ -386,20 +431,26 @@ const SystemSettingsManager: React.FC = () => {
               {isExpanded && (
                 <div className="border-t border-gray-200">
                   <div className="p-6 space-y-4">
-                    {settings.map(setting => {
-                      const currentValue = editedValues.hasOwnProperty(setting.settingKey) 
-                        ? editedValues[setting.settingKey] 
+                    {settings.map((setting) => {
+                      const currentValue = Object.prototype.hasOwnProperty.call(
+                        editedValues,
+                        setting.settingKey,
+                      )
+                        ? editedValues[setting.settingKey]
                         : setting.value;
-                      
-                      const hasChanged = editedValues.hasOwnProperty(setting.settingKey);
+
+                      const hasChanged = Object.prototype.hasOwnProperty.call(
+                        editedValues,
+                        setting.settingKey,
+                      );
 
                       return (
-                        <div 
-                          key={setting.id} 
+                        <div
+                          key={setting.id}
                           className={`p-4 rounded-lg border transition-colors ${
-                            hasChanged 
-                              ? 'border-blue-200 bg-blue-50' 
-                              : 'border-gray-200 bg-gray-50'
+                            hasChanged
+                              ? "border-blue-200 bg-blue-50"
+                              : "border-gray-200 bg-gray-50"
                           }`}
                         >
                           <div className="flex items-start justify-between">
@@ -420,17 +471,24 @@ const SystemSettingsManager: React.FC = () => {
                                 )}
                               </div>
                               {setting.description && (
-                                <p className="text-sm text-gray-600 mb-3">{setting.description}</p>
+                                <p className="text-sm text-gray-600 mb-3">
+                                  {setting.description}
+                                </p>
                               )}
                               <div className="text-xs text-gray-500">
-                                型: {setting.settingType} | 最終更新: {new Date(setting.updatedAt).toLocaleString('ja-JP')}
+                                型: {setting.settingType} | 最終更新:{" "}
+                                {new Date(setting.updatedAt).toLocaleString(
+                                  "ja-JP",
+                                )}
                               </div>
                             </div>
                             <div className="w-64">
                               <SettingInput
                                 setting={setting}
                                 value={currentValue}
-                                onChange={(value) => handleValueChange(setting.settingKey, value)}
+                                onChange={(value) =>
+                                  handleValueChange(setting.settingKey, value)
+                                }
                                 disabled={saving}
                               />
                             </div>
@@ -450,11 +508,12 @@ const SystemSettingsManager: React.FC = () => {
       <div className="bg-gray-50 rounded-lg p-4">
         <div className="flex items-center justify-between text-sm text-gray-600">
           <span>
-            総設定数: {settingsData.meta.totalSettings} 件 
-            ({settingsData.meta.categories.length} カテゴリ)
+            総設定数: {settingsData.meta.totalSettings} 件 (
+            {settingsData.meta.categories.length} カテゴリ)
           </span>
           <span>
-            最終更新: {new Date(settingsData.meta.lastUpdate).toLocaleString('ja-JP')}
+            最終更新:{" "}
+            {new Date(settingsData.meta.lastUpdate).toLocaleString("ja-JP")}
           </span>
         </div>
       </div>

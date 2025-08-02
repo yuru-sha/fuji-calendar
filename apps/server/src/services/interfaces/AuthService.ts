@@ -1,6 +1,10 @@
 export interface AuthService {
   // 認証関連
-  authenticate(username: string, password: string, ipAddress?: string): Promise<{
+  authenticate(
+    username: string,
+    password: string,
+    ipAddress?: string,
+  ): Promise<{
     success: boolean;
     accessToken?: string;
     refreshToken?: string;
@@ -22,7 +26,11 @@ export interface AuthService {
   revokeAllRefreshTokens(adminId: number): Promise<void>;
 
   // パスワード変更
-  changePassword(adminId: number, currentPassword: string, newPassword: string): Promise<{
+  changePassword(
+    adminId: number,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<{
     success: boolean;
     message: string;
   }>;

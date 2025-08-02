@@ -1,10 +1,10 @@
-import { Queue, Worker, Job } from 'bullmq';
-import IORedis from 'ioredis';
-import { getComponentLogger } from '@fuji-calendar/utils';
-import { EventService } from './interfaces/EventService';
-import { QueueService as IQueueService } from './interfaces/QueueService';
+import { Queue, Worker, Job } from "bullmq";
+import IORedis from "ioredis";
+import { getComponentLogger } from "@fuji-calendar/utils";
+import { EventService } from "./interfaces/EventService";
+import { QueueService as IQueueService } from "./interfaces/QueueService";
 
-const logger = getComponentLogger('queue-service');
+const logger = getComponentLogger("queue-service");
 
 /**
  * リファクタリング後の QueueService
@@ -26,8 +26,8 @@ export class QueueService implements IQueueService {
    */
   setEventService(eventService: EventService): void {
     this.eventService = eventService;
-    logger.info('EventService 注入完了', {
-      hasEventService: !!eventService
+    logger.info("EventService 注入完了", {
+      hasEventService: !!eventService,
     });
   }
 
@@ -36,37 +36,37 @@ export class QueueService implements IQueueService {
    */
   private initializeRedis(): void {
     // Redis 無効化フラグをチェック
-    if (process.env.DISABLE_REDIS === 'true') {
-      logger.info('Redis 無効化モード: キューシステムは無効化されます');
+    if (process.env.DISABLE_REDIS === "true") {
+      logger.info("Redis 無効化モード: キューシステムは無効化されます");
       return;
     }
 
     const redisConfig = {
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT || '6379'),
+      host: process.env.REDIS_HOST || "localhost",
+      port: parseInt(process.env.REDIS_PORT || "6379"),
       retryDelayOnFailover: 100,
       enableReadyCheck: false,
       maxRetriesPerRequest: null,
       connectTimeout: 5000,
-      lazyConnect: false  // 即座に接続を確立
+      lazyConnect: false, // 即座に接続を確立
     };
 
     this.redis = new IORedis(redisConfig);
 
     // Redis 接続エラーハンドリング
-    this.redis.on('error', (error) => {
-      logger.error('Redis 接続エラー', error);
+    this.redis.on("error", (error) => {
+      logger.error("Redis 接続エラー", error);
     });
 
-    this.redis.on('connect', () => {
-      logger.info('Redis 接続成功', {
+    this.redis.on("connect", () => {
+      logger.info("Redis 接続成功", {
         host: redisConfig.host,
-        port: redisConfig.port
+        port: redisConfig.port,
       });
     });
 
-    this.redis.on('ready', () => {
-      logger.info('Redis 準備完了 - キューシステム初期化開始');
+    this.redis.on("ready", () => {
+      logger.info("Redis 準備完了 - キューシステム初期化開始");
       // Redis 準備完了後にキューを初期化
       this.initializeQueue();
     });
@@ -77,20 +77,20 @@ export class QueueService implements IQueueService {
    */
   private initializeQueue(): void {
     if (!this.redis) {
-      logger.warn('Redis が無効のため、キューシステムを初期化しません');
+      logger.warn("Redis が無効のため、キューシステムを初期化しません");
       return;
     }
 
     try {
       // イベント計算キューを作成
-      this.eventCalculationQueue = new Queue('event-calculation', {
+      this.eventCalculationQueue = new Queue("event-calculation", {
         connection: this.redis,
         defaultJobOptions: {
-          removeOnComplete: 100,  // 完了したジョブを 100 個まで保持
-          removeOnFail: 50,       // 失敗したジョブを 50 個まで保持
+          removeOnComplete: 100, // 完了したジョブを 100 個まで保持
+          removeOnFail: 50, // 失敗したジョブを 50 個まで保持
           attempts: 3,
           backoff: {
-            type: 'exponential',
+            type: "exponential",
             delay: 2000,
           },
         },
@@ -98,33 +98,32 @@ export class QueueService implements IQueueService {
 
       // ワーカーを作成
       this.worker = new Worker(
-        'event-calculation',
+        "event-calculation",
         this.processJob.bind(this),
-        { 
+        {
           connection: this.redis,
-          concurrency: parseInt(process.env.WORKER_CONCURRENCY || '3'), // 重い計算のため同時実行数を削減
-          stalledInterval: 20 * 60 * 1000,  // 20 分で stalled 判定（15 分の計算+バッファ）
-          maxStalledCount: 2  // 最大 2 回まで再試行
-        }
+          concurrency: parseInt(process.env.WORKER_CONCURRENCY || "3"), // 重い計算のため同時実行数を削減
+          stalledInterval: 20 * 60 * 1000, // 20 分で stalled 判定（15 分の計算+バッファ）
+          maxStalledCount: 2, // 最大 2 回まで再試行
+        },
       );
 
-      const concurrency = parseInt(process.env.WORKER_CONCURRENCY || '3');
-      logger.info('ワーカー作成完了', { 
-        queueName: 'event-calculation', 
+      const concurrency = parseInt(process.env.WORKER_CONCURRENCY || "3");
+      logger.info("ワーカー作成完了", {
+        queueName: "event-calculation",
         concurrency,
-        stalledInterval: '20 分',
-        maxStalledCount: 2
+        stalledInterval: "20 分",
+        maxStalledCount: 2,
       });
 
       // イベントハンドラーをセットアップ
       this.setupWorkerEventHandlers();
 
-      logger.info('キューシステム初期化完了');
+      logger.info("キューシステム初期化完了");
     } catch (error) {
-      logger.error('キューシステム初期化エラー', error);
+      logger.error("キューシステム初期化エラー", error);
     }
   }
-
 
   /**
    * 月間天体計算をスケジュール
@@ -133,41 +132,44 @@ export class QueueService implements IQueueService {
     year: number,
     month: number,
     locationIds: number[],
-    priority: 'low' | 'normal' | 'high' = 'normal'
+    priority: "low" | "normal" | "high" = "normal",
   ): Promise<string | null> {
     if (!this.eventCalculationQueue) {
-      logger.warn('キューが無効のため、月間計算をスケジュールできません', { year, month });
+      logger.warn("キューが無効のため、月間計算をスケジュールできません", {
+        year,
+        month,
+      });
       return null;
     }
 
     try {
       const job = await this.eventCalculationQueue.add(
-        'monthly-calculation',
+        "monthly-calculation",
         {
-          type: 'monthly-calculation',
+          type: "monthly-calculation",
           year,
           month,
           locationIds,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         },
         {
-          priority: priority === 'high' ? 10 : priority === 'normal' ? 5 : 1,
+          priority: priority === "high" ? 10 : priority === "normal" ? 5 : 1,
           jobId: `monthly-${year}-${month}`,
-          delay: 0
-        }
+          delay: 0,
+        },
       );
 
-      logger.info('月間計算ジョブ登録', {
+      logger.info("月間計算ジョブ登録", {
         jobId: job.id,
         year,
         month,
         locationCount: locationIds.length,
-        priority
+        priority,
       });
 
       return job.id || null;
     } catch (error) {
-      logger.error('月間計算ジョブ登録エラー', error, { year, month });
+      logger.error("月間計算ジョブ登録エラー", error, { year, month });
       return null;
     }
   }
@@ -178,32 +180,32 @@ export class QueueService implements IQueueService {
   private async processJob(job: Job): Promise<any> {
     const { type, ...data } = job.data;
 
-    logger.info('ジョブ処理開始', {
+    logger.info("ジョブ処理開始", {
       jobId: job.id,
       jobName: job.name,
       type,
       data,
-      hasEventService: !!this.eventService
+      hasEventService: !!this.eventService,
     });
 
     try {
       switch (type) {
-        case 'location':
-        case 'location-calculation':
+        case "location":
+        case "location-calculation":
           return await this.processLocationCalculation(data);
-        
-        case 'monthly':
-        case 'monthly-calculation':
+
+        case "monthly":
+        case "monthly-calculation":
           return await this.processMonthlyCalculation(data);
-        
+
         default:
           throw new Error(`Unknown job type: ${type}`);
       }
     } catch (error) {
-      logger.error('ジョブ処理エラー', error, {
+      logger.error("ジョブ処理エラー", error, {
         jobId: job.id,
         type,
-        data
+        data,
       });
       throw error;
     }
@@ -218,32 +220,39 @@ export class QueueService implements IQueueService {
     endYear: number;
   }): Promise<any> {
     const { locationId, startYear, endYear } = data;
-    logger.info('地点計算処理開始', { locationId, startYear, endYear });
-    
+    logger.info("地点計算処理開始", { locationId, startYear, endYear });
+
     // 遅延解決で EventService を取得
-    let eventService = this.eventService;
+    const eventService = this.eventService;
     if (!eventService) {
-      logger.error('EventService が設定されていません', {
+      logger.error("EventService が設定されていません", {
         locationId,
         startYear,
-        endYear
+        endYear,
       });
-      throw new Error('EventService is not available');
+      throw new Error("EventService is not available");
     }
-    
+
     const results = [];
 
     for (let year = startYear; year <= endYear; year++) {
-      logger.info('年間計算開始', { locationId, year });
-      const result = await eventService!.generateLocationCache(locationId, year);
-      logger.info('年間計算完了', { locationId, year, success: result.success });
+      logger.info("年間計算開始", { locationId, year });
+      const result = await eventService!.generateLocationCache(
+        locationId,
+        year,
+      );
+      logger.info("年間計算完了", {
+        locationId,
+        year,
+        success: result.success,
+      });
       results.push(result);
     }
 
     return {
-      success: results.every(r => r.success),
+      success: results.every((r) => r.success),
       results,
-      totalEvents: results.reduce((sum, r) => sum + r.eventsGenerated, 0)
+      totalEvents: results.reduce((sum, r) => sum + r.eventsGenerated, 0),
     };
   }
 
@@ -256,25 +265,29 @@ export class QueueService implements IQueueService {
     locationIds: number[];
   }): Promise<any> {
     const { year, month, locationIds } = data;
-    
+
     // 遅延解決で EventService を取得
-    let eventService = this.eventService;
+    const eventService = this.eventService;
     if (!eventService) {
-      logger.error('EventService が設定されていません', {
+      logger.error("EventService が設定されていません", {
         year,
         month,
-        locationIds
+        locationIds,
       });
-      throw new Error('EventService is not available');
+      throw new Error("EventService is not available");
     }
-    
-    const result = await eventService!.calculateMonthlyEvents(year, month, locationIds);
-    
+
+    const result = await eventService!.calculateMonthlyEvents(
+      year,
+      month,
+      locationIds,
+    );
+
     return {
       success: result.success,
       eventsGenerated: result.eventsGenerated,
       processingTime: result.processingTime,
-      errors: result.errors
+      errors: result.errors,
     };
   }
 
@@ -283,14 +296,15 @@ export class QueueService implements IQueueService {
    */
   async getQueueStats(): Promise<any> {
     if (!this.eventCalculationQueue) {
-      return { 
+      return {
         enabled: false,
         waiting: 0,
         active: 0,
         completed: 0,
         failed: 0,
         failedJobs: [],
-        message: 'Redis キューが初期化されていません。Redis サーバーが起動していることを確認してください。'
+        message:
+          "Redis キューが初期化されていません。Redis サーバーが起動していることを確認してください。",
       };
     }
 
@@ -301,13 +315,13 @@ export class QueueService implements IQueueService {
       const failed = await this.eventCalculationQueue.getFailed();
 
       // 失敗したジョブの詳細を取得
-      const failedJobDetails = failed.slice(0, 5).map(job => ({
+      const failedJobDetails = failed.slice(0, 5).map((job) => ({
         id: job.id,
         name: job.name,
         data: job.data,
         failedReason: job.failedReason,
         attemptsMade: job.attemptsMade,
-        timestamp: job.timestamp
+        timestamp: job.timestamp,
       }));
 
       return {
@@ -316,19 +330,20 @@ export class QueueService implements IQueueService {
         active: active.length,
         completed: completed.length,
         failed: failed.length,
-        failedJobs: failedJobDetails
+        failedJobs: failedJobDetails,
       };
     } catch (error) {
-      logger.error('キュー統計取得エラー', error);
-      return { 
+      logger.error("キュー統計取得エラー", error);
+      return {
         enabled: false,
         waiting: 0,
         active: 0,
         completed: 0,
         failed: 0,
         failedJobs: [],
-        error: 'Redis 接続エラー。Redis サーバーが起動していることを確認してください。',
-        message: error instanceof Error ? error.message : 'Unknown error'
+        error:
+          "Redis 接続エラー。Redis サーバーが起動していることを確認してください。",
+        message: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }
@@ -338,16 +353,16 @@ export class QueueService implements IQueueService {
    */
   async testRedisConnection(): Promise<boolean> {
     if (!this.redis) {
-      logger.warn('Redis が無効化されています');
+      logger.warn("Redis が無効化されています");
       return false;
     }
 
     try {
       await this.redis.ping();
-      logger.debug('Redis ping 成功');
+      logger.debug("Redis ping 成功");
       return true;
     } catch (error) {
-      logger.error('Redis ping 失敗', error);
+      logger.error("Redis ping 失敗", error);
       return false;
     }
   }
@@ -359,47 +374,49 @@ export class QueueService implements IQueueService {
     locationId: number,
     startYear: number,
     endYear: number,
-    priority: 'low' | 'normal' | 'high' = 'normal'
+    priority: "low" | "normal" | "high" = "normal",
   ): Promise<string | null> {
     if (!this.eventCalculationQueue) {
-      logger.warn('キューが初期化されていません - ジョブをスケジュールできません');
+      logger.warn(
+        "キューが初期化されていません - ジョブをスケジュールできません",
+      );
       return null;
     }
 
     try {
       const jobData = {
-        type: 'location',
+        type: "location",
         locationId,
         startYear,
-        endYear
+        endYear,
       };
 
       const job = await this.eventCalculationQueue.add(
-        'calculate-location-events',
+        "calculate-location-events",
         jobData,
         {
           priority: this.getPriority(priority),
           attempts: 3,
           backoff: {
-            type: 'exponential',
-            delay: 2000
-          }
-        }
+            type: "exponential",
+            delay: 2000,
+          },
+        },
       );
 
-      logger.info('地点計算ジョブ追加成功', {
+      logger.info("地点計算ジョブ追加成功", {
         jobId: job.id,
         locationId,
         years: `${startYear}-${endYear}`,
-        priority
+        priority,
       });
 
       return job.id?.toString() || null;
     } catch (error) {
-      logger.error('地点計算ジョブ追加エラー', {
+      logger.error("地点計算ジョブ追加エラー", {
         locationId,
         years: `${startYear}-${endYear}`,
-        error
+        error,
       });
       return null;
     }
@@ -408,12 +425,16 @@ export class QueueService implements IQueueService {
   /**
    * 優先度を数値に変換
    */
-  private getPriority(priority: 'low' | 'normal' | 'high'): number {
+  private getPriority(priority: "low" | "normal" | "high"): number {
     switch (priority) {
-      case 'high': return 10;
-      case 'normal': return 5;
-      case 'low': return 1;
-      default: return 5;
+      case "high":
+        return 10;
+      case "normal":
+        return 5;
+      case "low":
+        return 1;
+      default:
+        return 5;
     }
   }
 
@@ -427,8 +448,8 @@ export class QueueService implements IQueueService {
 
     try {
       const failed = await this.eventCalculationQueue.getFailed();
-      const cutoffTime = Date.now() - (olderThanDays * 24 * 60 * 60 * 1000);
-      
+      const cutoffTime = Date.now() - olderThanDays * 24 * 60 * 60 * 1000;
+
       let cleanedCount = 0;
       for (const job of failed) {
         if (job.timestamp < cutoffTime) {
@@ -437,15 +458,15 @@ export class QueueService implements IQueueService {
         }
       }
 
-      logger.info('失敗したジョブをクリア', { 
-        olderThanDays, 
-        cleanedCount, 
-        totalFailed: failed.length 
+      logger.info("失敗したジョブをクリア", {
+        olderThanDays,
+        cleanedCount,
+        totalFailed: failed.length,
       });
 
       return cleanedCount;
     } catch (error) {
-      logger.error('失敗したジョブのクリアエラー', error);
+      logger.error("失敗したジョブのクリアエラー", error);
       return 0;
     }
   }
@@ -455,34 +476,36 @@ export class QueueService implements IQueueService {
    */
   async updateConcurrency(newConcurrency: number): Promise<boolean> {
     if (!this.worker) {
-      logger.warn('ワーカーが初期化されていません');
+      logger.warn("ワーカーが初期化されていません");
       return false;
     }
 
     if (newConcurrency < 1 || newConcurrency > 10) {
-      logger.warn('同時実行数は 1-10 の範囲で設定してください', { newConcurrency });
+      logger.warn("同時実行数は 1-10 の範囲で設定してください", {
+        newConcurrency,
+      });
       return false;
     }
 
     try {
       // 現在の設定を記録
       const oldConcurrency = this.worker.opts.concurrency;
-      
+
       // ワーカーを一時停止
       await this.worker.pause();
-      logger.info('ワーカー一時停止完了');
+      logger.info("ワーカー一時停止完了");
 
       // 新しいワーカーを作成（古いワーカーは後で削除）
       const oldWorker = this.worker;
       this.worker = new Worker(
-        'event-calculation',
+        "event-calculation",
         this.processJob.bind(this),
-        { 
+        {
           connection: this.redis!,
           concurrency: newConcurrency,
-          stalledInterval: 20 * 60 * 1000,  // 20 分で stalled 判定
-          maxStalledCount: 2
-        }
+          stalledInterval: 20 * 60 * 1000, // 20 分で stalled 判定
+          maxStalledCount: 2,
+        },
       );
 
       // イベントハンドラーを再設定
@@ -491,15 +514,15 @@ export class QueueService implements IQueueService {
       // 古いワーカーを閉じる
       await oldWorker.close();
 
-      logger.info('同時実行数変更完了', {
+      logger.info("同時実行数変更完了", {
         oldConcurrency,
         newConcurrency,
-        queueName: 'event-calculation'
+        queueName: "event-calculation",
       });
 
       return true;
     } catch (error) {
-      logger.error('同時実行数変更エラー', error);
+      logger.error("同時実行数変更エラー", error);
       return false;
     }
   }
@@ -517,41 +540,43 @@ export class QueueService implements IQueueService {
   private setupWorkerEventHandlers(): void {
     if (!this.worker) return;
 
-    this.worker.on('active', (job: Job) => {
-      logger.info('ジョブアクティブ', {
+    this.worker.on("active", (job: Job) => {
+      logger.info("ジョブアクティブ", {
         jobId: job.id,
         jobName: job.name,
-        jobData: job.data
-      });
-    });
-    
-    this.worker.on('completed', (job: Job) => {
-      logger.info('ジョブ完了', {
-        jobId: job.id,
-        jobName: job.name,
-        processingTime: job.processedOn ? Date.now() - job.processedOn : undefined
+        jobData: job.data,
       });
     });
 
-    this.worker.on('failed', (job: Job | undefined, error: Error) => {
-      logger.error('ジョブ失敗', error, {
+    this.worker.on("completed", (job: Job) => {
+      logger.info("ジョブ完了", {
+        jobId: job.id,
+        jobName: job.name,
+        processingTime: job.processedOn
+          ? Date.now() - job.processedOn
+          : undefined,
+      });
+    });
+
+    this.worker.on("failed", (job: Job | undefined, error: Error) => {
+      logger.error("ジョブ失敗", error, {
         jobId: job?.id,
         jobName: job?.name,
         attemptsMade: job?.attemptsMade,
-        maxAttempts: job?.opts.attempts
+        maxAttempts: job?.opts.attempts,
       });
     });
 
-    this.worker.on('ready', () => {
-      logger.info('ワーカー準備完了', { 
-        queueName: 'event-calculation',
+    this.worker.on("ready", () => {
+      logger.info("ワーカー準備完了", {
+        queueName: "event-calculation",
         concurrency: this.worker?.opts.concurrency,
-        hasEventService: !!this.eventService
+        hasEventService: !!this.eventService,
       });
     });
 
-    this.worker.on('error', (error: Error) => {
-      logger.error('ワーカーエラー', error);
+    this.worker.on("error", (error: Error) => {
+      logger.error("ワーカーエラー", error);
     });
   }
 
@@ -559,7 +584,7 @@ export class QueueService implements IQueueService {
    * リソースの解放
    */
   async shutdown(): Promise<void> {
-    logger.info('QueueService シャットダウン開始');
+    logger.info("QueueService シャットダウン開始");
 
     if (this.worker) {
       await this.worker.close();
@@ -576,7 +601,6 @@ export class QueueService implements IQueueService {
       this.redis = null;
     }
 
-    logger.info('QueueService シャットダウン完了');
+    logger.info("QueueService シャットダウン完了");
   }
 }
-

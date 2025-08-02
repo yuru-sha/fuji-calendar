@@ -1,6 +1,6 @@
 {
   "name": "@fuji-calendar/types",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Shared type definitions for Fuji Calendar",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

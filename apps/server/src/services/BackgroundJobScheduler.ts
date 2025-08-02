@@ -1,13 +1,13 @@
-import * as cron from 'node-cron';
-import { getComponentLogger } from '@fuji-calendar/utils';
-import type { DIContainer } from '../di/DIContainer';
+import * as cron from "node-cron";
+import { getComponentLogger } from "@fuji-calendar/utils";
+import type { DIContainer } from "../di/DIContainer";
 
 /**
  * バックグラウンドジョブスケジューラー
  * 年次データ更新などの定期実行を管理
  */
 export class BackgroundJobScheduler {
-  private logger = getComponentLogger('BackgroundJobScheduler');
+  private logger = getComponentLogger("BackgroundJobScheduler");
   private container: DIContainer;
   private scheduledJobs: cron.ScheduledTask[] = [];
 
@@ -20,12 +20,12 @@ export class BackgroundJobScheduler {
    */
   start(): void {
     // 本番環境でのみ自動実行
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.NODE_ENV === "production") {
       this.scheduleYearlyDataGeneration();
       this.scheduleMaintenanceTasks();
-      this.logger.info('バックグラウンドジョブスケジューラー開始（本番環境）');
+      this.logger.info("バックグラウンドジョブスケジューラー開始（本番環境）");
     } else {
-      this.logger.info('バックグラウンドジョブスケジューラー無効（開発環境）');
+      this.logger.info("バックグラウンドジョブスケジューラー無効（開発環境）");
     }
   }
 
@@ -35,22 +35,21 @@ export class BackgroundJobScheduler {
    */
   private scheduleYearlyDataGeneration(): void {
     const yearlyJob = cron.schedule(
-      '0 2 1 12 *', // 毎年 12 月 1 日 AM 2:00
+      "0 2 1 12 *", // 毎年 12 月 1 日 AM 2:00
       async () => {
         await this.executeYearlyDataGeneration();
       },
       {
-
-        timezone: 'Asia/Tokyo'
-      }
+        timezone: "Asia/Tokyo",
+      },
     );
 
     yearlyJob.start();
     this.scheduledJobs.push(yearlyJob);
 
-    this.logger.info('年次データ生成ジョブをスケジュール', {
-      schedule: '毎年 12 月 1 日 AM 2:00 JST',
-      timezone: 'Asia/Tokyo'
+    this.logger.info("年次データ生成ジョブをスケジュール", {
+      schedule: "毎年 12 月 1 日 AM 2:00 JST",
+      timezone: "Asia/Tokyo",
     });
   }
 
@@ -60,15 +59,17 @@ export class BackgroundJobScheduler {
   private async executeYearlyDataGeneration(): Promise<void> {
     try {
       const nextYear = new Date().getFullYear() + 1;
-      
-      this.logger.info('年次データ生成開始', { targetYear: nextYear });
 
-      const queueService = this.container.resolve('QueueService') as any;
-      const locationRepository = this.container.resolve('LocationRepository') as any;
+      this.logger.info("年次データ生成開始", { targetYear: nextYear });
+
+      const queueService = this.container.resolve("QueueService") as any;
+      const locationRepository = this.container.resolve(
+        "LocationRepository",
+      ) as any;
 
       // 全地点を取得
       const locations = await locationRepository.findAll();
-      
+
       let totalJobsScheduled = 0;
       const jobIds = [];
 
@@ -78,7 +79,7 @@ export class BackgroundJobScheduler {
           location.id,
           nextYear,
           nextYear,
-          'low' // 年次更新は低優先度
+          "low", // 年次更新は低優先度
         );
 
         if (jobId) {
@@ -87,15 +88,14 @@ export class BackgroundJobScheduler {
         }
       }
 
-      this.logger.info('年次データ生成ジョブ登録完了', {
+      this.logger.info("年次データ生成ジョブ登録完了", {
         targetYear: nextYear,
         totalLocations: locations.length,
         totalJobsScheduled,
-        estimatedProcessingTime: `約${Math.ceil(totalJobsScheduled / 5)}分`
+        estimatedProcessingTime: `約${Math.ceil(totalJobsScheduled / 5)}分`,
       });
-
     } catch (error) {
-      this.logger.error('年次データ生成エラー', error);
+      this.logger.error("年次データ生成エラー", error);
     }
   }
 
@@ -105,50 +105,51 @@ export class BackgroundJobScheduler {
   private scheduleMaintenanceTasks(): void {
     // 毎日 AM 3:00 - データベースクリーンアップ
     const dailyMaintenanceJob = cron.schedule(
-      '0 3 * * *', // 毎日 AM 3:00
+      "0 3 * * *", // 毎日 AM 3:00
       async () => {
         await this.executeDailyMaintenance();
       },
       {
-
-        timezone: 'Asia/Tokyo'
-      }
+        timezone: "Asia/Tokyo",
+      },
     );
 
     // 毎週日曜日 AM 4:00 - 統計情報更新
     const weeklyMaintenanceJob = cron.schedule(
-      '0 4 * * 0', // 毎週日曜日 AM 4:00
+      "0 4 * * 0", // 毎週日曜日 AM 4:00
       async () => {
         await this.executeWeeklyMaintenance();
       },
       {
-
-        timezone: 'Asia/Tokyo'
-      }
+        timezone: "Asia/Tokyo",
+      },
     );
 
     // 毎月1日 AM 5:00 - 古いデータクリーンアップ
     const monthlyMaintenanceJob = cron.schedule(
-      '0 5 1 * *', // 毎月1日 AM 5:00
+      "0 5 1 * *", // 毎月1日 AM 5:00
       async () => {
         await this.executeMonthlyMaintenance();
       },
       {
-
-        timezone: 'Asia/Tokyo'
-      }
+        timezone: "Asia/Tokyo",
+      },
     );
 
     dailyMaintenanceJob.start();
     weeklyMaintenanceJob.start();
     monthlyMaintenanceJob.start();
 
-    this.scheduledJobs.push(dailyMaintenanceJob, weeklyMaintenanceJob, monthlyMaintenanceJob);
+    this.scheduledJobs.push(
+      dailyMaintenanceJob,
+      weeklyMaintenanceJob,
+      monthlyMaintenanceJob,
+    );
 
-    this.logger.info('メンテナンスタスクをスケジュール', {
-      daily: '毎日 AM 3:00 JST - データベースクリーンアップ',
-      weekly: '毎週日曜日 AM 4:00 JST - 統計情報更新',
-      monthly: '毎月1日 AM 5:00 JST - 古いデータクリーンアップ'
+    this.logger.info("メンテナンスタスクをスケジュール", {
+      daily: "毎日 AM 3:00 JST - データベースクリーンアップ",
+      weekly: "毎週日曜日 AM 4:00 JST - 統計情報更新",
+      monthly: "毎月1日 AM 5:00 JST - 古いデータクリーンアップ",
     });
   }
 
@@ -157,23 +158,22 @@ export class BackgroundJobScheduler {
    */
   private async executeDailyMaintenance(): Promise<void> {
     try {
-      this.logger.info('日次メンテナンス開始');
+      this.logger.info("日次メンテナンス開始");
 
       // キューの統計情報をログ出力
-      const queueService = this.container.resolve('QueueService') as any;
+      const queueService = this.container.resolve("QueueService") as any;
       const queueStats = await queueService.getQueueStats();
-      
-      this.logger.info('キュー統計情報', queueStats);
+
+      this.logger.info("キュー統計情報", queueStats);
 
       // 失敗したジョブのクリーンアップ（7日以上前）
       const cleanedJobs = await queueService.cleanFailedJobs(7);
-      
-      this.logger.info('日次メンテナンス完了', {
-        cleanedFailedJobs: cleanedJobs
-      });
 
+      this.logger.info("日次メンテナンス完了", {
+        cleanedFailedJobs: cleanedJobs,
+      });
     } catch (error) {
-      this.logger.error('日次メンテナンスエラー', error);
+      this.logger.error("日次メンテナンスエラー", error);
     }
   }
 
@@ -182,16 +182,15 @@ export class BackgroundJobScheduler {
    */
   private async executeWeeklyMaintenance(): Promise<void> {
     try {
-      this.logger.info('週次メンテナンス開始');
+      this.logger.info("週次メンテナンス開始");
 
       // データベース統計情報の更新
       // PostgreSQL の ANALYZE を実行（パフォーマンス向上）
       // 注: Prisma では直接 SQL を実行
-      
-      this.logger.info('週次メンテナンス完了');
 
+      this.logger.info("週次メンテナンス完了");
     } catch (error) {
-      this.logger.error('週次メンテナンスエラー', error);
+      this.logger.error("週次メンテナンスエラー", error);
     }
   }
 
@@ -200,25 +199,27 @@ export class BackgroundJobScheduler {
    */
   private async executeMonthlyMaintenance(): Promise<void> {
     try {
-      this.logger.info('月次メンテナンス開始');
+      this.logger.info("月次メンテナンス開始");
 
       // 3年以上前の古いイベントデータを削除
       const currentDate = new Date();
       const threeYearsAgo = new Date(currentDate.getFullYear() - 3, 0, 1);
 
       // 古いデータの削除処理をキューに登録
-      const queueService = this.container.resolve('QueueService') as any;
-      
+      const queueService = this.container.resolve("QueueService") as any;
+
       // 低優先度でデータクリーンアップジョブを登録
-      const cleanupJobId = await queueService.scheduleDataCleanup(threeYearsAgo, 'low');
+      const cleanupJobId = await queueService.scheduleDataCleanup(
+        threeYearsAgo,
+        "low",
+      );
 
-      this.logger.info('月次メンテナンス完了', {
+      this.logger.info("月次メンテナンス完了", {
         cleanupJobId,
-        cutoffDate: threeYearsAgo.toISOString()
+        cutoffDate: threeYearsAgo.toISOString(),
       });
-
     } catch (error) {
-      this.logger.error('月次メンテナンスエラー', error);
+      this.logger.error("月次メンテナンスエラー", error);
     }
   }
 
@@ -226,19 +227,19 @@ export class BackgroundJobScheduler {
    * スケジューラーを停止
    */
   stop(): void {
-    this.scheduledJobs.forEach(job => {
+    this.scheduledJobs.forEach((job) => {
       job.stop();
       job.destroy();
     });
     this.scheduledJobs = [];
-    this.logger.info('バックグラウンドジョブスケジューラー停止');
+    this.logger.info("バックグラウンドジョブスケジューラー停止");
   }
 
   /**
    * 手動で年次データ生成を実行（テスト用）
    */
   async triggerYearlyDataGeneration(): Promise<void> {
-    this.logger.info('手動年次データ生成トリガー');
+    this.logger.info("手動年次データ生成トリガー");
     await this.executeYearlyDataGeneration();
   }
 }

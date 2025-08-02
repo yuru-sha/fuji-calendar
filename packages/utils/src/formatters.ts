@@ -53,31 +53,31 @@ export function formatPercentage(ratio: number): string {
  * 月の満ち欠けをフォーマット
  */
 export function formatMoonPhase(phase: number): string {
-  if (phase < 0.1) return '新月';
-  if (phase < 0.3) return '三日月';
-  if (phase < 0.4) return '上弦の月';
-  if (phase < 0.6) return '十三夜月';
-  if (phase < 0.9) return '満月';
-  return '下弦の月';
+  if (phase < 0.1) return "新月";
+  if (phase < 0.3) return "三日月";
+  if (phase < 0.4) return "上弦の月";
+  if (phase < 0.6) return "十三夜月";
+  if (phase < 0.9) return "満月";
+  return "下弦の月";
 }
 
 /**
  * 品質スコアをフォーマット
  */
 export function formatQualityScore(score?: number): string {
-  if (!score) return '未評価';
-  if (score >= 0.9) return '最高';
-  if (score >= 0.8) return '優秀';
-  if (score >= 0.7) return '良好';
-  if (score >= 0.6) return '普通';
-  return '要注意';
+  if (!score) return "未評価";
+  if (score >= 0.9) return "最高";
+  if (score >= 0.8) return "優秀";
+  if (score >= 0.7) return "良好";
+  if (score >= 0.6) return "普通";
+  return "要注意";
 }
 
 /**
  * 都道府県名を短縮形にフォーマット
  */
 export function formatPrefecture(prefecture: string): string {
-  return prefecture.replace(/[都道府県]$/, '');
+  return prefecture.replace(/[都道府県]$/, "");
 }
 
 /**
@@ -89,14 +89,18 @@ export function formatCoordinates(lat: number, lng: number): string {
     const degrees = Math.floor(abs);
     const minutes = Math.floor((abs - degrees) * 60);
     const seconds = ((abs - degrees) * 60 - minutes) * 60;
-    
-    const direction = isLatitude 
-      ? (coord >= 0 ? 'N' : 'S')
-      : (coord >= 0 ? 'E' : 'W');
-    
+
+    const direction = isLatitude
+      ? coord >= 0
+        ? "N"
+        : "S"
+      : coord >= 0
+        ? "E"
+        : "W";
+
     return `${degrees}°${minutes}'${seconds.toFixed(1)}"${direction}`;
   };
-  
+
   return `${formatDMS(lat, true)}, ${formatDMS(lng, false)}`;
 }
 
@@ -104,15 +108,15 @@ export function formatCoordinates(lat: number, lng: number): string {
  * ファイルサイズをフォーマット
  */
 export function formatFileSize(bytes: number): string {
-  const units = ['B', 'KB', 'MB', 'GB'];
+  const units = ["B", "KB", "MB", "GB"];
   let size = bytes;
   let unitIndex = 0;
-  
+
   while (size >= 1024 && unitIndex < units.length - 1) {
     size /= 1024;
     unitIndex++;
   }
-  
+
   return `${size.toFixed(1)}${units[unitIndex]}`;
 }
 
@@ -123,17 +127,17 @@ export function formatDuration(milliseconds: number): string {
   if (milliseconds < 1000) {
     return `${milliseconds}ms`;
   }
-  
+
   const seconds = milliseconds / 1000;
   if (seconds < 60) {
     return `${seconds.toFixed(1)}秒`;
   }
-  
+
   const minutes = seconds / 60;
   if (minutes < 60) {
     return `${minutes.toFixed(1)}分`;
   }
-  
+
   const hours = minutes / 60;
   return `${hours.toFixed(1)}時間`;
 }

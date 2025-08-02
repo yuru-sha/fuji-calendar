@@ -1,6 +1,6 @@
 {
   "name": "fuji-calendar-monorepo",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "ダイヤモンド富士とパール富士のカレンダーアプリケーション - モノレポ構成",
   "private": true,
   "workspaces": [

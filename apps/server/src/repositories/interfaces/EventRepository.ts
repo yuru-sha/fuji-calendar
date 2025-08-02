@@ -1,4 +1,4 @@
-import { FujiEvent } from '@fuji-calendar/types';
+import { FujiEvent } from "@fuji-calendar/types";
 
 export interface EventRepository {
   /**
@@ -9,9 +9,9 @@ export interface EventRepository {
    * @returns 削除された件数
    */
   deleteByLocationAndDateRange(
-    locationId: number, 
-    startDate: Date, 
-    endDate: Date
+    locationId: number,
+    startDate: Date,
+    endDate: Date,
   ): Promise<number>;
 
   /**
@@ -19,7 +19,7 @@ export interface EventRepository {
    * @param events 作成するイベントの配列
    * @returns 作成された件数
    */
-  createMany(events: Omit<FujiEvent, 'id'>[]): Promise<number>;
+  createMany(events: Omit<FujiEvent, "id">[]): Promise<number>;
 
   /**
    * 指定されたロケーションと日付のイベント件数を取得
@@ -35,8 +35,13 @@ export interface EventRepository {
    * @param month 月
    * @returns 月間統計
    */
-  getMonthlyStats(year: number, month: number): Promise<{
-    eventDate: Date;
-    _count: { eventDate: number };
-  }[]>;
+  getMonthlyStats(
+    year: number,
+    month: number,
+  ): Promise<
+    {
+      eventDate: Date;
+      _count: { eventDate: number };
+    }[]
+  >;
 }

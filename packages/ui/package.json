@@ -1,6 +1,6 @@
 {
   "name": "@fuji-calendar/ui",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Shared UI components for Fuji Calendar",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@fuji-calendar/types": "^0.3.0",
+    "@fuji-calendar/types": "^0.4.0",
     "lucide-react": "^0.525.0"
   },
   "devDependencies": {

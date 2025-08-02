@@ -76,7 +76,6 @@ export class FujiAlignmentCalculator {
    */
   async findPearlFuji(date: Date, location: Location): Promise<FujiEvent[]> {
     const events: FujiEvent[] = [];
-    const fujiAzimuth = this.coordinateCalc.calculateAzimuthToFuji(location);
 
     // 月の出イベントを検索
     const moonriseEvents = await this.searchCelestialAlignment(
@@ -86,23 +85,13 @@ export class FujiAlignmentCalculator {
       "pearl_moonrise",
     );
 
-    // 月の入りは地理的観測条件をチェック
-    // 富士山の西側エリア（方位角 180-360 度）では月没は観測不可
-    let moonsetEvents: FujiEvent[] = [];
-    if (this.canObserveMoonset(fujiAzimuth)) {
-      moonsetEvents = await this.searchCelestialAlignment(
-        date,
-        location,
-        "moonset",
-        "pearl_moonset",
-      );
-    } else {
-      this.logger.debug("月没パール富士は地理的に観測不可", {
-        locationId: location.id,
-        fujiAzimuth,
-        reason: "富士山の西側エリアでは月没は見えません",
-      });
-    }
+    // 月の入りイベントを検索
+    const moonsetEvents = await this.searchCelestialAlignment(
+      date,
+      location,
+      "moonset",
+      "pearl_moonset",
+    );
 
     events.push(...moonriseEvents, ...moonsetEvents);
 
@@ -111,7 +100,6 @@ export class FujiAlignmentCalculator {
       locationId: location.id,
       moonriseEvents: moonriseEvents.length,
       moonsetEvents: moonsetEvents.length,
-      fujiAzimuth,
     });
 
     return events;
@@ -228,34 +216,27 @@ export class FujiAlignmentCalculator {
         }
       }
 
-      // 南中時刻を計算して昇る・沈むを判定
-      const transitTime = eventType.includes("diamond")
-        ? this.celestialCalc.calculateSolarNoon(date, location)
-        : this.celestialCalc.calculateLunarTransit(date, location);
-
-      // 南中時刻より前なら昇る、後なら沈む（UTC 基準で比較）
+      // 富士山の方向に基づいて昇る・沈むを判定
       let subType: "sunrise" | "sunset" | "rising" | "setting";
-      const referenceTime =
-        transitTime ||
-        new Date(
-          Date.UTC(
-            bestCandidate.time.getUTCFullYear(),
-            bestCandidate.time.getUTCMonth(),
-            bestCandidate.time.getUTCDate(),
-            3,
-            0,
-            0,
-          ),
-        ); // JST 12:00 = UTC 3:00
-
-      // UTC 時刻同士で比較
-      const candidateUTC = new Date(bestCandidate.time.getTime());
-      const referenceUTC = new Date(referenceTime.getTime());
-
+      
       if (eventType.includes("diamond")) {
-        subType = candidateUTC < referenceUTC ? "sunrise" : "sunset";
+        // ダイヤモンド富士の場合も富士山の方向で判定
+        if (fujiAzimuth < 180) {
+          // 富士山が東側（0-180度）→ 太陽も東側 → sunrise
+          subType = "sunrise";
+        } else {
+          // 富士山が西側（180-360度）→ 太陽も西側 → sunset
+          subType = "sunset";
+        }
       } else {
-        subType = candidateUTC < referenceUTC ? "rising" : "setting";
+        // パール富士の場合は富士山の方向で判定
+        if (fujiAzimuth < 180) {
+          // 富士山が東側（0-180度）→ 月も東側 → moonrise → rising
+          subType = "rising";
+        } else {
+          // 富士山が西側（180-360度）→ 月も西側 → moonset → setting
+          subType = "setting";
+        }
       }
 
       events.push({
@@ -498,6 +479,16 @@ export class FujiAlignmentCalculator {
     // 富士山が西側（180-360 度）にある場合は月没は観測不可
     // 月は東から昇って西に沈むため、富士山が西側にあると月没時に富士山の向こう側に沈む
     return fujiAzimuth < 180;
+  }
+
+  /**
+   * 月の出パール富士が観測可能かチェック
+   * 富士山の東側エリア（方位角 0-180 度）では月の出は見えない
+   */
+  private canObserveMoonrise(fujiAzimuth: number): boolean {
+    // 富士山が東側（0-180 度）にある場合は月の出は観測不可
+    // 月は東から昇るため、富士山が東側にあると月の出時に富士山の向こう側から昇る
+    return fujiAzimuth >= 180;
   }
 
   /**

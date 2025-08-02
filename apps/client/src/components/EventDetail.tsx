@@ -72,53 +72,41 @@ const EventDetail: React.FC<EventDetailProps> = memo(
       if (normalizedPhase < 22.5 || normalizedPhase >= 337.5)
         return {
           name: "新月",
-          icon: <Icon name="newMoon" size={16} className="text-gray-800" />,
+          icon: <span className="text-base">🌑</span>,
         };
       if (normalizedPhase < 67.5)
         return {
           name: "三日月",
-          icon: (
-            <Icon name="waxingCrescent" size={16} className="text-yellow-400" />
-          ),
+          icon: <span className="text-base">🌒</span>,
         };
       if (normalizedPhase < 112.5)
         return {
           name: "上弦の月",
-          icon: (
-            <Icon name="firstQuarter" size={16} className="text-yellow-300" />
-          ),
+          icon: <span className="text-base">🌓</span>,
         };
       if (normalizedPhase < 157.5)
         return {
           name: "十三夜月",
-          icon: (
-            <Icon name="waxingGibbous" size={16} className="text-yellow-200" />
-          ),
+          icon: <span className="text-base">🌔</span>,
         };
       if (normalizedPhase < 202.5)
         return {
           name: "満月",
-          icon: <Icon name="fullMoon" size={16} className="text-yellow-100" />,
+          icon: <span className="text-base">🌕</span>,
         };
       if (normalizedPhase < 247.5)
         return {
           name: "十六夜月",
-          icon: (
-            <Icon name="waningGibbous" size={16} className="text-yellow-200" />
-          ),
+          icon: <span className="text-base">🌖</span>,
         };
       if (normalizedPhase < 292.5)
         return {
           name: "下弦の月",
-          icon: (
-            <Icon name="lastQuarter" size={16} className="text-yellow-300" />
-          ),
+          icon: <span className="text-base">🌗</span>,
         };
       return {
         name: "二十六夜月",
-        icon: (
-          <Icon name="waningCrescent" size={16} className="text-yellow-400" />
-        ),
+        icon: <span className="text-base">🌘</span>,
       };
     };
 

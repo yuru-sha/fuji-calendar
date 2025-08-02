@@ -53,8 +53,8 @@ services:
     image: redis:7-alpine
     container_name: fuji_calendar_redis
     restart: unless-stopped
-    ports:
-      - "6379:6379"  # 外部ポートも公開（開発・メンテナンス用）
+    expose:
+      - "6379"  # 内部アクセスのみ（セキュリティ強化）
     environment:
       TZ: Asia/Tokyo
     volumes:

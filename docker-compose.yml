@@ -53,13 +53,13 @@ services:
     image: redis:7-alpine
     container_name: fuji_calendar_redis
     restart: unless-stopped
-    expose:
-      - "6379"  # 外部ポート公開なし（Docker 内部のみアクセス可）
+    ports:
+      - "6379:6379"  # 外部ポートも公開（開発・メンテナンス用）
     environment:
       TZ: Asia/Tokyo
     volumes:
       - ./data/redis:/data
-    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy noeviction
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 30s
@@ -68,11 +68,11 @@ services:
     networks:
       - fuji_calendar_network
 
-  # バックエンド API（モノレポ構成）
+  # バックエンド API（ワーカー機能なし）
   backend:
     build:
       context: .
-      dockerfile: docker/backend/Dockerfile.simple
+      dockerfile: docker/backend/Dockerfile.backend
     container_name: fuji_calendar_backend
     restart: unless-stopped
     expose:
@@ -107,8 +107,8 @@ services:
       TZ: Asia/Tokyo
       # ワーカー設定（バックエンドでも低負荷モード）
       WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-1}
-      # バックグラウンドジョブスケジューラー一時無効化（パフォーマンス問題対応）
-      ENABLE_BACKGROUND_SCHEDULER: false
+      # バックエンドでバックグラウンドジョブスケジューラーを有効化
+      ENABLE_BACKGROUND_SCHEDULER: true
     volumes:
       - ./logs:/app/logs
     depends_on:
@@ -125,14 +125,14 @@ services:
     networks:
       - fuji_calendar_network
 
-  # ワーカー（バックグラウンドジョブ処理）
+  # ワーカー（バックグラウンドジョブ処理専用）
   worker:
     build:
       context: .
-      dockerfile: docker/backend/Dockerfile.simple
+      dockerfile: docker/backend/Dockerfile.worker
     container_name: fuji_calendar_worker
     restart: unless-stopped
-    command: ["npm", "run", "start:worker"]
+    # Dockerfile でワーカー起動コマンドを指定済み
     # ワーカー用リソース制限（より少なく）
     deploy:
       resources:
@@ -157,7 +157,7 @@ services:
       TZ: Asia/Tokyo
       # ワーカー設定（低負荷モード）
       WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-1}
-      # バックグラウンドジョブスケジューラー無効化（ワーカーでは不要）
+      # ワーカーでは定期ジョブ無効（重複実行防止）
       ENABLE_BACKGROUND_SCHEDULER: false
     volumes:
       - ./logs:/app/logs
@@ -174,6 +174,7 @@ services:
       start_period: 30s
     networks:
       - fuji_calendar_network
+
 
 volumes: {}
 

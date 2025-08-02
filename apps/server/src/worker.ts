@@ -67,20 +67,19 @@ async function main() {
       memory: process.memoryUsage(),
     });
 
-    // 環境変数チェック
-    const requiredEnvVars = ["REDIS_HOST", "REDIS_PORT"];
-    const missingEnvVars = requiredEnvVars.filter((key) => !process.env[key]);
-
-    if (missingEnvVars.length > 0) {
-      throw new Error(
-        `必要な環境変数が設定されていません: ${missingEnvVars.join(", ")}`,
-      );
+    // 環境変数チェック（デフォルト値があるため必須チェックを緩和）
+    const redisHost = process.env.REDIS_HOST || "localhost";
+    const redisPort = process.env.REDIS_PORT || "6379";
+    
+    if (process.env.DISABLE_REDIS === "true") {
+      logger.info("Redis無効化モード: ワーカーは起動しますがキューは無効です");
     }
 
     logger.info("環境設定確認完了", {
-      redisHost: process.env.REDIS_HOST,
-      redisPort: process.env.REDIS_PORT,
+      redisHost,
+      redisPort,
       nodeEnv: process.env.NODE_ENV || "development",
+      redisDisabled: process.env.DISABLE_REDIS === "true"
     });
 
     // DIContainer を初期化

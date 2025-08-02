@@ -92,11 +92,18 @@ export class ServiceRegistry {
       return new EventCacheService(astronomicalCalculator);
     });
 
-    // QueueService の登録（循環依存を避けるため最初に登録）
+    // QueueService の登録（ワーカー有効/無効対応）
     container.registerSingleton("QueueService", () => {
       logger.debug("QueueService インスタンス作成");
+      // 環境変数でワーカー機能を制御
+      const enableWorker = process.env.DISABLE_WORKER !== "true";
       // EventService は後で setter で注入
-      return new QueueServiceImpl(null);
+      const queueService = new QueueServiceImpl(null, enableWorker);
+      logger.info("QueueService 初期インスタンス作成完了", {
+        hasRedisConnection: process.env.DISABLE_REDIS !== "true",
+        enableWorker
+      });
+      return queueService;
     });
 
     // EventService の登録
@@ -116,10 +123,22 @@ export class ServiceRegistry {
       try {
         const queueService = container.resolve<QueueService>("QueueService");
         queueService.setEventService(eventService);
-        logger.debug("QueueService に EventService 注入完了", {
+        logger.info("QueueService に EventService 注入完了", {
           hasQueueService: !!queueService,
           hasEventService: !!eventService,
+          redisDisabled: process.env.DISABLE_REDIS === "true",
+          workerDisabled: process.env.DISABLE_WORKER === "true"
         });
+        
+        // EventService 注入後にキューの接続テストを実行
+        setTimeout(async () => {
+          try {
+            const isConnected = await queueService.testRedisConnection();
+            logger.info("QueueService Redis 接続テスト結果", { isConnected });
+          } catch (error) {
+            logger.warn("QueueService Redis 接続テスト失敗", error);
+          }
+        }, 2000);
       } catch (error) {
         logger.error("QueueService への EventService 注入エラー", error);
       }

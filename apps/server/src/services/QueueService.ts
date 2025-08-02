@@ -17,9 +17,14 @@ export class QueueService implements IQueueService {
   private eventService: EventService | null = null;
   private systemSettingsService: any | null = null; // 循環依存回避のためany型
 
-  constructor(eventService: EventService | null = null) {
+  constructor(eventService: EventService | null = null, enableWorker: boolean = true) {
     this.eventService = eventService;
-    this.initializeRedis();
+    logger.info("QueueService コンストラクタ開始", {
+      hasEventService: !!eventService,
+      redisDisabled: process.env.DISABLE_REDIS === "true",
+      enableWorker
+    });
+    this.initializeRedis(enableWorker);
   }
 
   /**
@@ -45,7 +50,10 @@ export class QueueService implements IQueueService {
   /**
    * Redis 接続の初期化
    */
-  private initializeRedis(): void {
+  /**
+   * Redis 接続の初期化
+   */
+  private initializeRedis(enableWorker: boolean = true): void {
     // Redis 無効化フラグをチェック
     if (process.env.DISABLE_REDIS === "true") {
       logger.info("Redis 無効化モード: キューシステムは無効化されます");
@@ -77,40 +85,31 @@ export class QueueService implements IQueueService {
     });
 
     this.redis.on("ready", () => {
-      logger.info("Redis 準備完了 - キューシステム初期化開始");
+      logger.info("Redis 準備完了 - キューシステム初期化開始", { enableWorker });
       // Redis 準備完了後にキューを初期化
-      this.initializeQueue();
+      setTimeout(() => {
+        this.initializeQueue(enableWorker);
+      }, 1000); // 1秒待ってからキューを初期化
     });
   }
 
   /**
    * キューの初期化（動的設定対応）
    */
-  private async initializeQueue(): Promise<void> {
+  /**
+   * キューの初期化（動的設定対応）
+   */
+  /**
+   * キューの初期化（ワーカー有効/無効対応）
+   */
+  private async initializeQueue(enableWorker: boolean = true): Promise<void> {
     if (!this.redis) {
       logger.warn("Redis が無効のため、キューシステムを初期化しません");
       return;
     }
 
     try {
-      // パフォーマンス設定を取得
-      let performanceSettings = {
-        workerConcurrency: 1,
-        jobDelay: 5000,
-        processingDelay: 2000,
-        enableLowPriorityMode: true,
-        maxActiveJobs: 3,
-      };
-
-      if (this.systemSettingsService) {
-        try {
-          performanceSettings = await this.systemSettingsService.getPerformanceSettings();
-        } catch (error) {
-          logger.warn("パフォーマンス設定取得失敗、デフォルト値を使用", error);
-        }
-      }
-
-      // イベント計算キューを作成
+      // イベント計算キューを作成（常に作成）
       this.eventCalculationQueue = new Queue("event-calculation", {
         connection: this.redis,
         defaultJobOptions: {
@@ -119,43 +118,75 @@ export class QueueService implements IQueueService {
           attempts: 3,
           backoff: {
             type: "exponential",
-            delay: performanceSettings.jobDelay,
+            delay: 5000,
           },
-          // 低優先度モードの設定
-          priority: performanceSettings.enableLowPriorityMode ? 1 : 5,
-          delay: performanceSettings.jobDelay,
+          priority: 1,
+          delay: 5000,
         },
       });
 
-      // ワーカーを作成（動的同時実行数）
-      const concurrency = Math.min(
-        performanceSettings.workerConcurrency,
-        parseInt(process.env.WORKER_CONCURRENCY || "1")
-      );
-
-      this.worker = new Worker(
-        "event-calculation",
-        this.processJob.bind(this),
-        {
-          connection: this.redis,
-          concurrency,
-          maxStalledCount: 2,
-        },
-      );
-
-      logger.info("ワーカー作成完了（動的設定適用）", {
+      logger.info("キュー作成完了", {
         queueName: "event-calculation",
-        concurrency,
-        stalledInterval: "30 分",
-        defaultPriority: performanceSettings.enableLowPriorityMode ? "low" : "normal",
-        defaultDelay: `${performanceSettings.jobDelay}ms`,
-        processingDelay: `${performanceSettings.processingDelay}ms`,
+        enableWorker
       });
 
-      // イベントハンドラーをセットアップ
-      this.setupWorkerEventHandlers();
+      // ワーカーが有効な場合のみワーカーを作成
+      if (enableWorker) {
+        // パフォーマンス設定を取得
+        let performanceSettings = {
+          workerConcurrency: 1,
+          jobDelay: 5000,
+          processingDelay: 2000,
+          enableLowPriorityMode: true,
+          maxActiveJobs: 3,
+        };
 
-      logger.info("キューシステム初期化完了（パフォーマンス最適化済み）");
+        if (this.systemSettingsService) {
+          try {
+            performanceSettings = await this.systemSettingsService.getPerformanceSettings();
+          } catch (error) {
+            logger.warn("パフォーマンス設定取得失敗、デフォルト値を使用", error);
+          }
+        }
+
+        // ワーカーを作成（動的同時実行数）
+        const concurrency = Math.min(
+          performanceSettings.workerConcurrency,
+          parseInt(process.env.WORKER_CONCURRENCY || "1")
+        );
+
+        this.worker = new Worker(
+          "event-calculation",
+          this.processJob.bind(this),
+          {
+            connection: this.redis,
+            concurrency,
+            maxStalledCount: 1, // スタール許容回数を1に減らす
+            stalledInterval: 60 * 1000, // スタール検出間隔を60秒に設定
+            removeOnComplete: 100,
+            removeOnFail: 50,
+          },
+        );
+
+        // イベントハンドラーをセットアップ
+        this.setupWorkerEventHandlers();
+
+        logger.info("ワーカー作成完了（動的設定適用）", {
+          queueName: "event-calculation",
+          concurrency,
+          stalledInterval: "60秒",
+          maxStalledCount: 1,
+          defaultPriority: performanceSettings.enableLowPriorityMode ? "low" : "normal",
+          defaultDelay: `${performanceSettings.jobDelay}ms`,
+          processingDelay: `${performanceSettings.processingDelay}ms`,
+        });
+      } else {
+        logger.info("ワーカー無効モード: ジョブスケジューリングのみ可能");
+      }
+
+      logger.info("キューシステム初期化完了", { 
+        enableWorker: enableWorker ? "ワーカー有効" : "スケジューラーのみ" 
+      });
     } catch (error) {
       logger.error("キューシステム初期化エラー", error);
     }
@@ -571,6 +602,9 @@ export class QueueService implements IQueueService {
   /**
    * ワーカーの同時実行数をリアルタイムで変更
    */
+  /**
+   * ワーカーの同時実行数をリアルタイムで変更
+   */
   async updateConcurrency(newConcurrency: number): Promise<boolean> {
     if (!this.worker) {
       logger.warn("ワーカーが初期化されていません");
@@ -600,8 +634,10 @@ export class QueueService implements IQueueService {
         {
           connection: this.redis!,
           concurrency: newConcurrency,
-
-          maxStalledCount: 2,
+          maxStalledCount: 1, // スタール許容回数を1に減らす
+          stalledInterval: 60 * 1000, // スタール検出間隔を60秒に設定
+          removeOnComplete: 100,
+          removeOnFail: 50,
         },
       );
 
@@ -624,6 +660,8 @@ export class QueueService implements IQueueService {
         oldConcurrency,
         newConcurrency,
         queueName: "event-calculation",
+        stalledInterval: "60秒",
+        maxStalledCount: 1,
       });
 
       return true;

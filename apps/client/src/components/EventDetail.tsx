@@ -232,7 +232,7 @@ const EventDetail: React.FC<EventDetailProps> = memo(
                 );
 
                 return Object.entries(eventsByLocation).map(
-                  ([locationIdStr, locationEvents]) => {
+                  ([locationIdStr, locationEvents]: [string, FujiEvent[]]) => {
                     const locationId = parseInt(locationIdStr);
                     const location = locationEvents[0].location;
                     const isExpanded = expandedLocationIds.has(locationId);

@@ -1,7 +1,7 @@
-import { Admin } from "../shared";
+import { Admin } from "@fuji-calendar/types";
+import { getComponentLogger } from "@fuji-calendar/utils";
 import { AuthRepository } from "./interfaces/AuthRepository";
 import { PrismaClientManager } from "../database/prisma";
-import { getComponentLogger } from "../shared";
 
 const logger = getComponentLogger("prisma-auth-repository");
 

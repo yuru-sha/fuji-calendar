@@ -1,4 +1,4 @@
-import { FujiEvent, CalendarStats } from "../../shared";
+import { FujiEvent, CalendarStats } from "@fuji-calendar/types";
 
 export interface CalendarService {
   // 月間カレンダーデータを取得

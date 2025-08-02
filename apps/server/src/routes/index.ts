@@ -1,6 +1,6 @@
 import { Express, Request, Response } from "express";
 import path from "path";
-import { getComponentLogger } from "../shared";
+import { getComponentLogger } from "@fuji-calendar/utils";
 import LocationController from "../controllers/LocationController";
 import { CalendarController } from "../controllers/CalendarController";
 import { AuthController } from "../controllers/AuthController";
@@ -377,7 +377,7 @@ export function setupRoutes(app: Express, container: DIContainer): void {
 
   // 初期セットアップ用（本番環境では無効化推奨）
   if (process.env.NODE_ENV === "development") {
-    // app.post('/api/auth/create-admin', authController.createAdmin.bind(authController)); // TODO: createAdmin メソッドを実装
+    // Admin creation endpoint disabled in development
   }
 
   // 管理者用 API（認証必須）

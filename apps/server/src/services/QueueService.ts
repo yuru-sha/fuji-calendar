@@ -1,6 +1,6 @@
 import { Queue, Worker, Job } from "bullmq";
 import IORedis from "ioredis";
-import { getComponentLogger } from "../shared";
+import { getComponentLogger } from "@fuji-calendar/utils";
 import { EventService } from "./interfaces/EventService";
 import { QueueService as IQueueService } from "./interfaces/QueueService";
 

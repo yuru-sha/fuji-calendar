@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import { getComponentLogger } from "../shared";
+import { getComponentLogger } from "@fuji-calendar/utils";
 
 const logger = getComponentLogger("SystemSettingsService");
 
@@ -131,6 +131,11 @@ export class SystemSettingsService {
     try {
       const updateData = this.prepareUpdateData(value, settingType);
 
+      // 既存の設定を取得してcategoryを確認
+      const existingSetting = await this.prisma.systemSetting.findUnique({
+        where: { settingKey },
+      });
+
       const updatedSetting = await this.prisma.systemSetting.upsert({
         where: { settingKey },
         update: {
@@ -140,6 +145,7 @@ export class SystemSettingsService {
         create: {
           settingKey,
           settingType: settingType || this.inferSettingType(value),
+          category: existingSetting?.category || "performance", // デフォルトカテゴリを設定
           ...updateData,
         },
       });
@@ -334,11 +340,11 @@ export class SystemSettingsService {
    */
   async initializePerformanceSettings(): Promise<void> {
     const defaultSettings = [
-      { key: "worker_concurrency", value: 1, type: "number", description: "ワーカーの同時実行数（負荷制御）" },
+      { key: "worker_concurrency", value: 1, type: "number", description: "各ワーカープロセス内での同時実行ジョブ数。2台のワーカーで値が2なら、システム全体で最大4ジョブが並列実行される" },
       { key: "job_delay_ms", value: 5000, type: "number", description: "ジョブ実行間隔（ミリ秒）" },
       { key: "processing_delay_ms", value: 2000, type: "number", description: "処理間の待機時間（ミリ秒）" },
       { key: "enable_low_priority_mode", value: true, type: "boolean", description: "低優先度モードの有効化" },
-      { key: "max_active_jobs", value: 3, type: "number", description: "最大アクティブジョブ数" },
+      { key: "max_active_jobs", value: 3, type: "number", description: "システム全体で同時実行可能なジョブの上限数。ワーカー数に関係なく、この値を超えるジョブは待機状態になる" },
     ];
 
     for (const setting of defaultSettings) {

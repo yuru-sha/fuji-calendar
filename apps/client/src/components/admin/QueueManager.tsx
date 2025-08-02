@@ -43,7 +43,6 @@ const QueueManager: React.FC = () => {
   const [stats, setStats] = useState<QueueStats | null>(null);
   const [backgroundJobs, setBackgroundJobs] = useState<BackgroundJobsStatus | null>(null);
   const [loading, setLoading] = useState(false);
-  const [renderError, setRenderError] = useState<string | null>(null);
 
   const fetchStats = async () => {
     try {
@@ -208,26 +207,6 @@ const QueueManager: React.FC = () => {
 
     return () => clearInterval(interval);
   }, []);
-
-  // エラー状態の場合
-  if (renderError) {
-    return (
-      <div className="space-y-6">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-red-800 mb-2">
-            エラーが発生しました
-          </h2>
-          <p className="text-red-700 mb-4">{renderError}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-          >
-            ページをリロード
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   if (!stats) {
     return (

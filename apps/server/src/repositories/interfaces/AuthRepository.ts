@@ -1,4 +1,5 @@
-import { Admin } from "../../shared";
+import { Admin } from "@fuji-calendar/types";
+import { getComponentLogger } from "@fuji-calendar/utils";
 
 export interface AuthRepository {
   // 管理者アカウント関連

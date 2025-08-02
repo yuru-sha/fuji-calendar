@@ -1,4 +1,4 @@
-import { getComponentLogger } from "../shared";
+import { getComponentLogger } from "@fuji-calendar/utils";
 
 const logger = getComponentLogger("DIContainer");
 

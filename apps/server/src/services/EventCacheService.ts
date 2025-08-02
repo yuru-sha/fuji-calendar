@@ -1,7 +1,7 @@
 import { prisma } from "../database/prisma";
 import { AstronomicalCalculator } from "./AstronomicalCalculator";
-import { Location, FujiEvent } from "../shared";
-import { getComponentLogger, StructuredLogger } from "../shared";
+import { Location, FujiEvent, StructuredLogger } from "@fuji-calendar/types";
+import { getComponentLogger } from "@fuji-calendar/utils";
 
 /**
  * イベントキャッシュサービス

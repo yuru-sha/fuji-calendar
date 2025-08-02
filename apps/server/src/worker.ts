@@ -15,7 +15,7 @@
 import { DIContainer } from "./di/DIContainer";
 import { ServiceRegistry } from "./di/ServiceRegistry";
 import { QueueService } from "./services/interfaces/QueueService";
-import { getComponentLogger } from "./shared";
+import { getComponentLogger } from "@fuji-calendar/utils";
 
 const logger = getComponentLogger("queue-worker");
 

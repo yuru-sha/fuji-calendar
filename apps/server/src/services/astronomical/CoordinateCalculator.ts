@@ -1,5 +1,5 @@
-import { FUJI_COORDINATES } from "../../shared";
-import { getComponentLogger } from "../../shared";
+import { FUJI_COORDINATES } from "@fuji-calendar/types";
+import { getComponentLogger } from "@fuji-calendar/utils";
 
 /**
  * 座標・方位角・距離計算を担当するクラス

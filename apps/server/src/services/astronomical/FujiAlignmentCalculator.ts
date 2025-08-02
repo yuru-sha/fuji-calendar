@@ -1,6 +1,5 @@
-import { FujiEvent, Location, MoonPosition } from "../../shared";
-import { timeUtils } from "../../shared";
-import { getComponentLogger } from "../../shared";
+import { FujiEvent, Location, MoonPosition } from "@fuji-calendar/types";
+import { getComponentLogger, timeUtils } from "@fuji-calendar/utils";
 import { CoordinateCalculator } from "./CoordinateCalculator";
 import { CelestialPositionCalculator } from "./CelestialPositionCalculator";
 import { SeasonCalculator } from "./SeasonCalculator";

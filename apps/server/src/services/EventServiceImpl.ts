@@ -8,7 +8,7 @@ import {
 import { EventCacheService } from "./EventCacheService";
 import { AstronomicalCalculator } from "./AstronomicalCalculator";
 import { PrismaClientManager } from "../database/prisma";
-import { getComponentLogger } from "../shared";
+import { getComponentLogger } from "@fuji-calendar/utils";
 
 const logger = getComponentLogger("EventServiceImpl");
 
@@ -50,6 +50,25 @@ export class EventServiceImpl implements EventService {
           eventsGenerated: 0,
           processingTime: Date.now() - startTime,
           errors: [`Location not found: ${locationId}`],
+        };
+      }
+
+      // 環境変数で計算スキップを制御（バックエンドでは計算しない）
+      if (process.env.SKIP_DIRECT_CALCULATION === 'true') {
+        logger.info("直接計算をスキップ（キューシステム使用）", {
+          locationId,
+          year,
+          skipDirectCalculation: process.env.SKIP_DIRECT_CALCULATION,
+        });
+        
+        // 空の結果を返す
+        return {
+          success: true,
+          locationId,
+          year,
+          eventsGenerated: 0,
+          processingTime: Date.now() - startTime,
+          errors: [],
         };
       }
 
@@ -103,6 +122,27 @@ export class EventServiceImpl implements EventService {
     });
 
     try {
+      // 環境変数で計算スキップを制御（バックエンドでは計算しない）
+      if (process.env.SKIP_DIRECT_CALCULATION === 'true') {
+        logger.info("月間直接計算をスキップ（キューシステム使用）", {
+          year,
+          month,
+          locationCount: locationIds.length,
+          skipDirectCalculation: process.env.SKIP_DIRECT_CALCULATION,
+        });
+        
+        const processingTime = Date.now() - startTime;
+        return {
+          success: true,
+          year,
+          month,
+          eventsGenerated: 0,
+          locationCount: locationIds.length,
+          processingTime,
+          errors: [],
+        };
+      }
+
       let totalEventsGenerated = 0;
       const errors: string[] = [];
 

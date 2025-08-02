@@ -106,7 +106,6 @@ class AuthService {
     try {
       const token = this.getToken();
       if (!token) {
-        console.log("verifyToken: No token found");
         return { success: false };
       }
 
@@ -121,16 +120,13 @@ class AuthService {
         },
       });
 
-      console.log("verifyToken: Response status:", response.status);
 
       if (!response.ok) {
-        console.log("verifyToken: Response not OK, clearing auth");
         this.clearAuth();
         return { success: false };
       }
 
       const data = await response.json();
-      console.log("verifyToken: Response data:", data);
 
       if (data.valid) {
         // 管理者情報を更新（API レスポンス形式に合わせる）
@@ -138,12 +134,10 @@ class AuthService {
           id: data.adminId,
           username: data.username,
         };
-        console.log("verifyToken: Saving admin to localStorage:", admin);
         localStorage.setItem(this.adminKey, JSON.stringify(admin));
         return { success: true, admin };
       } else {
         // トークンが無効な場合はクリア
-        console.log("verifyToken: Token invalid, clearing auth");
         this.clearAuth();
         return { success: false };
       }

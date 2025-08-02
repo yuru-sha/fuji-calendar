@@ -1,6 +1,6 @@
 import { Express } from "express";
 import path from "path";
-import { getComponentLogger } from "./shared";
+import { getComponentLogger } from "@fuji-calendar/utils";
 import { DIContainer } from "./di/DIContainer";
 import { QueueService } from "./services/interfaces/QueueService";
 const logger = getComponentLogger("bootstrap");
@@ -30,13 +30,27 @@ export class Bootstrap {
       logger.warn("QueueService 初期化エラー", error);
     }
 
-    // BackgroundJobScheduler を初期化・開始
+    // BackgroundJobScheduler を初期化（本番環境でのみ開始）
     try {
       const { BackgroundJobScheduler } = await import(
         "./services/BackgroundJobScheduler"
       );
       const backgroundJobScheduler = new BackgroundJobScheduler(container);
-      backgroundJobScheduler.start();
+      
+      // 環境変数 ENABLE_BACKGROUND_SCHEDULER で制御（デフォルト: false）
+      const enableScheduler = process.env.ENABLE_BACKGROUND_SCHEDULER === 'true';
+      if (enableScheduler) {
+        backgroundJobScheduler.start();
+        logger.info("BackgroundJobScheduler 開始", {
+          enableScheduler,
+          nodeEnv: process.env.NODE_ENV,
+        });
+      } else {
+        logger.info("BackgroundJobScheduler 初期化のみ（ENABLE_BACKGROUND_SCHEDULER により無効）", {
+          enableScheduler,
+          nodeEnv: process.env.NODE_ENV,
+        });
+      }
 
       // ファクトリー関数として登録
       container.register(

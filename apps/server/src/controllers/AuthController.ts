@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { AuthService } from "../services/interfaces/AuthService";
-import { getComponentLogger } from "../shared";
+import { getComponentLogger } from "@fuji-calendar/utils";
 
 export class AuthController {
   private logger = getComponentLogger("auth-controller");

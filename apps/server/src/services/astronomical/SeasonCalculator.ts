@@ -1,4 +1,4 @@
-import { getComponentLogger } from "../../shared";
+import { getComponentLogger } from "@fuji-calendar/utils";
 
 /**
  * 季節・可視性判定を担当するクラス

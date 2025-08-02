@@ -114,20 +114,14 @@ const AdminPage: React.FC = () => {
   useEffect(() => {
     const checkAuthAndLoadData = async () => {
       const authState = authService.getAuthState();
-      console.log("AdminPage 認証状態チェック:", {
-        isAuthenticated: authState.isAuthenticated,
-        hasToken: !!authState.token,
-        hasAdmin: !!authState.admin,
-      });
+      // Debug: Auth state check
 
       if (!authState.isAuthenticated) {
-        console.log("AdminPage: Not authenticated, redirecting to login");
         navigate("/admin/login");
         return;
       }
 
       // Verify token
-      console.log("AdminPage: Verifying token...");
       const verifyResult = await authService.verifyToken();
       console.log("トークン検証結果:", verifyResult);
 
@@ -137,7 +131,6 @@ const AdminPage: React.FC = () => {
         return;
       }
 
-      console.log("AdminPage: Authentication successful, loading locations");
       // Load locations if authenticated
       loadLocations();
     };

@@ -1,7 +1,7 @@
-import { FujiEvent, CalendarStats } from "../shared";
+import { FujiEvent, CalendarStats } from "@fuji-calendar/types";
+import { getComponentLogger, timeUtils } from "@fuji-calendar/utils";
 import { CalendarService } from "./interfaces/CalendarService";
 import { CalendarRepository } from "../repositories/interfaces/CalendarRepository";
-import { getComponentLogger, timeUtils } from "../shared";
 
 const logger = getComponentLogger("calendar-service");
 

@@ -117,7 +117,6 @@ const HomePage: React.FC = () => {
           currentYear,
           currentMonth,
         );
-        console.log("Calendar data loaded:", response);
         console.log("First event structure:", response.events[0]);
         setCalendarData(response);
       } catch (error) {

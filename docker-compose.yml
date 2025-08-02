@@ -107,6 +107,8 @@ services:
       TZ: Asia/Tokyo
       # ワーカー設定（バックエンドでも低負荷モード）
       WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-1}
+      # バックグラウンドジョブスケジューラー一時無効化（パフォーマンス問題対応）
+      ENABLE_BACKGROUND_SCHEDULER: false
     volumes:
       - ./logs:/app/logs
     depends_on:
@@ -155,6 +157,8 @@ services:
       TZ: Asia/Tokyo
       # ワーカー設定（低負荷モード）
       WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-1}
+      # バックグラウンドジョブスケジューラー無効化（ワーカーでは不要）
+      ENABLE_BACKGROUND_SCHEDULER: false
     volumes:
       - ./logs:/app/logs
     depends_on:

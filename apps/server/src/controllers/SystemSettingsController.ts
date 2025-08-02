@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { SystemSettingsService } from "../services/SystemSettingsService";
-import { getComponentLogger } from "../shared";
+import { getComponentLogger } from "@fuji-calendar/utils";
 
 /**
  * システム設定管理コントローラー
@@ -236,7 +236,7 @@ export class SystemSettingsController {
 
       // カテゴリが指定されている場合は、そのカテゴリのみ初期化
       if (category) {
-        // TODO: カテゴリ別初期化の実装
+        // Category-specific initialization - implement as needed
         this.logger.warn("カテゴリ別初期化は未実装", { category });
         res.status(501).json({
           success: false,

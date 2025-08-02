@@ -1,8 +1,8 @@
-import { Location } from "../shared";
+import { Location, StructuredLogger } from "@fuji-calendar/types";
+import { getComponentLogger } from "@fuji-calendar/utils";
 import { PrismaClientManager } from "../database/prisma";
 import { EventCacheService } from "./EventCacheService";
 import { AstronomicalCalculator } from "./AstronomicalCalculator";
-import { getComponentLogger, StructuredLogger } from "../shared";
 
 /**
  * バッチ計算サービス
@@ -382,7 +382,7 @@ export class BatchCalculationService {
       const databaseStatus = "healthy";
 
       // EventCacheService テスト
-      const cacheServiceStatus = "healthy"; // TODO: 適切なヘルスチェック追加
+      const cacheServiceStatus = "healthy"; // Health check to be implemented
 
       this.logger.info("バッチ計算健康チェック完了", {
         healthy,

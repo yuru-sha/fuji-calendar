@@ -30,7 +30,7 @@ import { LocationController } from "../controllers/LocationController";
 import { CalendarController } from "../controllers/CalendarController";
 import { AuthController } from "../controllers/AuthController";
 
-import { getComponentLogger } from "../shared";
+import { getComponentLogger } from "@fuji-calendar/utils";
 
 const logger = getComponentLogger("ServiceRegistry");
 

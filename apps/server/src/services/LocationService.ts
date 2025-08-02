@@ -1,8 +1,8 @@
-import { Location, CreateLocationRequest } from "../shared";
+import { Location, CreateLocationRequest } from "@fuji-calendar/types";
+import { getComponentLogger } from "@fuji-calendar/utils";
 import { LocationRepository } from "../repositories/interfaces/LocationRepository";
 import { AstronomicalCalculator } from "./interfaces/AstronomicalCalculator";
 import { QueueService } from "./interfaces/QueueService";
-import { getComponentLogger } from "../shared";
 
 const logger = getComponentLogger("LocationService");
 

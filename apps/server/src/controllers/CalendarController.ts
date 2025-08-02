@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { CalendarService } from "../services/interfaces/CalendarService";
-import { getComponentLogger } from "../shared";
+import { getComponentLogger } from "@fuji-calendar/utils";
 
 export class CalendarController {
   private logger = getComponentLogger("calendar-controller");

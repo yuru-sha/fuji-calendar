@@ -180,15 +180,20 @@ const SystemSettingsManager: React.FC = () => {
   // パフォーマンス設定を読み込む
   const loadPerformanceSettings = async () => {
     try {
-      const response = await authService.authenticatedFetch(
-        "/api/admin/performance-settings",
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setPerformanceSettings(data.settings);
-        }
+      // システム設定から直接パフォーマンス設定を読み込む
+      if (settingsData) {
+        const performanceSettings = settingsData.settings.performance || [];
+        
+        const newSettings: PerformanceSettings = {
+          workerConcurrency: performanceSettings.find(s => s.settingKey === 'worker_concurrency')?.value || 1,
+          jobDelayMs: performanceSettings.find(s => s.settingKey === 'job_delay_ms')?.value || 5000,
+          processingDelayMs: performanceSettings.find(s => s.settingKey === 'processing_delay_ms')?.value || 2000,
+          enableLowPriorityMode: performanceSettings.find(s => s.settingKey === 'enable_low_priority_mode')?.value || true,
+          maxActiveJobs: performanceSettings.find(s => s.settingKey === 'max_active_jobs')?.value || 3,
+        };
+        
+        setPerformanceSettings(newSettings);
+        console.log('パフォーマンス設定をロード:', newSettings);
       }
     } catch (err) {
       console.warn("パフォーマンス設定の読み込みに失敗:", err);
@@ -350,8 +355,14 @@ const SystemSettingsManager: React.FC = () => {
   // 初期読み込み
   useEffect(() => {
     loadSettings();
-    loadPerformanceSettings();
   }, []);
+
+  // settingsData が更新されたらパフォーマンス設定も更新
+  useEffect(() => {
+    if (settingsData) {
+      loadPerformanceSettings();
+    }
+  }, [settingsData]);
 
   if (loading) {
     return (
@@ -511,10 +522,16 @@ const SystemSettingsManager: React.FC = () => {
                     {category === "performance" && (
                       <div className="space-y-6">
                         {/* ワーカー同時実行数 */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            ワーカー同時実行数
-                          </label>
+                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4">
+                          <h4 className="text-sm font-medium text-gray-900 mb-3">
+                            🎯 コア負荷制御設定
+                          </h4>
+                          
+                          {/* ワーカー同時実行数 */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              worker_concurrency (各ワーカーの同時実行数)
+                            </label>
                           <div className="flex items-center space-x-4">
                             <input
                               type="range"
@@ -524,7 +541,7 @@ const SystemSettingsManager: React.FC = () => {
                               onChange={(e) => handlePerformanceSettingChange('workerConcurrency', parseInt(e.target.value))}
                               className="flex-1"
                             />
-                            <span className="text-sm font-medium text-gray-900 w-12">
+                            <span className="text-sm font-medium text-gray-900 w-12 text-center bg-gray-100 rounded px-2 py-1">
                               {performanceSettings.workerConcurrency}
                             </span>
                             <button
@@ -536,8 +553,51 @@ const SystemSettingsManager: React.FC = () => {
                             </button>
                           </div>
                           <p className="text-xs text-gray-500 mt-1">
-                            推奨: 1-2 (高負荷時は 1 を推奨)
+                            各ワーカープロセス内での並列度。ワーカー2台×値2なら最大4ジョブ並列実行
                           </p>
+                          </div>
+
+                          {/* 最大アクティブジョブ数 */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              max_active_jobs (システム全体の上限)
+                            </label>
+                            <div className="flex items-center space-x-4">
+                              <input
+                                type="range"
+                                min="1"
+                                max="10"
+                                value={performanceSettings.maxActiveJobs}
+                                onChange={(e) => handlePerformanceSettingChange('maxActiveJobs', parseInt(e.target.value))}
+                                className="flex-1"
+                              />
+                              <span className="text-sm font-medium text-gray-900 w-12 text-center bg-gray-100 rounded px-2 py-1">
+                                {performanceSettings.maxActiveJobs}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                              ワーカー数に関係なく、システム全体で同時実行可能なジョブの総数制限
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* 重要なパフォーマンス設定の説明 */}
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                          <h4 className="text-sm font-medium text-yellow-900 mb-3">
+                            🔧 重要な設定項目の違い
+                          </h4>
+                          <div className="text-sm text-yellow-800 space-y-3">
+                            <div>
+                              <strong>worker_concurrency (各ワーカーの同時実行数)</strong>
+                              <p className="ml-4">• 各ワーカープロセス内で同時に動くジョブ数</p>
+                              <p className="ml-4">• ワーカーが2台で値が2なら、システム全体で最大4ジョブが並列実行</p>
+                            </div>
+                            <div>
+                              <strong>max_active_jobs (システム全体の上限)</strong>
+                              <p className="ml-4">• ワーカー数に関係なく、システム全体で同時実行可能なジョブの総数</p>
+                              <p className="ml-4">• この値を超えるジョブは待機状態になる（優先制御）</p>
+                            </div>
+                          </div>
                         </div>
 
                         {/* 推奨設定 */}
@@ -559,7 +619,7 @@ const SystemSettingsManager: React.FC = () => {
                       .filter((setting) => {
                         // パフォーマンスカテゴリーの場合、特別UIで表示している項目は除外
                         if (category === "performance") {
-                          const excludedKeys = ["WORKER_CONCURRENCY", "workerConcurrency", "worker_concurrency"];
+                          const excludedKeys = ["WORKER_CONCURRENCY", "workerConcurrency", "worker_concurrency", "max_active_jobs", "maxActiveJobs", "MAX_ACTIVE_JOBS"];
                           return !excludedKeys.includes(setting.settingKey);
                         }
                         return true;

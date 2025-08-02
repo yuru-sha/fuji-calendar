@@ -55,39 +55,32 @@ export function useFavorites(): UseFavoritesState & UseFavoritesActions {
 
   // お気に入りデータを更新
   const refreshFavorites = useCallback(() => {
-    console.log("[DEBUG] useFavorites.refreshFavorites() - Starting refresh");
+    // Debug: Starting refresh
 
     const locations = favoritesService.getFavoriteLocations();
     const events = favoritesService.getFavoriteEvents();
     const upcomingEvents = favoritesService.getUpcomingFavoriteEvents();
     const currentStats = favoritesService.getFavoritesStats();
 
-    console.log("[DEBUG] useFavorites.refreshFavorites() - Retrieved data:", {
-      locations,
-      events,
-      upcomingEvents,
-      currentStats,
-    });
+    // Debug: Retrieved favorites data
 
     setFavoriteLocations(locations);
     setFavoriteEvents(events);
     setUpcomingFavoriteEvents(upcomingEvents);
     setStats(currentStats);
 
-    console.log("[DEBUG] useFavorites.refreshFavorites() - State updated");
+    // Debug: State updated
   }, []);
 
   // 初期化
   useEffect(() => {
-    console.log(
-      "[DEBUG] useFavorites - useEffect triggered, calling refreshFavorites",
-    );
+    // Debug: useEffect triggered
     refreshFavorites();
   }, [refreshFavorites]);
 
   // stats の変更を監視
   useEffect(() => {
-    console.log("[DEBUG] useFavorites - stats changed:", stats);
+    // Debug: stats changed
   }, [stats]);
 
   // 撮影地点のお気に入り操作

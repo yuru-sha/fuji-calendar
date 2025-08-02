@@ -3,9 +3,8 @@ import {
   FujiEvent,
   SunPosition,
   MoonPosition,
-} from "../shared";
-import { timeUtils } from "../shared";
-import { getComponentLogger } from "../shared";
+} from "@fuji-calendar/types";
+import { getComponentLogger, timeUtils } from "@fuji-calendar/utils";
 import { CoordinateCalculator } from "./astronomical/CoordinateCalculator";
 import { CelestialPositionCalculator } from "./astronomical/CelestialPositionCalculator";
 import { FujiAlignmentCalculator } from "./astronomical/FujiAlignmentCalculator";

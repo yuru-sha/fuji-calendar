@@ -1,4 +1,5 @@
-import { Location, FujiEvent, CalendarStats } from "../../shared";
+import { Location, FujiEvent, CalendarStats } from "@fuji-calendar/types";
+import { getComponentLogger } from "@fuji-calendar/utils";
 
 export interface CalendarRepository {
   // 月間イベント取得

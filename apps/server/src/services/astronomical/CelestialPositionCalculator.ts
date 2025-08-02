@@ -1,6 +1,6 @@
 import * as Astronomy from "astronomy-engine";
-import { SunPosition, MoonPosition } from "../../shared";
-import { getComponentLogger } from "../../shared";
+import { SunPosition, MoonPosition } from "@fuji-calendar/types";
+import { getComponentLogger } from "@fuji-calendar/utils";
 
 /**
  * 天体位置計算を担当するクラス
@@ -174,7 +174,7 @@ export class CelestialPositionCalculator {
         0,
       );
 
-      // 指定日の0:00 UTC から検索開始（より広い時間範囲で検索）
+      // 指定日の 0:00 UTC から検索開始（より広い時間範囲で検索）
       const startTime = new Date(date);
       startTime.setUTCHours(0, 0, 0, 0);
 
@@ -182,9 +182,9 @@ export class CelestialPositionCalculator {
       const transit = Astronomy.SearchHourAngle(
         Astronomy.Body.Sun,
         observer,
-        0, // 南中は時角0
+        0, // 南中は時角 0
         startTime,
-        2, // 2日以内に検索（より広い検索範囲）
+        2, // 2 日以内に検索（より広い検索範囲）
       );
 
       if (transit) {
@@ -199,7 +199,7 @@ export class CelestialPositionCalculator {
       this.logger.warn("太陽南中時刻が見つかりません", {
         date: date.toISOString(),
         location: `${location.latitude},${location.longitude}`,
-        reason: "2日以内に南中時刻が存在しない",
+        reason: "2 日以内に南中時刻が存在しない",
       });
       return null;
     } catch (error) {
@@ -225,7 +225,7 @@ export class CelestialPositionCalculator {
         0,
       );
 
-      // 指定日の0:00 UTC から検索開始
+      // 指定日の 0:00 UTC から検索開始
       const startTime = new Date(date);
       startTime.setUTCHours(0, 0, 0, 0);
 
@@ -233,9 +233,9 @@ export class CelestialPositionCalculator {
       const transit = Astronomy.SearchHourAngle(
         Astronomy.Body.Moon,
         observer,
-        0, // 南中は時角0
+        0, // 南中は時角 0
         startTime,
-        2, // 2日以内に検索（月の軌道周期を考慮）
+        2, // 2 日以内に検索（月の軌道周期を考慮）
       );
 
       if (transit) {
@@ -250,7 +250,7 @@ export class CelestialPositionCalculator {
       this.logger.warn("月南中時刻が見つかりません", {
         date: date.toISOString(),
         location: `${location.latitude},${location.longitude}`,
-        reason: "2日以内に南中時刻が存在しない",
+        reason: "2 日以内に南中時刻が存在しない",
       });
       return null;
     } catch (error) {

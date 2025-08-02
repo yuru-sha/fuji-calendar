@@ -3,7 +3,7 @@ import {
   FujiEvent,
   SunPosition,
   MoonPosition,
-} from "../../shared";
+} from "@fuji-calendar/types";
 
 /**
  * 天体計算インターフェース

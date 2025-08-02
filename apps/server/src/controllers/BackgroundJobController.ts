@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { getComponentLogger } from "../shared";
+import { getComponentLogger } from "@fuji-calendar/utils";
 import type { DIContainer } from "../di/DIContainer";
 import type { PrismaClient } from "@prisma/client";
 // 型のみのインポート - 実際の使用は動的解決

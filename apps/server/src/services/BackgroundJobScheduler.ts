@@ -1,5 +1,5 @@
 import * as cron from "node-cron";
-import { getComponentLogger } from "../shared";
+import { getComponentLogger } from "@fuji-calendar/utils";
 import type { DIContainer } from "../di/DIContainer";
 
 /**
@@ -17,16 +17,15 @@ export class BackgroundJobScheduler {
 
   /**
    * スケジューラーを開始
+   * 注意: この関数は bootstrap.ts で環境変数チェック後に呼ばれる前提
    */
   start(): void {
-    // 本番環境でのみ自動実行
-    if (process.env.NODE_ENV === "production") {
-      this.scheduleYearlyDataGeneration();
-      this.scheduleMaintenanceTasks();
-      this.logger.info("バックグラウンドジョブスケジューラー開始（本番環境）");
-    } else {
-      this.logger.info("バックグラウンドジョブスケジューラー無効（開発環境）");
-    }
+    this.scheduleYearlyDataGeneration();
+    this.scheduleMaintenanceTasks();
+    this.logger.info("バックグラウンドジョブスケジューラー開始", {
+      nodeEnv: process.env.NODE_ENV,
+      enableBackgroundScheduler: process.env.ENABLE_BACKGROUND_SCHEDULER,
+    });
   }
 
   /**
@@ -125,9 +124,9 @@ export class BackgroundJobScheduler {
       },
     );
 
-    // 毎月1日 AM 5:00 - 古いデータクリーンアップ
+    // 毎月 1 日 AM 5:00 - 古いデータクリーンアップ
     const monthlyMaintenanceJob = cron.schedule(
-      "0 5 1 * *", // 毎月1日 AM 5:00
+      "0 5 1 * *", // 毎月 1 日 AM 5:00
       async () => {
         await this.executeMonthlyMaintenance();
       },
@@ -149,7 +148,7 @@ export class BackgroundJobScheduler {
     this.logger.info("メンテナンスタスクをスケジュール", {
       daily: "毎日 AM 3:00 JST - データベースクリーンアップ",
       weekly: "毎週日曜日 AM 4:00 JST - 統計情報更新",
-      monthly: "毎月1日 AM 5:00 JST - 古いデータクリーンアップ",
+      monthly: "毎月 1 日 AM 5:00 JST - 古いデータクリーンアップ",
     });
   }
 
@@ -166,7 +165,7 @@ export class BackgroundJobScheduler {
 
       this.logger.info("キュー統計情報", queueStats);
 
-      // 失敗したジョブのクリーンアップ（7日以上前）
+      // 失敗したジョブのクリーンアップ（7 日以上前）
       const cleanedJobs = await queueService.cleanFailedJobs(7);
 
       this.logger.info("日次メンテナンス完了", {
@@ -201,7 +200,7 @@ export class BackgroundJobScheduler {
     try {
       this.logger.info("月次メンテナンス開始");
 
-      // 3年以上前の古いイベントデータを削除
+      // 3 年以上前の古いイベントデータを削除
       const currentDate = new Date();
       const threeYearsAgo = new Date(currentDate.getFullYear() - 3, 0, 1);
 

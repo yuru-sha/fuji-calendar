@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { LocationService } from "../services/LocationService";
-import { getComponentLogger } from "../shared";
+import { getComponentLogger } from "@fuji-calendar/utils";
 
 const logger = getComponentLogger("LocationController");
 

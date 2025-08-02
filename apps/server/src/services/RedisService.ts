@@ -1,6 +1,6 @@
 import Redis from "ioredis";
-import { getComponentLogger } from "../shared";
-import { FujiEvent } from "../shared";
+import { getComponentLogger } from "@fuji-calendar/utils";
+import { FujiEvent } from "@fuji-calendar/types";
 
 /**
  * Redis 活用拡大サービス

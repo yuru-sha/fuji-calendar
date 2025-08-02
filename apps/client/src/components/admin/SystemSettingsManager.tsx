@@ -200,37 +200,7 @@ const SystemSettingsManager: React.FC = () => {
     }
   };
 
-  // 同時実行数をリアルタイム更新
-  const updateConcurrency = async (newConcurrency: number) => {
-    try {
-      setSaving(true);
-      
-      const response = await authService.authenticatedFetch(
-        "/api/admin/queue/concurrency",
-        {
-          method: "PUT",
-          body: JSON.stringify({ concurrency: newConcurrency }),
-        },
-      );
-
-      if (!response.ok) {
-        throw new Error(`同時実行数の更新に失敗: ${response.status}`);
-      }
-
-      const result = await response.json();
-      if (result.success) {
-        setPerformanceSettings(prev => ({ ...prev, workerConcurrency: newConcurrency }));
-        alert("同時実行数を更新しました");
-      } else {
-        throw new Error(result.message || "同時実行数の更新に失敗しました");
-      }
-    } catch (err) {
-      console.error("同時実行数更新エラー:", err);
-      setError(err instanceof Error ? err.message : "同時実行数の更新に失敗しました");
-    } finally {
-      setSaving(false);
-    }
-  };
+;
 
   // パフォーマンス設定値の変更
   const handlePerformanceSettingChange = (key: keyof PerformanceSettings, value: any) => {
@@ -529,9 +499,12 @@ const SystemSettingsManager: React.FC = () => {
                           
                           {/* ワーカー同時実行数 */}
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
                               worker_concurrency (各ワーカーの同時実行数)
                             </label>
+                            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mb-2">
+                              ⚠️ 設定変更後はワーカーの再起動が必要です (docker-compose restart worker)
+                            </p>
                           <div className="flex items-center space-x-4">
                             <input
                               type="range"
@@ -544,13 +517,7 @@ const SystemSettingsManager: React.FC = () => {
                             <span className="text-sm font-medium text-gray-900 w-12 text-center bg-gray-100 rounded px-2 py-1">
                               {performanceSettings.workerConcurrency}
                             </span>
-                            <button
-                              onClick={() => updateConcurrency(performanceSettings.workerConcurrency)}
-                              disabled={saving}
-                              className="px-3 py-1 text-xs font-medium text-blue-600 border border-blue-300 rounded hover:bg-blue-50 disabled:opacity-50"
-                            >
-                              即座に適用
-                            </button>
+
                           </div>
                           <p className="text-xs text-gray-500 mt-1">
                             各ワーカープロセス内での並列度。ワーカー2台×値2なら最大4ジョブ並列実行

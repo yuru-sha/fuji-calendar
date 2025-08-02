@@ -113,8 +113,8 @@ export class QueueService implements IQueueService {
       this.eventCalculationQueue = new Queue("event-calculation", {
         connection: this.redis,
         defaultJobOptions: {
-          removeOnComplete: 100,
-          removeOnFail: 50,
+          removeOnComplete: { count: 100 },
+          removeOnFail: { count: 50 },
           attempts: 3,
           backoff: {
             type: "exponential",
@@ -163,8 +163,8 @@ export class QueueService implements IQueueService {
             concurrency,
             maxStalledCount: 1, // スタール許容回数を1に減らす
             stalledInterval: 60 * 1000, // スタール検出間隔を60秒に設定
-            removeOnComplete: 100,
-            removeOnFail: 50,
+            removeOnComplete: { count: 100 },
+          removeOnFail: { count: 50 },
           },
         );
 
@@ -605,12 +605,10 @@ export class QueueService implements IQueueService {
   /**
    * ワーカーの同時実行数をリアルタイムで変更
    */
+  /**
+   * ワーカーの同時実行数をリアルタイムで変更
+   */
   async updateConcurrency(newConcurrency: number): Promise<boolean> {
-    if (!this.worker) {
-      logger.warn("ワーカーが初期化されていません");
-      return false;
-    }
-
     if (newConcurrency < 1 || newConcurrency > 10) {
       logger.warn("同時実行数は 1-10 の範囲で設定してください", {
         newConcurrency,
@@ -618,6 +616,26 @@ export class QueueService implements IQueueService {
       return false;
     }
 
+    // バックエンドの場合：設定をDBに保存するのみ
+    if (!this.worker) {
+      logger.info("バックエンドモード：設定をDBに保存します", { newConcurrency });
+      
+      if (this.systemSettingsService) {
+        try {
+          await this.systemSettingsService.updateSetting("worker_concurrency", newConcurrency, "number");
+          logger.info("同時実行数設定をDBに保存完了", { newConcurrency });
+          return true;
+        } catch (error) {
+          logger.error("同時実行数設定の保存に失敗", error);
+          return false;
+        }
+      } else {
+        logger.error("SystemSettingsService が利用できません");
+        return false;
+      }
+    }
+
+    // ワーカーの場合：実際にワーカーを更新
     try {
       // 現在の設定を記録
       const oldConcurrency = this.worker.opts.concurrency;
@@ -636,8 +654,8 @@ export class QueueService implements IQueueService {
           concurrency: newConcurrency,
           maxStalledCount: 1, // スタール許容回数を1に減らす
           stalledInterval: 60 * 1000, // スタール検出間隔を60秒に設定
-          removeOnComplete: 100,
-          removeOnFail: 50,
+          removeOnComplete: { count: 100 },
+          removeOnFail: { count: 50 },
         },
       );
 

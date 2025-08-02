@@ -96,6 +96,7 @@ export class SystemSettingsService {
   ): Promise<void> {
     try {
       const updateData = this.prepareUpdateData(value, settingType);
+      const category = this.inferCategoryFromKey(settingKey);
 
       await this.prisma.systemSetting.upsert({
         where: { settingKey },
@@ -106,6 +107,7 @@ export class SystemSettingsService {
         create: {
           settingKey,
           settingType: settingType || this.inferSettingType(value),
+          category: category, // カテゴリを設定
           ...updateData,
         },
       });
@@ -113,7 +115,7 @@ export class SystemSettingsService {
       // キャッシュを更新
       this.settingsCache.set(settingKey, value);
 
-      logger.info("設定値更新", { settingKey, value, settingType });
+      logger.info("設定値更新", { settingKey, value, settingType, category });
     } catch (error) {
       logger.error("設定値更新エラー", { settingKey, value, error });
       throw error;
@@ -276,6 +278,23 @@ export class SystemSettingsService {
     if (typeof value === "number") return "number";
     if (typeof value === "boolean") return "boolean";
     return "string";
+  }
+
+  /**
+   * 設定キーからカテゴリを推論
+   */
+  private inferCategoryFromKey(settingKey: string): string {
+    if (settingKey.includes('worker_') || settingKey.includes('job_') || settingKey.includes('processing_') || settingKey.includes('concurrency') || settingKey.includes('max_active')) {
+      return 'performance';
+    }
+    if (settingKey.includes('azimuth_') || settingKey.includes('elevation_') || settingKey.includes('sun_') || settingKey.includes('moon_') || settingKey.includes('search_')) {
+      return 'astronomical';
+    }
+    if (settingKey.includes('ui_') || settingKey.includes('theme_') || settingKey.includes('display_')) {
+      return 'ui';
+    }
+    // デフォルトは performance
+    return 'performance';
   }
 
   /**

@@ -52,11 +52,11 @@ WORKDIR /app
 
 # モノレポの package.json をコピー
 COPY package*.json ./
-COPY apps/server/package.json ./apps/server/
-COPY packages/types/package.json ./packages/types/
-COPY packages/utils/package.json ./packages/utils/
-COPY packages/shared/package.json ./packages/shared/
-COPY packages/ui/package.json ./packages/ui/
+COPY --from=builder /app/apps/server/package.json ./apps/server/
+COPY --from=builder /app/packages/types/package.json ./packages/types/
+COPY --from=builder /app/packages/utils/package.json ./packages/utils/
+COPY --from=builder /app/packages/shared/package.json ./packages/shared/
+COPY --from=builder /app/packages/ui/package.json ./packages/ui/
 
 # 全ての依存関係をインストール（ts-node 実行のため型定義が必要）
 RUN npm ci --silent && npm cache clean --force

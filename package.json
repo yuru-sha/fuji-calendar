@@ -17,13 +17,15 @@
     "build:server": "npm run build --workspace=apps/server",
     "build:packages": "npm run build --workspace=packages/types && npm run build --workspace=packages/utils && npm run build --workspace=packages/ui",
     "start": "npm run start --workspace=apps/server",
+    "start:worker": "npm run start:worker --workspace=apps/server",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "lint:fix": "npm run lint:fix --workspaces --if-present",
     "clean": "npm run clean --workspaces --if-present && rm -rf node_modules",
     "worker": "npm run worker --workspace=apps/server",
-    "create-admin": "node scripts/admin/create-admin.js"
+    "create-admin": "node scripts/admin/create-admin.js",
+    "init-system-settings": "node scripts/init-system-settings.js"
   },
   "keywords": [
     "fuji",

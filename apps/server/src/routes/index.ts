@@ -7,6 +7,7 @@ import { AuthControllerRefactored } from '../controllers/AuthControllerRefactore
 import { BackgroundJobController } from '../controllers/BackgroundJobController';
 import { authenticateAdmin, authRateLimit, adminApiRateLimit } from '../middleware/auth';
 import { DIContainer } from '../di/DIContainer';
+import { createSystemSettingsRouter } from './systemSettings';
 
 const serverLogger = getComponentLogger('server');
 
@@ -48,6 +49,76 @@ export function setupRoutes(app: Express, container: DIContainer): void {
     } catch (error) {
       serverLogger.error('管理者キュー統計取得エラー', error);
       res.status(500).json({ error: 'Failed to get queue stats' });
+    }
+  });
+
+  // 同時実行数の取得
+  app.get('/api/admin/queue/concurrency', authenticateAdmin, async (req: Request, res: Response) => {
+    try {
+      const queueService = container.resolve('QueueService') as any;
+      const currentConcurrency = queueService.getCurrentConcurrency();
+      
+      res.json({
+        success: true,
+        data: {
+          concurrency: currentConcurrency,
+          maxConcurrency: 10,
+          minConcurrency: 1
+        }
+      });
+    } catch (error) {
+      serverLogger.error('同時実行数取得エラー', error);
+      res.status(500).json({ error: 'Failed to get concurrency' });
+    }
+  });
+
+  // 同時実行数のリアルタイム変更
+  app.put('/api/admin/queue/concurrency', authenticateAdmin, adminApiRateLimit, async (req: Request, res: Response) => {
+    try {
+      const queueService = container.resolve('QueueService') as any;
+      const { concurrency } = req.body;
+      
+      if (!concurrency || typeof concurrency !== 'number') {
+        return res.status(400).json({
+          success: false,
+          message: '同時実行数は数値で指定してください'
+        });
+      }
+
+      if (concurrency < 1 || concurrency > 10) {
+        return res.status(400).json({
+          success: false,
+          message: '同時実行数は 1-10 の範囲で指定してください'
+        });
+      }
+
+      const oldConcurrency = queueService.getCurrentConcurrency();
+      const success = await queueService.updateConcurrency(concurrency);
+
+      if (success) {
+        serverLogger.info('同時実行数変更成功', { 
+          oldConcurrency, 
+          newConcurrency: concurrency,
+          requestedBy: (req as any).admin?.username
+        });
+
+        res.json({
+          success: true,
+          message: '同時実行数を変更しました',
+          data: {
+            oldConcurrency,
+            newConcurrency: concurrency
+          }
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          message: '同時実行数の変更に失敗しました'
+        });
+      }
+    } catch (error) {
+      serverLogger.error('同時実行数変更エラー', error);
+      res.status(500).json({ error: 'Failed to update concurrency' });
     }
   });
 
@@ -215,6 +286,9 @@ export function setupRoutes(app: Express, container: DIContainer): void {
   // Export/Import 機能
   app.get('/api/admin/locations/export', adminApiRateLimit, authenticateAdmin, locationController.exportLocations.bind(locationController));
   app.post('/api/admin/locations/import', adminApiRateLimit, authenticateAdmin, locationController.importLocations.bind(locationController));
+
+  // システム設定管理 API
+  app.use('/api/admin/system-settings', adminApiRateLimit, createSystemSettingsRouter(container));
 
 
   // SPA 用のフォールバック（本番環境）

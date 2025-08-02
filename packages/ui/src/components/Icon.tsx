@@ -72,7 +72,15 @@ import {
   Upload,
   ChevronDown,
   Server,
-  CheckCircle2
+  CheckCircle2,
+  Book,
+  Car,
+  Sunrise,
+  Sunset,
+  Home,
+  User,
+  Shield,
+  Camera
 } from 'lucide-react';
 
 // アイコンマッピング
@@ -165,10 +173,20 @@ export const iconMap = {
   // 汎用円形アイコン（その他用途）
   circle: Circle,             // 汎用円形
   
-  // 情報・詳細アイコン
+  // 追加のアイコン
   info: Info,                 // ℹ️ → Info
+  navigation: Navigation,     // 🧭 → Navigation
   parking: ParkingCircle,     // 🅿️ → ParkingCircle
-  navigation: Navigation,     // 🗺️ → Navigation (ルート検索用)
+  book: Book,                 // 📖 → Book
+  partlyCloudy: Cloud,        // ⛅ → Cloud
+  car: Car,                   // 🚗 → Car
+  sunrise: Sunrise,           // 🌅 → Sunrise
+  sunset: Sunset,             // 🌇 → Sunset
+  home: Home,                 // 🏠 → Home
+  favorites: User,            // ⭐ → User (お気に入り)
+  admin: Shield,              // 🛡️ → Shield (管理)
+  camera: Camera,             // 📷 → Camera
+  download: Download,         // ⬇️ → Download
   
   // 管理画面追加アイコン  
   key: Key,                   // パスワード変更
@@ -185,6 +203,7 @@ interface IconProps {
   size?: number;
   className?: string;
   color?: string;
+  style?: React.CSSProperties;
 }
 
 // 汎用アイコンコンポーネント
@@ -192,7 +211,8 @@ export const Icon: React.FC<IconProps> = ({
   name, 
   size = 24, 
   className = '', 
-  color = 'currentColor' 
+  color = 'currentColor',
+  style
 }) => {
   const IconComponent = iconMap[name];
   
@@ -206,6 +226,7 @@ export const Icon: React.FC<IconProps> = ({
       size={size} 
       className={className}
       color={color}
+      style={style}
     />
   );
 };

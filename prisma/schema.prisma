@@ -97,3 +97,21 @@ model BackgroundJobConfig {
 
   @@map("background_job_configs")
 }
+
+model SystemSetting {
+  id          Int      @id @default(autoincrement())
+  settingKey  String   @unique @map("setting_key") @db.VarChar(100)
+  settingType String   @map("setting_type") @db.VarChar(20) // 'number', 'string', 'boolean'
+  numberValue Float?   @map("number_value")
+  stringValue String?  @map("string_value") @db.VarChar(255)
+  booleanValue Boolean? @map("boolean_value")
+  description String?  @db.Text
+  category    String   @db.VarChar(50) // 'astronomical', 'ui', 'performance', etc.
+  editable    Boolean  @default(true) // 管理画面で編集可能かどうか
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([category])
+  @@index([settingKey])
+  @@map("system_settings")
+}

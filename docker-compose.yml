@@ -1,15 +1,15 @@
 services:
-  # PostgreSQL (Docker 内部アクセスのみ)
+  # PostgreSQL
   postgres:
     image: postgres:15-alpine
     container_name: fuji_calendar_postgres
     restart: unless-stopped
-    expose:
-      - "5432"  # Docker 内部のみアクセス可
+    ports:
+      - "5432:5432"  # メンテナンス用外部アクセス対応
     environment:
       POSTGRES_DB: ${DB_NAME:-fuji_calendar}
       POSTGRES_USER: ${DB_USER:-fuji_user}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-prod_password_change_me}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password_change_me}
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
       TZ: Asia/Tokyo
     volumes:
@@ -54,11 +54,13 @@ services:
       - "443:443"
     environment:
       TZ: Asia/Tokyo
+      BACKEND_PORT: ${PORT:-3000}
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/nginx.conf.template:/etc/nginx/nginx.conf.template:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./apps/client/dist:/usr/share/nginx/html:ro  # モノレポ構成の静的ファイル
       - ./ssl:/etc/nginx/ssl:ro  # SSL 証明書用（オプション）
+    command: /bin/sh -c "export BACKEND_PORT=$${BACKEND_PORT:-3000} && envsubst '$$BACKEND_PORT' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && nginx -g 'daemon off;'"
     depends_on:
       - backend
     healthcheck:
@@ -77,12 +79,12 @@ services:
     container_name: fuji_calendar_backend
     restart: unless-stopped
     expose:
-      - "3000"
+      - "${PORT:-3000}"
     environment:
       NODE_ENV: production
-      PORT: 3000
+      PORT: ${PORT:-3000}
       # PostgreSQL 接続設定（Prisma 対応）
-      DATABASE_URL: postgresql://${DB_USER:-fuji_user}:${DB_PASSWORD:-prod_password_change_me}@postgres:5432/${DB_NAME:-fuji_calendar}
+      DATABASE_URL: postgresql://${DB_USER:-fuji_user}:${DB_PASSWORD:-FujiAdmin2025!}@postgres:5432/${DB_NAME:-fuji_calendar}
       # Redis 設定
       REDIS_HOST: redis
       REDIS_PORT: 6379
@@ -125,7 +127,7 @@ services:
     environment:
       NODE_ENV: production
       # PostgreSQL 接続設定（Prisma 対応）
-      DATABASE_URL: postgresql://${DB_USER:-fuji_user}:${DB_PASSWORD:-prod_password_change_me}@postgres:5432/${DB_NAME:-fuji_calendar}
+      DATABASE_URL: postgresql://${DB_USER:-fuji_user}:${DB_PASSWORD:-FujiAdmin2025!}@postgres:5432/${DB_NAME:-fuji_calendar}
       # Redis 設定
       REDIS_HOST: redis
       REDIS_PORT: 6379
@@ -136,7 +138,7 @@ services:
       # タイムゾーン
       TZ: Asia/Tokyo
       # ワーカー設定
-      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-5}
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-3}
     volumes:
       - ./logs:/app/logs
     depends_on:

@@ -6,7 +6,7 @@ import {
   CacheValidationResult 
 } from './interfaces/EventService';
 import { EventCacheService } from './EventCacheService';
-import { AstronomicalCalculatorImpl } from './AstronomicalCalculator';
+import { AstronomicalCalculator, AstronomicalCalculatorImpl } from './AstronomicalCalculator';
 import { PrismaClientManager } from '../database/prisma';
 import { getComponentLogger } from '@fuji-calendar/utils';
 
@@ -18,12 +18,12 @@ const logger = getComponentLogger('EventServiceImpl');
  */
 export class EventServiceImpl implements EventService {
   private eventCacheService: EventCacheService;
-  private astronomicalCalculator: AstronomicalCalculatorImpl;
+  private astronomicalCalculator: AstronomicalCalculator;
   private prisma = PrismaClientManager.getInstance();
 
-  constructor() {
-    this.eventCacheService = new EventCacheService();
-    this.astronomicalCalculator = new AstronomicalCalculatorImpl();
+  constructor(astronomicalCalculator: AstronomicalCalculator, eventCacheService: EventCacheService) {
+    this.astronomicalCalculator = astronomicalCalculator;
+    this.eventCacheService = eventCacheService;
   }
 
   async generateLocationCache(locationId: number, year: number): Promise<CacheResult> {
@@ -219,7 +219,7 @@ export class EventServiceImpl implements EventService {
 
       // 欠損している月を特定
       const existingMonths = new Set(
-        monthlyEvents.map(event => new Date(event.eventDate).getMonth() + 1)
+        monthlyEvents.map((event: any) => new Date(event.eventDate).getMonth() + 1)
       );
       const missingMonths: number[] = [];
       for (let month = 1; month <= 12; month++) {

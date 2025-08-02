@@ -1,7 +1,7 @@
 import { Location } from '@fuji-calendar/types';
 import { PrismaClientManager } from '../database/prisma';
 import { EventCacheService } from './EventCacheService';
-import { AstronomicalCalculatorImpl } from './AstronomicalCalculator';
+import { AstronomicalCalculator, AstronomicalCalculatorImpl } from './AstronomicalCalculator';
 import { getComponentLogger, StructuredLogger } from '@fuji-calendar/utils';
 
 /**
@@ -9,14 +9,14 @@ import { getComponentLogger, StructuredLogger } from '@fuji-calendar/utils';
  * QueueService から呼び出される重い天体計算処理を担当
  */
 export class BatchCalculationService {
-  private astronomicalCalculator: AstronomicalCalculatorImpl;
+  private astronomicalCalculator: AstronomicalCalculator;
   private eventCacheService: EventCacheService;
   private logger: StructuredLogger;
   private prisma = PrismaClientManager.getInstance();
 
-  constructor() {
-    this.astronomicalCalculator = new AstronomicalCalculatorImpl();
-    this.eventCacheService = new EventCacheService();
+  constructor(astronomicalCalculator: AstronomicalCalculator, eventCacheService: EventCacheService) {
+    this.astronomicalCalculator = astronomicalCalculator;
+    this.eventCacheService = eventCacheService;
     this.logger = getComponentLogger('batch-calculation-service');
   }
 
@@ -447,5 +447,4 @@ export class BatchCalculationService {
   }
 }
 
-// シングルトンインスタンス
-export const batchCalculationService = new BatchCalculationService();
+// DI コンテナから注入されるため、シングルトンインスタンスは削除

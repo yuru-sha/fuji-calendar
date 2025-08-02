@@ -264,23 +264,15 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
         
         // 各イベントごとに太陽・月への線を描画
         eventsToShow.forEach((event, _index) => {
-          const locationToFujiAzimuth = location.fujiAzimuth || 0; // 撮影地点から富士山への方位角
-          const observerToSunMoonAzimuth = event.azimuth; // 撮影地点から見た太陽・月の方位角（イベントデータから取得）
+          // const locationToFujiAzimuth = location.fujiAzimuth || 0; // 撮影地点から富士山への方位角
+          // const observerToSunMoonAzimuth = event.azimuth; // 撮影地点から見た太陽・月の方位角（イベントデータから取得）
           
           // Astronomy Engine を使用したリアルタイム天体位置計算（高精度）
           const calculatedSun = calculateSunPosition(event.time, location.latitude, location.longitude, location.elevation);
           const calculatedMoon = calculateMoonPosition(event.time, location.latitude, location.longitude, location.elevation);
           const calculatedCelestial = event.type === 'diamond' ? calculatedSun : calculatedMoon;
           
-          // デバッグ用ログ（Astronomy Engine 高精度計算）
-          console.log(`[DEBUG] Location: ${location.name} (標高: ${location.elevation}m)`);
-          console.log(`[DEBUG] Event ID: ${event.id}, Type: ${event.type}, Time: ${event.time}`);
-          console.log(`[DEBUG] 撮影地点→富士山の方位角: ${locationToFujiAzimuth.toFixed(2)}度`);
-          console.log(`[DEBUG] イベントデータの azimuth: ${observerToSunMoonAzimuth.toFixed(2)}度`);
-          console.log(`[DEBUG] Astronomy Engine 計算${event.type === 'diamond' ? '太陽' : '月'}の方位角: ${calculatedCelestial.azimuth.toFixed(2)}度`);
-          console.log(`[DEBUG] Astronomy Engine 計算${event.type === 'diamond' ? '太陽' : '月'}の高度: ${calculatedCelestial.elevation.toFixed(2)}度`);
-          console.log(`[DEBUG] location.fujiAzimuth vs event.azimuth の差: ${Math.abs(locationToFujiAzimuth - observerToSunMoonAzimuth).toFixed(2)}度`);
-          console.log(`[DEBUG] location.fujiAzimuth vs Astronomy Engine 計算値 の差: ${Math.abs(locationToFujiAzimuth - calculatedCelestial.azimuth).toFixed(2)}度`);
+          // Astronomy Engine による高精度計算の適用
           
           // 撮影地→太陽・月方向の線（ゴールド/紫）
           const celestialAzimuth = calculatedCelestial.azimuth; // Astronomy Engine 計算値を使用
@@ -338,25 +330,22 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
         // 特定の地点が選択されている場合
         const selectedLocation = uniqueEventLocations.find(loc => loc.id === selectedLocationId);
         if (selectedLocation) {
-          // 富士山との距離に応じてズームレベルを決定
-          const distanceKm = (selectedLocation.fujiDistance || 0) / 1000;
-          let zoomLevel = 10; // デフォルト
-          
-          if (distanceKm <= 30) {
-            zoomLevel = 12; // 30km 以内：詳細表示
-          } else if (distanceKm <= 100) {
-            zoomLevel = 11; // 100km 以内：中詳細表示
-          } else if (distanceKm <= 200) {
-            zoomLevel = 10; // 200km 以内：標準表示
-          } else {
-            zoomLevel = 9;  // 200km 以上：広域表示
+          // 撮影設定が ON の場合はズームしない
+          if (cameraSettings.showAngles) {
+            // 撮影設定表示中は現在のビューを維持
+            return;
           }
           
-          // 選択された地点と富士山の中点を中心にして表示
-          const centerLat = (selectedLocation.latitude + FUJI_COORDINATES.latitude) / 2;
-          const centerLng = (selectedLocation.longitude + FUJI_COORDINATES.longitude) / 2;
+          // 富士山と撮影地点の両方が入るように fitBounds を使用
+          const bounds = L.latLngBounds([]);
+          bounds.extend([FUJI_COORDINATES.latitude, FUJI_COORDINATES.longitude]);
+          bounds.extend([selectedLocation.latitude, selectedLocation.longitude]);
           
-          map.setView([centerLat, centerLng], zoomLevel);
+          // 適切なズームレベルで表示（パディングを追加）
+          map.fitBounds(bounds, { 
+            padding: [50, 50],
+            maxZoom: 12 // 最大ズーム制限で詳細すぎる表示を防ぐ
+          });
         }
       } else {
         // 地点が選択されていない場合は全体を表示

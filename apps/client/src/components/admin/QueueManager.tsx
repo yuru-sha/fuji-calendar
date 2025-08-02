@@ -39,12 +39,21 @@ interface BackgroundJobsStatus {
   error?: string;
 }
 
+interface ConcurrencyInfo {
+  concurrency: number;
+  maxConcurrency: number;
+  minConcurrency: number;
+}
+
 
 const QueueManager: React.FC = () => {
   
   const [stats, setStats] = useState<QueueStats | null>(null);
   const [backgroundJobs, setBackgroundJobs] = useState<BackgroundJobsStatus | null>(null);
+  const [concurrencyInfo, setConcurrencyInfo] = useState<ConcurrencyInfo | null>(null);
+  const [newConcurrency, setNewConcurrency] = useState<number>(3);
   const [loading, setLoading] = useState(false);
+  const [concurrencyMessage, setConcurrencyMessage] = useState<string>('');
   const [renderError, setRenderError] = useState<string | null>(null);
 
   const fetchStats = async () => {
@@ -200,6 +209,60 @@ const QueueManager: React.FC = () => {
   };
 
 
+  const fetchConcurrency = async () => {
+    try {
+      const token = authService.getToken();
+      if (!token) return;
+
+      const response = await fetch('/api/admin/queue/concurrency', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setConcurrencyInfo(data.data);
+        setNewConcurrency(data.data.concurrency);
+      }
+    } catch (error) {
+      logger.error('同時実行数取得エラー', error);
+    }
+  };
+
+  const updateConcurrency = async () => {
+    if (!concurrencyInfo) return;
+
+    try {
+      setLoading(true);
+      setConcurrencyMessage('');
+
+      const token = authService.getToken();
+      const response = await fetch('/api/admin/queue/concurrency', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ concurrency: newConcurrency })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setConcurrencyMessage(`同時実行数を ${data.data.oldConcurrency} から ${data.data.newConcurrency} に変更しました`);
+        await fetchConcurrency();
+      } else {
+        setConcurrencyMessage(data.message || '変更に失敗しました');
+      }
+    } catch (error) {
+      logger.error('同時実行数変更エラー', error);
+      setConcurrencyMessage('変更中にエラーが発生しました');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const cleanFailedJobs = async () => {
     if (!confirm('失敗したジョブをすべてクリアしますか？')) return;
 
@@ -242,6 +305,7 @@ const QueueManager: React.FC = () => {
         
         await fetchStats();
         await fetchBackgroundJobs();
+        await fetchConcurrency();
         logger.info('QueueManager 初期化完了');
       } catch (error) {
         logger.error('QueueManager 初期化エラー', error);
@@ -267,6 +331,9 @@ const QueueManager: React.FC = () => {
       });
       fetchBackgroundJobs().catch(error => {
         logger.error('バックグラウンドジョブ定期更新エラー', error);
+      });
+      fetchConcurrency().catch(error => {
+        logger.error('同時実行数定期更新エラー', error);
       });
     }, 5000);
     
@@ -337,6 +404,69 @@ const QueueManager: React.FC = () => {
         </div>
       )}
       
+      {/* 同時実行数制御 */}
+      {concurrencyInfo && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold mb-4">同時実行数制御</h2>
+          
+          {concurrencyMessage && (
+            <div className={`mb-4 p-3 rounded-md ${
+              concurrencyMessage.includes('変更しました') 
+                ? 'bg-green-50 text-green-700 border border-green-200' 
+                : 'bg-red-50 text-red-700 border border-red-200'
+            }`}>
+              {concurrencyMessage}
+            </div>
+          )}
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                現在の同時実行数: <span className="font-bold text-lg text-blue-600">{concurrencyInfo.concurrency}</span>
+              </label>
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              <div>
+                <label htmlFor="concurrency" className="block text-sm font-medium text-gray-700">
+                  新しい同時実行数
+                </label>
+                <input
+                  type="number"
+                  id="concurrency"
+                  min={concurrencyInfo.minConcurrency}
+                  max={concurrencyInfo.maxConcurrency}
+                  value={newConcurrency}
+                  onChange={(e) => setNewConcurrency(parseInt(e.target.value))}
+                  className="mt-1 block w-20 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  disabled={loading}
+                />
+                <div className="text-xs text-gray-500 mt-1">
+                  範囲: {concurrencyInfo.minConcurrency}-{concurrencyInfo.maxConcurrency}
+                </div>
+              </div>
+              
+              <button
+                onClick={updateConcurrency}
+                disabled={loading || newConcurrency === concurrencyInfo.concurrency || !stats.enabled}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                title={!stats.enabled ? 'Redis が必要です' : ''}
+              >
+                {loading ? '変更中...' : '変更'}
+              </button>
+            </div>
+
+            <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded">
+              <p className="mb-1"><strong>💡 使い方:</strong></p>
+              <p>• 同時実行数を減らすと、メモリ使用量が削減されますが処理速度が低下します</p>
+              <p>• 同時実行数を増やすと、処理速度が向上しますがメモリ使用量が増加します</p>
+              <p>• 変更は即座に反映され、実行中のジョブには影響しません</p>
+              <p>• 15 分の天体計算に対応するため、stall タイムアウトは 20 分に設定済みです</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* キュー統計 */}
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-lg font-semibold mb-4">キュー統計</h2>

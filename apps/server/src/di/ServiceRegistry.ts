@@ -22,6 +22,8 @@ import { CalendarService } from '../services/interfaces/CalendarService';
 import { CalendarServiceImpl } from '../services/CalendarServiceRefactored';
 import { AuthService } from '../services/interfaces/AuthService';
 import { AuthServiceImpl } from '../services/AuthServiceRefactored';
+import { SystemSettingsService } from '../services/SystemSettingsService';
+import { BatchCalculationService } from '../services/BatchCalculationService';
 
 // Controller
 import { LocationController } from '../controllers/LocationControllerRefactored';
@@ -49,6 +51,13 @@ export class ServiceRegistry {
       return new PrismaClient();
     });
 
+    // SystemSettingsService の登録
+    container.registerSingleton('SystemSettingsService', (container) => {
+      logger.debug('SystemSettingsService インスタンス作成');
+      const prismaClient = container.resolve<PrismaClient>('PrismaClient');
+      return new SystemSettingsService(prismaClient);
+    });
+
     // Repository の登録
     container.registerSingleton('LocationRepository', () => {
       logger.debug('PrismaLocationRepository インスタンス作成');
@@ -66,15 +75,17 @@ export class ServiceRegistry {
     });
 
     // AstronomicalCalculator の登録
-    container.registerSingleton('AstronomicalCalculator', () => {
+    container.registerSingleton('AstronomicalCalculator', (container) => {
       logger.debug('AstronomicalCalculatorImpl インスタンス作成');
-      return new AstronomicalCalculatorImpl();
+      const settingsService = container.resolve<SystemSettingsService>('SystemSettingsService');
+      return new AstronomicalCalculatorImpl(settingsService);
     });
 
     // EventCacheService の登録
-    container.registerSingleton('EventCacheService', () => {
+    container.registerSingleton('EventCacheService', (container) => {
       logger.debug('EventCacheService インスタンス作成');
-      return new EventCacheService();
+      const astronomicalCalculator = container.resolve<AstronomicalCalculator>('AstronomicalCalculator');
+      return new EventCacheService(astronomicalCalculator);
     });
 
     // QueueService の登録（循環依存を避けるため最初に登録）
@@ -87,7 +98,9 @@ export class ServiceRegistry {
     // EventService の登録
     container.registerSingleton('EventService', (container) => {
       logger.debug('EventServiceImpl インスタンス作成');
-      const eventService = new EventServiceImpl();
+      const astronomicalCalculator = container.resolve<AstronomicalCalculator>('AstronomicalCalculator');
+      const eventCacheService = container.resolve<EventCacheService>('EventCacheService');
+      const eventService = new EventServiceImpl(astronomicalCalculator, eventCacheService);
       
       // QueueService に EventService を注入
       try {
@@ -129,6 +142,14 @@ export class ServiceRegistry {
       return new AuthServiceImpl(authRepository);
     });
 
+    // BatchCalculationService の登録
+    container.registerSingleton('BatchCalculationService', (container) => {
+      logger.debug('BatchCalculationService インスタンス作成');
+      const astronomicalCalculator = container.resolve<AstronomicalCalculator>('AstronomicalCalculator');
+      const eventCacheService = container.resolve<EventCacheService>('EventCacheService');
+      return new BatchCalculationService(astronomicalCalculator, eventCacheService);
+    });
+
     // Controller の登録（トランジェント：リクエストごとに新しいインスタンス）
     container.register('LocationController', (container?: DIContainer) => {
       logger.debug('LocationController インスタンス作成');
@@ -168,6 +189,7 @@ export class ServiceRegistry {
       const locationRepository = container.resolve<LocationRepository>('LocationRepository');
       const calendarRepository = container.resolve<CalendarRepository>('CalendarRepository');
       const authRepository = container.resolve<AuthRepository>('AuthRepository');
+      const systemSettingsService = container.resolve<SystemSettingsService>('SystemSettingsService');
       const astronomicalCalculator = container.resolve<AstronomicalCalculator>('AstronomicalCalculator');
       const eventCacheService = container.resolve<EventCacheService>('EventCacheService');
       const eventService = container.resolve<EventService>('EventService');
@@ -175,6 +197,7 @@ export class ServiceRegistry {
       const calendarService = container.resolve<CalendarService>('CalendarService');
       const authService = container.resolve<AuthService>('AuthService');
       const queueService = container.resolve<QueueService>('QueueService');
+      const batchCalculationService = container.resolve<BatchCalculationService>('BatchCalculationService');
       const locationController = container.resolve<LocationController>('LocationController');
       const calendarController = container.resolve<CalendarControllerRefactored>('CalendarController');
       const authController = container.resolve<AuthControllerRefactored>('AuthController');
@@ -184,6 +207,7 @@ export class ServiceRegistry {
         { name: 'LocationRepository', instance: locationRepository },
         { name: 'CalendarRepository', instance: calendarRepository },
         { name: 'AuthRepository', instance: authRepository },
+        { name: 'SystemSettingsService', instance: systemSettingsService },
         { name: 'AstronomicalCalculator', instance: astronomicalCalculator },
         { name: 'EventCacheService', instance: eventCacheService },
         { name: 'EventService', instance: eventService },
@@ -191,6 +215,7 @@ export class ServiceRegistry {
         { name: 'CalendarService', instance: calendarService },
         { name: 'AuthService', instance: authService },
         { name: 'QueueService', instance: queueService },
+        { name: 'BatchCalculationService', instance: batchCalculationService },
         { name: 'LocationController', instance: locationController },
         { name: 'CalendarController', instance: calendarController },
         { name: 'AuthController', instance: authController }

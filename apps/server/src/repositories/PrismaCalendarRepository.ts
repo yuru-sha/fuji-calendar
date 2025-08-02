@@ -1,10 +1,12 @@
-// import { PrismaClient } from '@prisma/client';
+// import { LocationEvent, Location as PrismaLocation } from '@prisma/client';
 import { Location, FujiEvent, CalendarStats } from '@fuji-calendar/types';
 import { CalendarRepository } from './interfaces/CalendarRepository';
 import { PrismaClientManager } from '../database/prisma';
 import { getComponentLogger } from '@fuji-calendar/utils';
 
 const logger = getComponentLogger('prisma-calendar-repository');
+
+type LocationEventWithLocation = any;
 
 export class PrismaCalendarRepository implements CalendarRepository {
   private prisma = PrismaClientManager.getInstance();
@@ -50,7 +52,7 @@ export class PrismaCalendarRepository implements CalendarRepository {
       ],
     });
 
-    return events.map(event => this.mapToFujiEvent(event));
+    return events.map((event: LocationEventWithLocation) => this.mapToFujiEvent(event));
   }
 
   async getDayEvents(date: string): Promise<FujiEvent[]> {
@@ -68,7 +70,7 @@ export class PrismaCalendarRepository implements CalendarRepository {
       ],
     });
 
-    return events.map(event => this.mapToFujiEvent(event));
+    return events.map((event: LocationEventWithLocation) => this.mapToFujiEvent(event));
   }
 
   async getUpcomingEvents(limit: number = 50): Promise<FujiEvent[]> {
@@ -90,7 +92,7 @@ export class PrismaCalendarRepository implements CalendarRepository {
       take: limit,
     });
 
-    return events.map(event => this.mapToFujiEvent(event));
+    return events.map((event: LocationEventWithLocation) => this.mapToFujiEvent(event));
   }
 
   async getLocationYearlyEvents(locationId: number, year: number): Promise<FujiEvent[]> {
@@ -116,7 +118,7 @@ export class PrismaCalendarRepository implements CalendarRepository {
       ],
     });
 
-    return events.map(event => this.mapToFujiEvent(event));
+    return events.map((event: LocationEventWithLocation) => this.mapToFujiEvent(event));
   }
 
   async getCalendarStats(year: number): Promise<CalendarStats> {
@@ -181,7 +183,7 @@ export class PrismaCalendarRepository implements CalendarRepository {
       ],
     });
 
-    return locations.map(location => ({
+    return locations.map((location: any) => ({
       id: location.id,
       name: location.name,
       prefecture: location.prefecture,
@@ -217,13 +219,13 @@ export class PrismaCalendarRepository implements CalendarRepository {
       },
     });
 
-    return results.map(result => ({
+    return results.map((result: any) => ({
       date: result.eventDate.toISOString().split('T')[0],
       count: result._count.id,
     }));
   }
 
-  private mapToFujiEvent(event: any): FujiEvent {
+  private mapToFujiEvent(event: LocationEventWithLocation): FujiEvent {
     // EventType から適切な型に変換
     const eventType = event.eventType.startsWith('diamond') ? 'diamond' : 'pearl';
     const subType = event.eventType.includes('sunrise') || event.eventType.includes('moonrise') ? 'sunrise' : 'sunset';

@@ -31,6 +31,16 @@ export interface QueueService {
   testRedisConnection(): Promise<boolean>;
 
   /**
+   * ワーカーの同時実行数をリアルタイムで変更
+   */
+  updateConcurrency(newConcurrency: number): Promise<boolean>;
+
+  /**
+   * 現在の同時実行数を取得
+   */
+  getCurrentConcurrency(): number;
+
+  /**
    * キューサービスを終了
    */
   shutdown(): Promise<void>;

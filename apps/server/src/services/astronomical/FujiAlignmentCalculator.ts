@@ -4,25 +4,23 @@ import { getComponentLogger } from '@fuji-calendar/utils';
 import { CoordinateCalculator } from './CoordinateCalculator';
 import { CelestialPositionCalculator } from './CelestialPositionCalculator';
 import { SeasonCalculator } from './SeasonCalculator';
+import { SystemSettingsService } from '../SystemSettingsService';
 
 /**
  * 富士山との整列計算を担当するクラス
  * ダイアモンド富士・パール富士の検出
+ * システム設定を DB から動的に取得して計算精度を調整可能
  */
 export class FujiAlignmentCalculator {
-  // TODO: システム設定を DB で管理するよう改善
-  // CREATE TABLE system_settings (setting_key VARCHAR(100), setting_value DECIMAL(10,6), description TEXT);
-  // INSERT INTO system_settings VALUES ('azimuth_tolerance', 0.05, '方位角許容範囲（度）');
-  private static readonly AZIMUTH_TOLERANCE = 0.05; // 度 - 富士山頂の見かけ直径を考慮した厳格な基準
-  private static readonly ELEVATION_TOLERANCE = 0.05; // 度 - 太陽/月が山頂に収まる範囲
-  private static readonly SEARCH_INTERVAL = 10; // 10 秒間隔（秒） - 精度向上のため
-  private static readonly SUN_ANGULAR_DIAMETER = 0.53; // 度
-  private static readonly MOON_ANGULAR_DIAMETER = 0.52; // 度
-
   private logger = getComponentLogger('FujiAlignmentCalculator');
   private coordinateCalc = new CoordinateCalculator();
   private celestialCalc = new CelestialPositionCalculator();
   private seasonCalc = new SeasonCalculator();
+  private settingsService: SystemSettingsService;
+
+  constructor(settingsService: SystemSettingsService) {
+    this.settingsService = settingsService;
+  }
 
   /**
    * ダイアモンド富士イベントを検索
@@ -131,8 +129,9 @@ export class FujiAlignmentCalculator {
       moonIllumination?: number;
     } | null = null;
 
-    // 10 秒間隔で検索
-    for (let time = new Date(startTime); time <= endTime; time.setSeconds(time.getSeconds() + FujiAlignmentCalculator.SEARCH_INTERVAL)) {
+    // 設定値に基づく間隔で検索
+    const searchInterval = await this.settingsService.getNumberSetting('search_interval', 10);
+    for (let time = new Date(startTime); time <= endTime; time.setSeconds(time.getSeconds() + searchInterval)) {
       const position = eventType.includes('diamond') 
         ? this.celestialCalc.calculateSunPosition(time, location)
         : this.celestialCalc.calculateMoonPosition(time, location);
@@ -148,7 +147,9 @@ export class FujiAlignmentCalculator {
       const elevationDiff = Math.abs(position.elevation - fujiElevation);
       
       // 許容範囲内かチェック（方位角・高度の両方を考慮）
-      if (azimuthDiff <= FujiAlignmentCalculator.AZIMUTH_TOLERANCE && elevationDiff <= 1.0) {
+      const azimuthTolerance = await this.settingsService.getNumberSetting('azimuth_tolerance', 1.5);
+      const elevationTolerance = await this.settingsService.getNumberSetting('elevation_tolerance', 1.0);
+      if (azimuthDiff <= azimuthTolerance && elevationDiff <= elevationTolerance) {
         // 総合精度スコアで最良候補を選択
         const totalScore = azimuthDiff + elevationDiff * 2; // 高度差を重視
         const currentScore = !bestCandidate ? Infinity : (bestCandidate.azimuthDiff + bestCandidate.elevationDiff * 2);
@@ -180,11 +181,11 @@ export class FujiAlignmentCalculator {
         ? this.celestialCalc.calculateSolarNoon(date, location)
         : this.celestialCalc.calculateLunarTransit(date, location);
       
-      // 南中時刻より前なら昇る、後なら沈む（UTC基準で比較）
+      // 南中時刻より前なら昇る、後なら沈む（UTC 基準で比較）
       let subType: 'sunrise' | 'sunset' | 'rising' | 'setting';
       const referenceTime = transitTime || new Date(Date.UTC(bestCandidate.time.getUTCFullYear(), bestCandidate.time.getUTCMonth(), bestCandidate.time.getUTCDate(), 3, 0, 0)); // JST 12:00 = UTC 3:00
       
-      // UTC時刻同士で比較
+      // UTC 時刻同士で比較
       const candidateUTC = new Date(bestCandidate.time.getTime());
       const referenceUTC = new Date(referenceTime.getTime());
       
@@ -202,8 +203,8 @@ export class FujiAlignmentCalculator {
         location: location,
         azimuth: bestCandidate.position.azimuth,
         elevation: bestCandidate.position.elevation,
-        accuracy: this.getOverallAccuracy(bestCandidate.azimuthDiff, bestCandidate.elevationDiff),
-        qualityScore: this.calculateQualityScore(bestCandidate.azimuthDiff, bestCandidate.position.elevation),
+        accuracy: await this.getOverallAccuracy(bestCandidate.azimuthDiff, bestCandidate.elevationDiff),
+        qualityScore: await this.calculateQualityScore(bestCandidate.azimuthDiff, bestCandidate.position.elevation),
         moonPhase: bestCandidate.moonPhase,
         moonIllumination: bestCandidate.moonIllumination
       });
@@ -270,40 +271,45 @@ export class FujiAlignmentCalculator {
   }
 
   /**
-   * 精度レベルを取得
-   * TODO: 精度閾値も DB で管理するよう改善
-   * INSERT INTO system_settings VALUES 
-   *   ('accuracy_perfect_threshold', 0.01, '完璧精度の閾値（度）'),
-   *   ('accuracy_excellent_threshold', 0.02, '高精度の閾値（度）'),
-   *   ('accuracy_good_threshold', 0.035, '標準精度の閾値（度）');
+   * 精度レベルを取得（DB 設定値対応）
    */
-  private getAccuracyLevel(azimuthDiff: number): 'perfect' | 'excellent' | 'good' | 'fair' {
-    // 富士山頂の水平視直径（約32分角 = 0.53度）を基準とした厳密な方位角判定
-    if (azimuthDiff <= 0.1) return 'perfect';        // ±0.1度以下：山頂中心部への完全一致
-    if (azimuthDiff <= 0.25) return 'excellent';     // ±0.25度以下：山頂内側での高精度一致
-    if (azimuthDiff <= 0.4) return 'good';           // ±0.4度以下：山頂縁付近での良好な一致
-    if (azimuthDiff <= 0.6) return 'fair';           // ±0.6度以下：許容範囲内（山頂ギリギリ）
+  private async getAccuracyLevel(azimuthDiff: number): Promise<'perfect' | 'excellent' | 'good' | 'fair'> {
+    // システム設定から精度閾値を取得
+    const perfectThreshold = await this.settingsService.getNumberSetting('accuracy_perfect_threshold', 0.1);
+    const excellentThreshold = await this.settingsService.getNumberSetting('accuracy_excellent_threshold', 0.25);
+    const goodThreshold = await this.settingsService.getNumberSetting('accuracy_good_threshold', 0.4);
+    const fairThreshold = await this.settingsService.getNumberSetting('accuracy_fair_threshold', 0.6);
+    
+    if (azimuthDiff <= perfectThreshold) return 'perfect';
+    if (azimuthDiff <= excellentThreshold) return 'excellent';
+    if (azimuthDiff <= goodThreshold) return 'good';
+    if (azimuthDiff <= fairThreshold) return 'fair';
     return 'fair'; // 許容範囲を超える（実際には除外される）
   }
 
   /**
-   * 仰角の精度レベルを取得
+   * 仰角の精度レベルを取得（DB 設定値対応）
    */
-  private getElevationAccuracyLevel(elevationDiff: number): 'perfect' | 'excellent' | 'good' | 'fair' {
-    // 富士山頂の視直径 約32分角 = 0.53度を基準とした厳密な判定
-    if (elevationDiff <= 0.1) return 'perfect';      // ±0.1度以下：山頂中心部への完全一致
-    if (elevationDiff <= 0.25) return 'excellent';   // ±0.25度以下：山頂内側での高精度一致  
-    if (elevationDiff <= 0.4) return 'good';         // ±0.4度以下：山頂縁付近での良好な一致
-    if (elevationDiff <= 0.6) return 'fair';         // ±0.6度以下：許容範囲内（山頂ギリギリ）
+  private async getElevationAccuracyLevel(elevationDiff: number): Promise<'perfect' | 'excellent' | 'good' | 'fair'> {
+    // システム設定から精度閾値を取得（仰角用）
+    const perfectThreshold = await this.settingsService.getNumberSetting('elevation_accuracy_perfect_threshold', 0.1);
+    const excellentThreshold = await this.settingsService.getNumberSetting('elevation_accuracy_excellent_threshold', 0.25);
+    const goodThreshold = await this.settingsService.getNumberSetting('elevation_accuracy_good_threshold', 0.4);
+    const fairThreshold = await this.settingsService.getNumberSetting('elevation_accuracy_fair_threshold', 0.6);
+    
+    if (elevationDiff <= perfectThreshold) return 'perfect';
+    if (elevationDiff <= excellentThreshold) return 'excellent';
+    if (elevationDiff <= goodThreshold) return 'good';
+    if (elevationDiff <= fairThreshold) return 'fair';
     return 'fair'; // 許容範囲を超える（実際には除外される）
   }
 
   /**
-   * 方位角と仰角の総合的な精度レベルを取得
+   * 方位角と仰角の総合的な精度レベルを取得（DB 設定値対応）
    */
-  private getOverallAccuracy(azimuthDiff: number, elevationDiff: number): 'perfect' | 'excellent' | 'good' | 'fair' {
-    const azimuthAccuracy = this.getAccuracyLevel(azimuthDiff);
-    const elevationAccuracy = this.getElevationAccuracyLevel(elevationDiff);
+  private async getOverallAccuracy(azimuthDiff: number, elevationDiff: number): Promise<'perfect' | 'excellent' | 'good' | 'fair'> {
+    const azimuthAccuracy = await this.getAccuracyLevel(azimuthDiff);
+    const elevationAccuracy = await this.getElevationAccuracyLevel(elevationDiff);
     
     // 両方の精度のうち、より低い方を総合精度とする
     const accuracyOrder = ['perfect', 'excellent', 'good', 'fair'];
@@ -359,9 +365,10 @@ export class FujiAlignmentCalculator {
     }
   }
 
-  private calculateQualityScore(azimuthDiff: number, elevation: number): number {
+  private async calculateQualityScore(azimuthDiff: number, elevation: number): Promise<number> {
     // 方位角精度スコア（0-50 点）
-    const azimuthScore = Math.max(0, 50 - (azimuthDiff / FujiAlignmentCalculator.AZIMUTH_TOLERANCE) * 50);
+    const azimuthTolerance = await this.settingsService.getNumberSetting('azimuth_tolerance', 1.5);
+    const azimuthScore = Math.max(0, 50 - (azimuthDiff / azimuthTolerance) * 50);
     
     // 高度スコア（0-30 点）：高度 1 度以上で満点
     const elevationScore = Math.min(30, Math.max(0, elevation + 2) * 15);

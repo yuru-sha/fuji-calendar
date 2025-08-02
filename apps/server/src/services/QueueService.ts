@@ -102,48 +102,22 @@ export class QueueService implements IQueueService {
         this.processJob.bind(this),
         { 
           connection: this.redis,
-          concurrency: 5 // 同時実行数を増やして処理速度向上
+          concurrency: parseInt(process.env.WORKER_CONCURRENCY || '3'), // 重い計算のため同時実行数を削減
+          stalledInterval: 20 * 60 * 1000,  // 20 分で stalled 判定（15 分の計算+バッファ）
+          maxStalledCount: 2  // 最大 2 回まで再試行
         }
       );
 
-      logger.info('ワーカー作成完了', { queueName: 'event-calculation', concurrency: 5 });
-
-      // ワーカーイベントハンドラー
-      this.worker.on('active', (job: Job) => {
-        logger.info('ジョブアクティブ', {
-          jobId: job.id,
-          jobName: job.name,
-          jobData: job.data
-        });
-      });
-      
-      this.worker.on('completed', (job: Job) => {
-        logger.info('ジョブ完了', {
-          jobId: job.id,
-          jobName: job.name,
-          processingTime: job.processedOn ? Date.now() - job.processedOn : undefined
-        });
+      const concurrency = parseInt(process.env.WORKER_CONCURRENCY || '3');
+      logger.info('ワーカー作成完了', { 
+        queueName: 'event-calculation', 
+        concurrency,
+        stalledInterval: '20 分',
+        maxStalledCount: 2
       });
 
-      this.worker.on('failed', (job: Job | undefined, error: Error) => {
-        logger.error('ジョブ失敗', error, {
-          jobId: job?.id,
-          jobName: job?.name,
-          attemptsMade: job?.attemptsMade,
-          maxAttempts: job?.opts.attempts
-        });
-      });
-
-      this.worker.on('ready', () => {
-        logger.info('ワーカー準備完了', { 
-          queueName: 'event-calculation',
-          hasEventService: !!this.eventService
-        });
-      });
-
-      this.worker.on('error', (error: Error) => {
-        logger.error('ワーカーエラー', error);
-      });
+      // イベントハンドラーをセットアップ
+      this.setupWorkerEventHandlers();
 
       logger.info('キューシステム初期化完了');
     } catch (error) {
@@ -474,6 +448,111 @@ export class QueueService implements IQueueService {
       logger.error('失敗したジョブのクリアエラー', error);
       return 0;
     }
+  }
+
+  /**
+   * ワーカーの同時実行数をリアルタイムで変更
+   */
+  async updateConcurrency(newConcurrency: number): Promise<boolean> {
+    if (!this.worker) {
+      logger.warn('ワーカーが初期化されていません');
+      return false;
+    }
+
+    if (newConcurrency < 1 || newConcurrency > 10) {
+      logger.warn('同時実行数は 1-10 の範囲で設定してください', { newConcurrency });
+      return false;
+    }
+
+    try {
+      // 現在の設定を記録
+      const oldConcurrency = this.worker.opts.concurrency;
+      
+      // ワーカーを一時停止
+      await this.worker.pause();
+      logger.info('ワーカー一時停止完了');
+
+      // 新しいワーカーを作成（古いワーカーは後で削除）
+      const oldWorker = this.worker;
+      this.worker = new Worker(
+        'event-calculation',
+        this.processJob.bind(this),
+        { 
+          connection: this.redis!,
+          concurrency: newConcurrency,
+          stalledInterval: 20 * 60 * 1000,  // 20 分で stalled 判定
+          maxStalledCount: 2
+        }
+      );
+
+      // イベントハンドラーを再設定
+      this.setupWorkerEventHandlers();
+
+      // 古いワーカーを閉じる
+      await oldWorker.close();
+
+      logger.info('同時実行数変更完了', {
+        oldConcurrency,
+        newConcurrency,
+        queueName: 'event-calculation'
+      });
+
+      return true;
+    } catch (error) {
+      logger.error('同時実行数変更エラー', error);
+      return false;
+    }
+  }
+
+  /**
+   * 現在の同時実行数を取得
+   */
+  getCurrentConcurrency(): number {
+    return this.worker?.opts.concurrency || 0;
+  }
+
+  /**
+   * ワーカーイベントハンドラーをセットアップ（共通化）
+   */
+  private setupWorkerEventHandlers(): void {
+    if (!this.worker) return;
+
+    this.worker.on('active', (job: Job) => {
+      logger.info('ジョブアクティブ', {
+        jobId: job.id,
+        jobName: job.name,
+        jobData: job.data
+      });
+    });
+    
+    this.worker.on('completed', (job: Job) => {
+      logger.info('ジョブ完了', {
+        jobId: job.id,
+        jobName: job.name,
+        processingTime: job.processedOn ? Date.now() - job.processedOn : undefined
+      });
+    });
+
+    this.worker.on('failed', (job: Job | undefined, error: Error) => {
+      logger.error('ジョブ失敗', error, {
+        jobId: job?.id,
+        jobName: job?.name,
+        attemptsMade: job?.attemptsMade,
+        maxAttempts: job?.opts.attempts
+      });
+    });
+
+    this.worker.on('ready', () => {
+      logger.info('ワーカー準備完了', { 
+        queueName: 'event-calculation',
+        concurrency: this.worker?.opts.concurrency,
+        hasEventService: !!this.eventService
+      });
+    });
+
+    this.worker.on('error', (error: Error) => {
+      logger.error('ワーカーエラー', error);
+    });
   }
 
   /**

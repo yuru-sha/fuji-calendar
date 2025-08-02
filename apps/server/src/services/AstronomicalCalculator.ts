@@ -5,12 +5,14 @@ import { CoordinateCalculator } from './astronomical/CoordinateCalculator';
 import { CelestialPositionCalculator } from './astronomical/CelestialPositionCalculator';
 import { FujiAlignmentCalculator } from './astronomical/FujiAlignmentCalculator';
 import { SeasonCalculator } from './astronomical/SeasonCalculator';
+import { SystemSettingsService } from './SystemSettingsService';
 
 // 既存のインターフェースをインポート
 export interface AstronomicalCalculator {
   calculateDiamondFuji(date: Date, locations: Location[]): Promise<FujiEvent[]>;
   calculatePearlFuji(date: Date, locations: Location[]): Promise<FujiEvent[]>;
   calculateMonthlyEvents(year: number, month: number, locations: Location[]): Promise<FujiEvent[]>;
+  calculateLocationYearlyEvents(location: Location, year: number): Promise<FujiEvent[]>;
   getSunPosition(date: Date, latitude: number, longitude: number): SunPosition | null;
   getMoonPosition(date: Date, latitude: number, longitude: number): MoonPosition | null;
   calculateAzimuthToFuji(fromLocation: Location): number;
@@ -36,10 +38,11 @@ export class AstronomicalCalculatorImpl implements AstronomicalCalculator {
   // 分離されたクラス群を組み合わせ
   private coordinateCalc = new CoordinateCalculator();
   private celestialCalc = new CelestialPositionCalculator();
-  private alignmentCalc = new FujiAlignmentCalculator();
+  private alignmentCalc: FujiAlignmentCalculator;
   private seasonCalc = new SeasonCalculator();
 
-  constructor() {
+  constructor(settingsService: SystemSettingsService) {
+    this.alignmentCalc = new FujiAlignmentCalculator(settingsService);
     this.logger.info('AstronomicalCalculator 初期化完了', {
       components: ['CoordinateCalculator', 'CelestialPositionCalculator', 'FujiAlignmentCalculator', 'SeasonCalculator']
     });
@@ -228,15 +231,15 @@ export class AstronomicalCalculatorImpl implements AstronomicalCalculator {
   /**
    * 天体の可視性を判定
    */
-  isVisible(fromLocation: Location, targetAzimuth: number, celestialBody?: 'sun' | 'moon'): boolean {
+  isVisible(_fromLocation: Location, _targetAzimuth: number, _celestialBody?: 'sun' | 'moon'): boolean {
     // 基本的な可視性判定
     const basicVisibility = this.celestialCalc.isVisible(-2); // 最低高度閾値
     
     // 天体種別に応じた追加チェック
-    if (celestialBody === 'sun') {
+    if (_celestialBody === 'sun') {
       // 太陽の場合の特別な判定
       return basicVisibility;
-    } else if (celestialBody === 'moon') {
+    } else if (_celestialBody === 'moon') {
       // 月の場合の特別な判定
       return basicVisibility;
     }
@@ -286,7 +289,7 @@ export class AstronomicalCalculatorImpl implements AstronomicalCalculator {
   /**
    * 地点の年間イベントを計算（非推奨 - calculateMonthlyEvents の使用を推奨）
    */
-  async calculateLocationYearlyEvents(year: number, location: Location): Promise<FujiEvent[]> {
+  async calculateLocationYearlyEvents(location: Location, year: number): Promise<FujiEvent[]> {
     this.logger.warn('calculateLocationYearlyEvents は非推奨です。calculateMonthlyEvents の使用を推奨します。', {
       year,
       locationId: location.id

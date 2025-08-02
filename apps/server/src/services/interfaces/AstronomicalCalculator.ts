@@ -21,6 +21,11 @@ export interface AstronomicalCalculator {
   calculateMonthlyEvents(year: number, month: number, locations: Location[]): Promise<FujiEvent[]>;
 
   /**
+   * 特定地点の年間イベントを計算
+   */
+  calculateLocationYearlyEvents(location: Location, year: number): Promise<FujiEvent[]>;
+
+  /**
    * 太陽の位置を取得
    */
   getSunPosition(date: Date, latitude: number, longitude: number): SunPosition | null;

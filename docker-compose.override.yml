@@ -2,8 +2,6 @@
 # 開発時にデータベースや Redis への外部アクセスが必要な場合は
 # このファイルを使用してポートを公開できます
 
-version: '3.8'
-
 services:
   # 開発環境で PostgreSQL への外部アクセスが필요한場合（DBeaver 等）
   postgres:

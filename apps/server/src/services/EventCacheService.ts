@@ -1,5 +1,5 @@
 import { prisma } from '../database/prisma';
-import { AstronomicalCalculatorImpl } from './AstronomicalCalculator';
+import { AstronomicalCalculator, AstronomicalCalculatorImpl } from './AstronomicalCalculator';
 import { Location, FujiEvent } from '@fuji-calendar/types';
 import { getComponentLogger, StructuredLogger } from '@fuji-calendar/utils';
 
@@ -8,11 +8,11 @@ import { getComponentLogger, StructuredLogger } from '@fuji-calendar/utils';
  * 事前計算されたダイヤモンド・パール富士データの管理
  */
 export class EventCacheService {
-  private astronomicalCalculator: AstronomicalCalculatorImpl;
+  private astronomicalCalculator: AstronomicalCalculator;
   private logger: StructuredLogger;
 
-  constructor() {
-    this.astronomicalCalculator = new AstronomicalCalculatorImpl();
+  constructor(astronomicalCalculator: AstronomicalCalculator) {
+    this.astronomicalCalculator = astronomicalCalculator;
     this.logger = getComponentLogger('event-cache-service');
   }
 
@@ -38,7 +38,7 @@ export class EventCacheService {
 
       // 全地点を取得
       const locations = await prisma.location.findMany();
-      const locationTyped: Location[] = locations.map(loc => ({
+      const locationTyped: Location[] = locations.map((loc: any) => ({
         ...loc,
         // 数値型フィールドの安全な変換
         latitude: Number(loc.latitude) || 0,
@@ -74,7 +74,7 @@ export class EventCacheService {
         const batchResults = await Promise.all(
           batch.map(async (location) => {
             try {
-              const events = await this.astronomicalCalculator.calculateLocationYearlyEvents(year, location);
+              const events = await this.astronomicalCalculator.calculateLocationYearlyEvents(location, year);
               return { location, events };
             } catch (error) {
               this.logger.error('地点別計算エラー', error, { 
@@ -411,11 +411,11 @@ export class EventCacheService {
       });
 
       // 年間イベントを計算
-      const events = await this.astronomicalCalculator.calculateLocationYearlyEvents(year, locationTyped);
+      const events = await this.astronomicalCalculator.calculateLocationYearlyEvents(locationTyped, year);
 
       // データベースに保存
       const savedEvents = await Promise.all(
-        events.map(event => 
+        events.map((event: any) => 
           prisma.locationEvent.create({
             data: {
               locationId: event.location.id,
@@ -514,4 +514,4 @@ export class EventCacheService {
   }
 }
 
-export const eventCacheService = new EventCacheService();
+// DI コンテナから注入されるため、シングルトンインスタンスは削除

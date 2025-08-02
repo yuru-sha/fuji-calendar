@@ -7,6 +7,7 @@ import LocationPicker from '../components/LocationPicker';
 import { Icon } from '@fuji-calendar/ui';
 import { authService } from '../services/authService';
 import QueueManager from '../components/admin/QueueManager';
+import SystemSettingsManager from '../components/admin/SystemSettingsManager';
 
 // Types
 interface LocationFormData {
@@ -43,7 +44,7 @@ const initialFormData: LocationFormData = {
 
 // Sidebar Item Component
 interface SidebarItemProps {
-  icon: keyof typeof import('../components/icons/IconMap').iconMap;
+  icon: keyof typeof import('@fuji-calendar/ui').iconMap;
   label: string;
   subLabel?: string;
   active?: boolean;
@@ -983,10 +984,7 @@ const AdminPage: React.FC = () => {
           {/* Settings View */}
           {activeView === 'settings' && (
             <div className="space-y-6">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">システム設定</h1>
-                <p className="text-gray-600 mt-1">アプリケーションの設定を管理します</p>
-              </div>
+              <SystemSettingsManager />
               
               {/* キュー管理セクション */}
               <div className="bg-white rounded-lg shadow-sm border">
@@ -1016,22 +1014,12 @@ const AdminPage: React.FC = () => {
                   </button>
                 </div>
               </div>
-
-              {/* 他の設定項目（将来用） */}
-              <div className="bg-white rounded-lg shadow-sm p-12 text-center border">
-                <div className="mb-4 opacity-20">
-                  <Icon name="settings" size={96} className="mx-auto" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">その他の設定</h3>
-                <p className="text-gray-500">この機能は近日公開予定です</p>
-              </div>
             </div>
           )}
 
           {/* Queue Management View */}
           {activeView === 'queue' && (
             <div>
-              {console.log('AdminPage: Rendering QueueManager, activeView:', activeView)}
               <QueueManager />
             </div>
           )}

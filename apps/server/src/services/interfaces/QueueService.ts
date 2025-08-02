@@ -11,6 +11,11 @@ export interface QueueService {
   setEventService(eventService: EventService): void;
 
   /**
+   * SystemSettingsService を後から注入（循環依存対策）
+   */
+  setSystemSettingsService?(systemSettingsService: any): void;
+
+  /**
    * 地点計算ジョブをスケジュール
    */
   scheduleLocationCalculation(

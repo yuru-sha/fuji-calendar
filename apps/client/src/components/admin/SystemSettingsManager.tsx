@@ -23,6 +23,17 @@ interface SystemSettingsData {
   };
 }
 
+// パフォーマンス設定の型定義
+interface PerformanceSettings {
+  workerConcurrency: number;
+  jobDelayMs: number;
+  processingDelayMs: number;
+  enableLowPriorityMode: boolean;
+  maxActiveJobs: number;
+}
+
+
+
 interface CategoryDisplayInfo {
   name: string;
   description: string;
@@ -124,6 +135,15 @@ const SystemSettingsManager: React.FC = () => {
     Record<string, boolean>
   >({});
 
+  // パフォーマンス管理の状態
+  const [performanceSettings, setPerformanceSettings] = useState<PerformanceSettings>({
+    workerConcurrency: 1,
+    jobDelayMs: 5000,
+    processingDelayMs: 2000,
+    enableLowPriorityMode: true,
+    maxActiveJobs: 3,
+  });
+
   // 設定を読み込む
   const loadSettings = async () => {
     try {
@@ -155,6 +175,61 @@ const SystemSettingsManager: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // パフォーマンス設定を読み込む
+  const loadPerformanceSettings = async () => {
+    try {
+      const response = await authService.authenticatedFetch(
+        "/api/admin/performance-settings",
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setPerformanceSettings(data.settings);
+        }
+      }
+    } catch (err) {
+      console.warn("パフォーマンス設定の読み込みに失敗:", err);
+    }
+  };
+
+  // 同時実行数をリアルタイム更新
+  const updateConcurrency = async (newConcurrency: number) => {
+    try {
+      setSaving(true);
+      
+      const response = await authService.authenticatedFetch(
+        "/api/admin/queue/concurrency",
+        {
+          method: "PUT",
+          body: JSON.stringify({ concurrency: newConcurrency }),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(`同時実行数の更新に失敗: ${response.status}`);
+      }
+
+      const result = await response.json();
+      if (result.success) {
+        setPerformanceSettings(prev => ({ ...prev, workerConcurrency: newConcurrency }));
+        alert("同時実行数を更新しました");
+      } else {
+        throw new Error(result.message || "同時実行数の更新に失敗しました");
+      }
+    } catch (err) {
+      console.error("同時実行数更新エラー:", err);
+      setError(err instanceof Error ? err.message : "同時実行数の更新に失敗しました");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // パフォーマンス設定値の変更
+  const handlePerformanceSettingChange = (key: keyof PerformanceSettings, value: any) => {
+    setPerformanceSettings(prev => ({ ...prev, [key]: value }));
   };
 
   // 設定を保存する
@@ -275,6 +350,7 @@ const SystemSettingsManager: React.FC = () => {
   // 初期読み込み
   useEffect(() => {
     loadSettings();
+    loadPerformanceSettings();
   }, []);
 
   if (loading) {
@@ -431,7 +507,64 @@ const SystemSettingsManager: React.FC = () => {
               {isExpanded && (
                 <div className="border-t border-gray-200">
                   <div className="p-6 space-y-4">
-                    {settings.map((setting) => {
+                    {/* パフォーマンスカテゴリの場合は特別なUI */}
+                    {category === "performance" && (
+                      <div className="space-y-6">
+                        {/* ワーカー同時実行数 */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            ワーカー同時実行数
+                          </label>
+                          <div className="flex items-center space-x-4">
+                            <input
+                              type="range"
+                              min="1"
+                              max="5"
+                              value={performanceSettings.workerConcurrency}
+                              onChange={(e) => handlePerformanceSettingChange('workerConcurrency', parseInt(e.target.value))}
+                              className="flex-1"
+                            />
+                            <span className="text-sm font-medium text-gray-900 w-12">
+                              {performanceSettings.workerConcurrency}
+                            </span>
+                            <button
+                              onClick={() => updateConcurrency(performanceSettings.workerConcurrency)}
+                              disabled={saving}
+                              className="px-3 py-1 text-xs font-medium text-blue-600 border border-blue-300 rounded hover:bg-blue-50 disabled:opacity-50"
+                            >
+                              即座に適用
+                            </button>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            推奨: 1-2 (高負荷時は 1 を推奨)
+                          </p>
+                        </div>
+
+                        {/* 推奨設定 */}
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                          <h4 className="text-sm font-medium text-blue-900 mb-2">
+                            パフォーマンス改善のための推奨設定
+                          </h4>
+                          <div className="text-sm text-blue-800 space-y-1">
+                            <div>• <strong>低負荷モード:</strong> 同時実行数=1, ジョブ間隔=10 秒, 処理待機=5 秒</div>
+                            <div>• <strong>標準モード:</strong> 同時実行数=2, ジョブ間隔=5 秒, 処理待機=2 秒</div>
+                            <div>• <strong>高性能モード:</strong> 同時実行数=3, ジョブ間隔=3 秒, 処理待機=1 秒</div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* 通常の設定項目 */}
+                    {settings
+                      .filter((setting) => {
+                        // パフォーマンスカテゴリーの場合、特別UIで表示している項目は除外
+                        if (category === "performance") {
+                          const excludedKeys = ["WORKER_CONCURRENCY", "workerConcurrency", "worker_concurrency"];
+                          return !excludedKeys.includes(setting.settingKey);
+                        }
+                        return true;
+                      })
+                      .map((setting) => {
                       const currentValue = Object.prototype.hasOwnProperty.call(
                         editedValues,
                         setting.settingKey,

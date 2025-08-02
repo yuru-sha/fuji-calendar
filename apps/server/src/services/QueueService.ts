@@ -15,6 +15,7 @@ export class QueueService implements IQueueService {
   private eventCalculationQueue: Queue | null = null;
   private worker: Worker | null = null;
   private eventService: EventService | null = null;
+  private systemSettingsService: any | null = null; // 循環依存回避のためany型
 
   constructor(eventService: EventService | null = null) {
     this.eventService = eventService;
@@ -28,6 +29,16 @@ export class QueueService implements IQueueService {
     this.eventService = eventService;
     logger.info("EventService 注入完了", {
       hasEventService: !!eventService,
+    });
+  }
+
+  /**
+   * SystemSettingsService を後から注入（循環依存対策）
+   */
+  setSystemSettingsService(systemSettingsService: any): void {
+    this.systemSettingsService = systemSettingsService;
+    logger.info("SystemSettingsService 注入完了", {
+      hasSystemSettingsService: !!systemSettingsService,
     });
   }
 
@@ -73,53 +84,78 @@ export class QueueService implements IQueueService {
   }
 
   /**
-   * キューの初期化
+   * キューの初期化（動的設定対応）
    */
-  private initializeQueue(): void {
+  private async initializeQueue(): Promise<void> {
     if (!this.redis) {
       logger.warn("Redis が無効のため、キューシステムを初期化しません");
       return;
     }
 
     try {
+      // パフォーマンス設定を取得
+      let performanceSettings = {
+        workerConcurrency: 1,
+        jobDelay: 5000,
+        processingDelay: 2000,
+        enableLowPriorityMode: true,
+        maxActiveJobs: 3,
+      };
+
+      if (this.systemSettingsService) {
+        try {
+          performanceSettings = await this.systemSettingsService.getPerformanceSettings();
+        } catch (error) {
+          logger.warn("パフォーマンス設定取得失敗、デフォルト値を使用", error);
+        }
+      }
+
       // イベント計算キューを作成
       this.eventCalculationQueue = new Queue("event-calculation", {
         connection: this.redis,
         defaultJobOptions: {
-          removeOnComplete: 100, // 完了したジョブを 100 個まで保持
-          removeOnFail: 50, // 失敗したジョブを 50 個まで保持
+          removeOnComplete: 100,
+          removeOnFail: 50,
           attempts: 3,
           backoff: {
             type: "exponential",
-            delay: 2000,
+            delay: performanceSettings.jobDelay,
           },
+          // 低優先度モードの設定
+          priority: performanceSettings.enableLowPriorityMode ? 1 : 5,
+          delay: performanceSettings.jobDelay,
         },
       });
 
-      // ワーカーを作成
+      // ワーカーを作成（動的同時実行数）
+      const concurrency = Math.min(
+        performanceSettings.workerConcurrency,
+        parseInt(process.env.WORKER_CONCURRENCY || "1")
+      );
+
       this.worker = new Worker(
         "event-calculation",
         this.processJob.bind(this),
         {
           connection: this.redis,
-          concurrency: parseInt(process.env.WORKER_CONCURRENCY || "3"), // 重い計算のため同時実行数を削減
-          stalledInterval: 20 * 60 * 1000, // 20 分で stalled 判定（15 分の計算+バッファ）
-          maxStalledCount: 2, // 最大 2 回まで再試行
+          concurrency,
+          maxStalledCount: 2,
         },
       );
 
-      const concurrency = parseInt(process.env.WORKER_CONCURRENCY || "3");
-      logger.info("ワーカー作成完了", {
+      logger.info("ワーカー作成完了（動的設定適用）", {
         queueName: "event-calculation",
         concurrency,
-        stalledInterval: "20 分",
-        maxStalledCount: 2,
+        stalledInterval: "30 分",
+        defaultPriority: performanceSettings.enableLowPriorityMode ? "low" : "normal",
+        defaultDelay: `${performanceSettings.jobDelay}ms`,
+        processingDelay: `${performanceSettings.processingDelay}ms`,
       });
 
       // イベントハンドラーをセットアップ
       this.setupWorkerEventHandlers();
 
-      logger.info("キューシステム初期化完了");
+      logger.info("キューシステム初期化完了（パフォーマンス最適化済み）");
     } catch (error) {
       logger.error("キューシステム初期化エラー", error);
     }
@@ -132,7 +168,7 @@ export class QueueService implements IQueueService {
     year: number,
     month: number,
     locationIds: number[],
-    priority: "low" | "normal" | "high" = "normal",
+    priority: "low" | "normal" | "high" = "low", // デフォルトを low に変更
   ): Promise<string | null> {
     if (!this.eventCalculationQueue) {
       logger.warn("キューが無効のため、月間計算をスケジュールできません", {
@@ -143,6 +179,17 @@ export class QueueService implements IQueueService {
     }
 
     try {
+      // 動的な遅延設定を取得
+      let jobDelay = 10000; // デフォルト10秒
+      if (this.systemSettingsService) {
+        try {
+          const settings = await this.systemSettingsService.getPerformanceSettings();
+          jobDelay = settings.jobDelay;
+        } catch (error) {
+          logger.warn("パフォーマンス設定取得失敗、デフォルト値を使用", error);
+        }
+      }
+
       const job = await this.eventCalculationQueue.add(
         "monthly-calculation",
         {
@@ -153,18 +200,24 @@ export class QueueService implements IQueueService {
           timestamp: new Date().toISOString(),
         },
         {
-          priority: priority === "high" ? 10 : priority === "normal" ? 5 : 1,
+          priority: priority === "high" ? 10 : priority === "normal" ? 3 : 1,
           jobId: `monthly-${year}-${month}`,
-          delay: 0,
+          delay: priority === "high" ? 0 : priority === "normal" ? jobDelay / 2 : jobDelay,
+          attempts: 3,
+          backoff: {
+            type: "exponential",
+            delay: jobDelay,
+          },
         },
       );
 
-      logger.info("月間計算ジョブ登録", {
+      logger.info("月間計算ジョブ登録（動的低負荷モード）", {
         jobId: job.id,
         year,
         month,
         locationCount: locationIds.length,
         priority,
+        delay: priority === "high" ? "即座" : priority === "normal" ? `${jobDelay/2}ms後` : `${jobDelay}ms後`,
       });
 
       return job.id || null;
@@ -212,7 +265,7 @@ export class QueueService implements IQueueService {
   }
 
   /**
-   * 地点計算ジョブの処理
+   * 地点計算ジョブの処理（動的設定対応）
    */
   private async processLocationCalculation(data: {
     locationId: number;
@@ -220,7 +273,7 @@ export class QueueService implements IQueueService {
     endYear: number;
   }): Promise<any> {
     const { locationId, startYear, endYear } = data;
-    logger.info("地点計算処理開始", { locationId, startYear, endYear });
+    logger.info("地点計算処理開始（動的低負荷モード）", { locationId, startYear, endYear });
 
     // 遅延解決で EventService を取得
     const eventService = this.eventService;
@@ -233,21 +286,50 @@ export class QueueService implements IQueueService {
       throw new Error("EventService is not available");
     }
 
+    // 動的な処理間隔を取得
+    let processingDelay = 2000; // デフォルト2秒
+    if (this.systemSettingsService) {
+      try {
+        const settings = await this.systemSettingsService.getPerformanceSettings();
+        processingDelay = settings.processingDelay;
+      } catch (error) {
+        logger.warn("パフォーマンス設定取得失敗、デフォルト値を使用", error);
+      }
+    }
+
     const results = [];
 
     for (let year = startYear; year <= endYear; year++) {
       logger.info("年間計算開始", { locationId, year });
+      
+      // CPU負荷軽減のため、各年の処理の間に動的待機時間を挿入
+      if (year > startYear) {
+        await new Promise(resolve => setTimeout(resolve, processingDelay));
+      }
+      
       const result = await eventService!.generateLocationCache(
         locationId,
         year,
       );
+      
       logger.info("年間計算完了", {
         locationId,
         year,
         success: result.success,
       });
+      
       results.push(result);
+      
+      // 処理完了後にも短い待機時間を追加（システム負荷軽減）
+      await new Promise(resolve => setTimeout(resolve, processingDelay / 4));
     }
+
+    logger.info("地点計算処理完了（動的低負荷モード）", {
+      locationId,
+      totalYears: endYear - startYear + 1,
+      successCount: results.filter(r => r.success).length,
+      processingDelay: `${processingDelay}ms`,
+    });
 
     return {
       success: results.every((r) => r.success),
@@ -331,6 +413,7 @@ export class QueueService implements IQueueService {
         completed: completed.length,
         failed: failed.length,
         failedJobs: failedJobDetails,
+        currentConcurrency: this.getCurrentConcurrency(),
       };
     } catch (error) {
       logger.error("キュー統計取得エラー", error);
@@ -368,13 +451,13 @@ export class QueueService implements IQueueService {
   }
 
   /**
-   * 地点計算ジョブをスケジュール
+   * 地点計算ジョブをスケジュール（動的設定対応）
    */
   async scheduleLocationCalculation(
     locationId: number,
     startYear: number,
     endYear: number,
-    priority: "low" | "normal" | "high" = "normal",
+    priority: "low" | "normal" | "high" = "low", // デフォルトを low に変更
   ): Promise<string | null> {
     if (!this.eventCalculationQueue) {
       logger.warn(
@@ -384,6 +467,17 @@ export class QueueService implements IQueueService {
     }
 
     try {
+      // 動的な遅延設定を取得
+      let jobDelay = 5000; // デフォルト5秒
+      if (this.systemSettingsService) {
+        try {
+          const settings = await this.systemSettingsService.getPerformanceSettings();
+          jobDelay = settings.jobDelay;
+        } catch (error) {
+          logger.warn("パフォーマンス設定取得失敗、デフォルト値を使用", error);
+        }
+      }
+
       const jobData = {
         type: "location",
         locationId,
@@ -399,16 +493,19 @@ export class QueueService implements IQueueService {
           attempts: 3,
           backoff: {
             type: "exponential",
-            delay: 2000,
+            delay: jobDelay,
           },
+          // 低負荷実行のための遅延
+          delay: priority === "high" ? 0 : priority === "normal" ? jobDelay / 2 : jobDelay,
         },
       );
 
-      logger.info("地点計算ジョブ追加成功", {
+      logger.info("地点計算ジョブ追加成功（動的低負荷モード）", {
         jobId: job.id,
         locationId,
         years: `${startYear}-${endYear}`,
         priority,
+        delay: priority === "high" ? "即座" : priority === "normal" ? `${jobDelay/2}ms後` : `${jobDelay}ms後`,
       });
 
       return job.id?.toString() || null;
@@ -434,7 +531,7 @@ export class QueueService implements IQueueService {
       case "low":
         return 1;
       default:
-        return 5;
+        return 1; // デフォルトを low に変更
     }
   }
 
@@ -503,7 +600,7 @@ export class QueueService implements IQueueService {
         {
           connection: this.redis!,
           concurrency: newConcurrency,
-          stalledInterval: 20 * 60 * 1000, // 20 分で stalled 判定
+
           maxStalledCount: 2,
         },
       );
@@ -513,6 +610,15 @@ export class QueueService implements IQueueService {
 
       // 古いワーカーを閉じる
       await oldWorker.close();
+
+      // SystemSettingsService で設定を永続化
+      if (this.systemSettingsService) {
+        try {
+          await this.systemSettingsService.updateSetting("worker_concurrency", newConcurrency, "number");
+        } catch (error) {
+          logger.warn("同時実行数設定の永続化に失敗", error);
+        }
+      }
 
       logger.info("同時実行数変更完了", {
         oldConcurrency,

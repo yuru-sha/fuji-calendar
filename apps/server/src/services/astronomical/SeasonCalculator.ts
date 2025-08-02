@@ -108,8 +108,8 @@ export class SeasonCalculator {
   evaluateShootingConditions(
     date: Date,
     moonIllumination?: number,
-    cloudCover?: number,
-    visibility?: number,
+    _cloudCover?: number,
+    _visibility?: number,
   ): {
     rating: "excellent" | "good" | "fair" | "poor";
     reasons: string[];

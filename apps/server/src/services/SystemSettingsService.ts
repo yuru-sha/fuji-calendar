@@ -304,4 +304,79 @@ export class SystemSettingsService {
       ),
     };
   }
+
+  /**
+   * パフォーマンス設定を一括取得（負荷制御用）
+   */
+  async getPerformanceSettings(): Promise<{
+    workerConcurrency: number;
+    jobDelay: number;
+    processingDelay: number;
+    enableLowPriorityMode: boolean;
+    maxActiveJobs: number;
+  }> {
+    // キャッシュを更新
+    if (Date.now() - this.lastCacheUpdate.getTime() > this.CACHE_DURATION) {
+      await this.refreshCache();
+    }
+
+    return {
+      workerConcurrency: await this.getNumberSetting("worker_concurrency", 1),
+      jobDelay: await this.getNumberSetting("job_delay_ms", 5000),
+      processingDelay: await this.getNumberSetting("processing_delay_ms", 2000),
+      enableLowPriorityMode: await this.getBooleanSetting("enable_low_priority_mode", true),
+      maxActiveJobs: await this.getNumberSetting("max_active_jobs", 3),
+    };
+  }
+
+  /**
+   * パフォーマンス設定を初期化
+   */
+  async initializePerformanceSettings(): Promise<void> {
+    const defaultSettings = [
+      { key: "worker_concurrency", value: 1, type: "number", description: "ワーカーの同時実行数（負荷制御）" },
+      { key: "job_delay_ms", value: 5000, type: "number", description: "ジョブ実行間隔（ミリ秒）" },
+      { key: "processing_delay_ms", value: 2000, type: "number", description: "処理間の待機時間（ミリ秒）" },
+      { key: "enable_low_priority_mode", value: true, type: "boolean", description: "低優先度モードの有効化" },
+      { key: "max_active_jobs", value: 3, type: "number", description: "最大アクティブジョブ数" },
+    ];
+
+    for (const setting of defaultSettings) {
+      try {
+        // 既存の設定があるかチェック
+        const existing = await this.prisma.systemSetting.findUnique({
+          where: { settingKey: setting.key },
+        });
+
+        if (!existing) {
+          await this.prisma.systemSetting.create({
+            data: {
+              settingKey: setting.key,
+              settingType: setting.type,
+              category: "performance",
+              description: setting.description,
+              editable: true,
+              numberValue: setting.type === "number" ? setting.value as number : null,
+              stringValue: setting.type === "string" ? String(setting.value) : null,
+              booleanValue: setting.type === "boolean" ? setting.value as boolean : null,
+            },
+          });
+
+          logger.info("パフォーマンス設定を初期化", {
+            settingKey: setting.key,
+            value: setting.value,
+            type: setting.type,
+          });
+        }
+      } catch (error) {
+        logger.error("パフォーマンス設定初期化エラー", { 
+          settingKey: setting.key, 
+          error 
+        });
+      }
+    }
+
+    // キャッシュをリフレッシュ
+    await this.refreshCache();
+  }
 }

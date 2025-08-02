@@ -659,6 +659,7 @@ const AdminPage: React.FC = () => {
               active={activeView === "queue"}
               onClick={() => setActiveView("queue")}
             />
+
             <SidebarItem
               icon="calendar"
               label="カレンダー確認"
@@ -1230,6 +1231,8 @@ const AdminPage: React.FC = () => {
               <QueueManager />
             </div>
           )}
+
+
 
           {/* Other views placeholder */}
           {activeView !== "dashboard" &&

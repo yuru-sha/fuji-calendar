@@ -96,6 +96,8 @@ services:
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
       # タイムゾーン
       TZ: Asia/Tokyo
+      # ワーカー設定（バックエンドでも低負荷モード）
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-1}
     volumes:
       - ./logs:/app/logs
     depends_on:
@@ -133,8 +135,8 @@ services:
       LOG_DIR: /app/logs
       # タイムゾーン
       TZ: Asia/Tokyo
-      # ワーカー設定
-      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-3}
+      # ワーカー設定（低負荷モード）
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-1}
     volumes:
       - ./logs:/app/logs
     depends_on:

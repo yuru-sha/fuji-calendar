@@ -17,7 +17,7 @@ COPY packages/utils/package.json ./packages/utils/
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/ui/package.json ./packages/ui/
 
-# TypeScript設定ファイルをコピー
+# TypeScript 設定ファイルをコピー
 COPY tsconfig*.json ./
 COPY apps/server/tsconfig.json ./apps/server/
 
@@ -30,11 +30,13 @@ COPY . .
 # Prisma クライアントを生成
 RUN npx prisma generate
 
-# 共有パッケージをビルド
-RUN npm run build:packages
+# 依存関係順にパッケージをビルド
+RUN npm run build --workspace=packages/types
+RUN npm run build --workspace=packages/utils
+RUN npm run build --workspace=packages/shared
+RUN npm run build --workspace=packages/ui
 
-# バックエンドをビルド
-RUN npm run build --workspace=apps/server
+# バックエンドのビルドはスキップ（ts-nodeを使用）
 
 # 本番用イメージ
 FROM node:18-alpine AS production
@@ -63,7 +65,7 @@ COPY --from=builder /app/packages/utils/package.json ./packages/utils/
 COPY --from=builder /app/packages/shared/package.json ./packages/shared/
 COPY --from=builder /app/packages/ui/package.json ./packages/ui/
 
-# TypeScript設定ファイルをコピー
+# TypeScript 設定ファイルをコピー
 COPY --from=builder /app/tsconfig*.json ./
 COPY --from=builder /app/apps/server/tsconfig.json ./apps/server/
 
@@ -72,15 +74,21 @@ RUN npm ci --silent && npm cache clean --force
 
 # ソースコードとビルド済みパッケージをコピー
 COPY --from=builder /app/apps/server/src ./apps/server/src
-COPY --from=builder /app/apps/server/dist ./apps/server/dist
 COPY --from=builder /app/packages ./packages
 COPY --from=builder /app/prisma ./prisma
 
 # Prisma クライアントを生成
 RUN npx prisma generate
 
-# ts-node環境変数を設定
-ENV TS_NODE_PROJECT=apps/server/tsconfig-node.json
+# 共有パッケージを本番ステージで再ビルド（型定義が必要）
+RUN npm run build --workspace=packages/types
+RUN npm run build --workspace=packages/utils
+RUN npm run build --workspace=packages/shared
+RUN npm run build --workspace=packages/ui
+
+# バックエンドのビルドはスキップ（ts-nodeを使用）
+
+# ts-node 環境変数を設定
 ENV TS_NODE_TRANSPILE_ONLY=true
 
 # ログディレクトリを作成

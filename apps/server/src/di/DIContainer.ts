@@ -139,4 +139,42 @@ export class DIContainer {
   getQueueService() {
     return this.resolve("QueueService");
   }
+
+  getSystemSettingsService() {
+    return this.resolve("SystemSettingsService");
+  }
+
+  /**
+   * 依存関係の注入を実行（循環依存解決）
+   */
+  configureDependencies(): void {
+    logger.info("依存関係注入の設定開始");
+    
+    try {
+      // QueueServiceにSystemSettingsServiceを注入
+      if (this.has("QueueService") && this.has("SystemSettingsService")) {
+        const queueService = this.resolve("QueueService") as any;
+        const systemSettingsService = this.resolve("SystemSettingsService") as any;
+        
+        if (queueService && typeof queueService.setSystemSettingsService === 'function') {
+          queueService.setSystemSettingsService(systemSettingsService);
+          logger.info("QueueServiceにSystemSettingsServiceを注入完了");
+        }
+      }
+
+      // パフォーマンス設定の初期化
+      if (this.has("SystemSettingsService")) {
+        const systemSettingsService = this.resolve("SystemSettingsService") as any;
+        if (systemSettingsService && typeof systemSettingsService.initializePerformanceSettings === 'function') {
+          systemSettingsService.initializePerformanceSettings().catch((error: any) => {
+            logger.warn("パフォーマンス設定初期化失敗", error);
+          });
+        }
+      }
+      
+      logger.info("依存関係注入の設定完了");
+    } catch (error) {
+      logger.error("依存関係注入の設定でエラー", error);
+    }
+  }
 }

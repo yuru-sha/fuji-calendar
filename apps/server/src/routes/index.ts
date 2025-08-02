@@ -165,7 +165,7 @@ export function setupRoutes(app: Express, container: DIContainer): void {
 
   // 失敗したジョブをクリア
   app.post(
-    "/api/admin/queue/clean-failed",
+    "/api/admin/queue/clear-failed",
     authenticateAdmin,
     adminApiRateLimit,
     async (req: Request, res: Response) => {
@@ -418,6 +418,48 @@ export function setupRoutes(app: Express, container: DIContainer): void {
     "/api/admin/system-settings",
     adminApiRateLimit,
     createSystemSettingsRouter(container),
+  );
+
+  // パフォーマンス設定 API
+  app.get(
+    "/api/admin/performance-settings",
+    authenticateAdmin,
+    async (req: Request, res: Response) => {
+      try {
+        const queueService = container.resolve("QueueService") as any;
+        const currentConcurrency = queueService.getCurrentConcurrency();
+
+        res.json({
+          success: true,
+          settings: {
+            concurrency: currentConcurrency,
+            maxConcurrency: 10,
+            minConcurrency: 1,
+            cacheEnabled: true,
+            batchSize: 100,
+          },
+        });
+      } catch (error) {
+        serverLogger.error("パフォーマンス設定取得エラー", error);
+        res.status(500).json({ error: "Failed to get performance settings" });
+      }
+    },
+  );
+
+  // キュー統計 API
+  app.get(
+    "/api/admin/queue-stats",
+    authenticateAdmin,
+    async (req: Request, res: Response) => {
+      try {
+        const queueService = container.resolve("QueueService") as any;
+        const stats = await queueService.getQueueStats();
+        res.json(stats);
+      } catch (error) {
+        serverLogger.error("キュー統計取得エラー", error);
+        res.status(500).json({ error: "Failed to get queue stats" });
+      }
+    },
   );
 
   // SPA 用のフォールバック（本番環境）

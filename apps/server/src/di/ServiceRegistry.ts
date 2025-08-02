@@ -200,8 +200,11 @@ export class ServiceRegistry {
       registeredServices: container.getRegisteredServices(),
     });
 
+    // 依存関係の追加設定（SystemSettingsService → QueueService）
+    container.configureDependencies();
+
     // 依存関係が正しく設定されたことをログ出力
-    logger.debug("循環依存解決完了: QueueService ← EventService");
+    logger.debug("循環依存解決完了: QueueService ← EventService, SystemSettingsService");
   }
 
   /**

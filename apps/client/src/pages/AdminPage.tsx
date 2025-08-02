@@ -1050,6 +1050,7 @@ const AdminPage: React.FC = () => {
                       <option value="長野県">長野県</option>
                       <option value="茨城県">茨城県</option>
                       <option value="奈良県">奈良県</option>
+                      <option value="三重県">三重県</option>
                       <option value="和歌山県">和歌山県</option>
                     </select>
                   </div>
@@ -1311,6 +1312,7 @@ const AdminPage: React.FC = () => {
                       <option value="長野県">長野県</option>
                       <option value="茨城県">茨城県</option>
                       <option value="奈良県">奈良県</option>
+                      <option value="三重県">三重県</option>
                       <option value="和歌山県">和歌山県</option>
                     </select>
                   </div>

@@ -178,7 +178,7 @@ const QueueManager: React.FC = () => {
     try {
       setLoading(true);
       const response = await authService.authenticatedFetch(
-        "/api/admin/queue/clean-failed",
+        "/api/admin/queue/clear-failed",
         {
           method: "POST",
         }

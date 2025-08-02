@@ -9,8 +9,8 @@ const Layout: React.FC = () => {
 
   const navItems = [
     { path: "/", label: "ホーム", icon: "home" as const },
-    { path: "/favorites", label: "お気に入り", icon: "favorites" as const },
-    { path: "/admin", label: "管理", icon: "admin" as const },
+    { path: "/favorites", label: "お気に入り", icon: "star" as const },
+    { path: "/admin", label: "管理", icon: "settings" as const },
   ];
 
   // 管理画面の場合はヘッダー・フッターなしのレイアウト
@@ -51,7 +51,9 @@ const Layout: React.FC = () => {
                     transition-all duration-200
                     ${
                       isActive(item.path)
-                        ? "text-gray-900 font-semibold"
+                        ? item.path === "/" 
+                          ? "text-gray-900"
+                          : "text-gray-900 font-semibold"
                         : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                     }
                   `}

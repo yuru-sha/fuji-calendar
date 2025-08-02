@@ -6,11 +6,11 @@
   "scripts": {
     "dev": "nodemon",
     "dev:worker": "nodemon --exec ts-node src/worker.ts",
-    "build": "npx tsc",
+    "build": "tsc",
     "start": "ts-node src/server.ts",
     "start:worker": "ts-node src/worker.ts",
     "worker": "node dist/worker.js",
-    "typecheck": "npx tsc --noEmit",
+    "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "clean": "rm -rf dist"

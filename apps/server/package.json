@@ -34,7 +34,9 @@
     "pino": "^9.7.0",
     "pino-http": "^10.5.0",
     "pino-pretty": "^13.0.0",
-    "prisma": "^6.12.0"
+    "prisma": "^6.12.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.2.2"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",
@@ -47,8 +49,6 @@
     "@typescript-eslint/parser": "^6.10.0",
     "eslint": "^8.53.0",
     "nodemon": "^3.0.1",
-    "ts-node": "^10.9.1",
-    "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.2.2"
+    "tsconfig-paths": "^4.2.0"
   }
 }

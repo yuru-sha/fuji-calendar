@@ -29,8 +29,7 @@ RUN npx prisma generate
 # 共有パッケージをビルド
 RUN npm run build:packages
 
-# バックエンドをビルド
-RUN npm run build:server
+# バックエンドビルドは ts-node を使用するためスキップ
 
 # 本番用イメージ
 FROM node:18-alpine AS production
@@ -62,8 +61,8 @@ COPY packages/ui/package.json ./packages/ui/
 # 本番依存関係のみをインストール
 RUN npm ci --only=production --silent && npm cache clean --force
 
-# ビルド済みアプリケーションをコピー
-COPY --from=builder /app/apps/server/dist ./apps/server/dist
+# ソースコードとビルド済みパッケージをコピー
+COPY --from=builder /app/apps/server/src ./apps/server/src
 COPY --from=builder /app/packages ./packages
 COPY --from=builder /app/prisma ./prisma
 

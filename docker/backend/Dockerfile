@@ -1,4 +1,4 @@
-# バックエンド専用Dockerfile（モノレポ対応）
+# バックエンド専用 Dockerfile（モノレポ対応）
 FROM node:18-alpine AS builder
 
 # 必要なシステムパッケージをインストール
@@ -15,6 +15,7 @@ COPY apps/server/package.json ./apps/server/
 COPY packages/types/package.json ./packages/types/
 COPY packages/utils/package.json ./packages/utils/
 COPY packages/shared/package.json ./packages/shared/
+COPY packages/ui/package.json ./packages/ui/
 
 # 依存関係をインストール
 RUN npm ci --silent
@@ -50,12 +51,13 @@ RUN addgroup -g 1001 -S nodejs && \
 # 作業ディレクトリを設定
 WORKDIR /app
 
-# モノレポのpackage.jsonをコピー
+# モノレポの package.json をコピー
 COPY package*.json ./
 COPY apps/server/package.json ./apps/server/
 COPY packages/types/package.json ./packages/types/
 COPY packages/utils/package.json ./packages/utils/
 COPY packages/shared/package.json ./packages/shared/
+COPY packages/ui/package.json ./packages/ui/
 
 # 本番依存関係のみをインストール
 RUN npm ci --only=production --silent && npm cache clean --force
@@ -65,7 +67,7 @@ COPY --from=builder /app/apps/server/dist ./apps/server/dist
 COPY --from=builder /app/packages ./packages
 COPY --from=builder /app/prisma ./prisma
 
-# Prismaクライアントを生成
+# Prisma クライアントを生成
 RUN npx prisma generate
 
 # ログディレクトリを作成
@@ -81,7 +83,7 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD curl -f http://localhost:3000/api/health || exit 1
 
-# tiniを使用してプロセス管理
+# tini を使用してプロセス管理
 ENTRYPOINT ["/sbin/tini", "--"]
 
 # アプリケーションを起動

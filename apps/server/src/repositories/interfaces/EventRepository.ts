@@ -1,4 +1,4 @@
-import { FujiEvent } from "@fuji-calendar/types";
+import { FujiEvent } from "../../shared";
 
 export interface EventRepository {
   /**

@@ -12,7 +12,7 @@ services:
     environment:
       TZ: Asia/Tokyo
     volumes:
-      - ./ssl:/etc/nginx/ssl:ro  # SSL証明書用（オプション）
+      - ./ssl:/etc/nginx/ssl:ro  # SSL 証明書用（オプション）
     depends_on:
       - backend
     healthcheck:
@@ -72,11 +72,20 @@ services:
   backend:
     build:
       context: .
-      dockerfile: docker/backend/Dockerfile
+      dockerfile: docker/backend/Dockerfile.simple
     container_name: fuji_calendar_backend
     restart: unless-stopped
     expose:
       - "${PORT:-3000}"
+    # リソース制限でパフォーマンス安定化
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 1G
     environment:
       NODE_ENV: production
       PORT: ${PORT:-3000}
@@ -118,10 +127,19 @@ services:
   worker:
     build:
       context: .
-      dockerfile: docker/backend/Dockerfile
+      dockerfile: docker/backend/Dockerfile.simple
     container_name: fuji_calendar_worker
     restart: unless-stopped
     command: ["npm", "run", "start:worker"]
+    # ワーカー用リソース制限（より少なく）
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 1G
     environment:
       NODE_ENV: production
       # PostgreSQL 接続設定（Prisma 対応）

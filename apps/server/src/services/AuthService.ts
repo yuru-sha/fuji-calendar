@@ -2,7 +2,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { AuthService } from "./interfaces/AuthService";
 import { AuthRepository } from "../repositories/interfaces/AuthRepository";
-import { getComponentLogger } from "@fuji-calendar/utils";
+import { getComponentLogger } from "../shared";
 
 const logger = getComponentLogger("auth-service");
 

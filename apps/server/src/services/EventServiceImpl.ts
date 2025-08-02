@@ -8,7 +8,7 @@ import {
 import { EventCacheService } from "./EventCacheService";
 import { AstronomicalCalculator } from "./AstronomicalCalculator";
 import { PrismaClientManager } from "../database/prisma";
-import { getComponentLogger } from "@fuji-calendar/utils";
+import { getComponentLogger } from "../shared";
 
 const logger = getComponentLogger("EventServiceImpl");
 

@@ -3,7 +3,7 @@ import { DIContainer } from "../di/DIContainer";
 import { SystemSettingsController } from "../controllers/SystemSettingsController";
 import { SystemSettingsService } from "../services/SystemSettingsService";
 import { authenticateAdmin } from "../middleware/auth";
-import { getComponentLogger } from "@fuji-calendar/utils";
+import { getComponentLogger } from "../shared";
 
 const logger = getComponentLogger("SystemSettingsRoutes");
 

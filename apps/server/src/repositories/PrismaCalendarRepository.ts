@@ -1,8 +1,8 @@
 // import { LocationEvent, Location as PrismaLocation } from '@prisma/client';
-import { Location, FujiEvent, CalendarStats } from "@fuji-calendar/types";
+import { Location, FujiEvent, CalendarStats } from "../shared";
 import { CalendarRepository } from "./interfaces/CalendarRepository";
 import { PrismaClientManager } from "../database/prisma";
-import { getComponentLogger } from "@fuji-calendar/utils";
+import { getComponentLogger } from "../shared";
 
 const logger = getComponentLogger("prisma-calendar-repository");
 

@@ -1,5 +1,5 @@
 import * as cron from "node-cron";
-import { getComponentLogger } from "@fuji-calendar/utils";
+import { getComponentLogger } from "../shared";
 import type { DIContainer } from "../di/DIContainer";
 
 /**

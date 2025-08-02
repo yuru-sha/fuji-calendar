@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { SystemSettingsService } from "../services/SystemSettingsService";
-import { getComponentLogger } from "@fuji-calendar/utils";
+import { getComponentLogger } from "../shared";
 
 /**
  * システム設定管理コントローラー

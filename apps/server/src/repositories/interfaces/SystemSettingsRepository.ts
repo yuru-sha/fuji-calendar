@@ -1,4 +1,4 @@
-import { SystemSetting } from "@fuji-calendar/types";
+import { SystemSetting } from "../../shared";
 
 export interface SystemSettingsRepository {
   /**

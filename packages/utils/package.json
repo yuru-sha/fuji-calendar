@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "mkdir -p dist && echo 'const pino = require(\"pino\"); function getComponentLogger(component, additionalContext) { const logger = pino({ level: \"info\" }); return { debug: (msg, data) => logger.debug(data, msg), info: (msg, data) => logger.info(data, msg), warn: (msg, data) => logger.warn(data, msg), error: (msg, error, data) => logger.error({ ...data, err: error }, msg), fatal: (msg, error, data) => logger.fatal({ ...data, err: error }, msg) }; } function formatDateString(date) { const year = date.getFullYear(); const month = (date.getMonth() + 1).toString().padStart(2, \"0\"); const day = date.getDate().toString().padStart(2, \"0\"); return `${year}-${month}-${day}`; } const timeUtils = { formatDateString, getCurrentJst: () => new Date(), formatJstTime: (date) => `${date.getHours()}時${date.getMinutes().toString().padStart(2, \"0\")}分` }; module.exports = { getComponentLogger, formatDateString, timeUtils };' > dist/index.js && echo 'export declare function getComponentLogger(component: string, additionalContext?: any): any; export declare function formatDateString(date: Date): string; export declare const timeUtils: any;' > dist/index.d.ts",
+    "build": "tsc",
     "dev": "tsc --watch",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit"

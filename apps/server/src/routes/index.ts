@@ -1,6 +1,6 @@
 import { Express, Request, Response } from "express";
 import path from "path";
-import { getComponentLogger } from "@fuji-calendar/utils";
+import { getComponentLogger } from "../shared";
 import LocationController from "../controllers/LocationController";
 import { CalendarController } from "../controllers/CalendarController";
 import { AuthController } from "../controllers/AuthController";

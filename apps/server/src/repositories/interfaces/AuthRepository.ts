@@ -1,4 +1,4 @@
-import { Admin } from "@fuji-calendar/types";
+import { Admin } from "../../shared";
 
 export interface AuthRepository {
   // 管理者アカウント関連

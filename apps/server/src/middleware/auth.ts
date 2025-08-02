@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { PrismaClientManager } from "../database/prisma";
-import { getComponentLogger } from "@fuji-calendar/utils";
+import { getComponentLogger } from "../shared";
 import { AUTH_CONFIG } from "../config/auth";
 
 const logger = getComponentLogger("AuthMiddleware");

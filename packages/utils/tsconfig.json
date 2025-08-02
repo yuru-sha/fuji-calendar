@@ -18,8 +18,5 @@
     "moduleResolution": "node"
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"],
-  "references": [
-    { "path": "../types" }
-  ]
+  "exclude": ["node_modules", "dist", "../../apps", "../../packages/types", "../../packages/shared", "../../packages/ui"],
 }

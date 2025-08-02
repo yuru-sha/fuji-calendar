@@ -1,6 +1,6 @@
-import { CalendarEvent, FujiEvent, Location } from "@fuji-calendar/types";
-import { getComponentLogger, StructuredLogger } from "@fuji-calendar/utils";
-import { timeUtils } from "@fuji-calendar/utils";
+import { CalendarEvent, FujiEvent, Location } from "../shared";
+import { getComponentLogger, StructuredLogger } from "../shared";
+import { timeUtils } from "../shared";
 
 /**
  * イベント集計・グルーピングサービス

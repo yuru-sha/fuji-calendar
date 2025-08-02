@@ -1,4 +1,4 @@
-import { Location, CreateLocationRequest } from "@fuji-calendar/types";
+import { Location, CreateLocationRequest } from "../../shared";
 
 /**
  * Location リポジトリインターフェース

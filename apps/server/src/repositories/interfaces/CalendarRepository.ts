@@ -1,4 +1,4 @@
-import { Location, FujiEvent, CalendarStats } from "@fuji-calendar/types";
+import { Location, FujiEvent, CalendarStats } from "../../shared";
 
 export interface CalendarRepository {
   // 月間イベント取得

@@ -1,6 +1,6 @@
 import * as Astronomy from "astronomy-engine";
-import { SunPosition, MoonPosition } from "@fuji-calendar/types";
-import { getComponentLogger } from "@fuji-calendar/utils";
+import { SunPosition, MoonPosition } from "../../shared";
+import { getComponentLogger } from "../../shared";
 
 /**
  * 天体位置計算を担当するクラス

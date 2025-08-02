@@ -1,6 +1,6 @@
 import { Express } from "express";
 import path from "path";
-import { getComponentLogger } from "@fuji-calendar/utils";
+import { getComponentLogger } from "./shared";
 import { DIContainer } from "./di/DIContainer";
 import { QueueService } from "./services/interfaces/QueueService";
 const logger = getComponentLogger("bootstrap");

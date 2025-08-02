@@ -1,8 +1,8 @@
-import { Location } from "@fuji-calendar/types";
+import { Location } from "../shared";
 import { PrismaClientManager } from "../database/prisma";
 import { EventCacheService } from "./EventCacheService";
 import { AstronomicalCalculator } from "./AstronomicalCalculator";
-import { getComponentLogger, StructuredLogger } from "@fuji-calendar/utils";
+import { getComponentLogger, StructuredLogger } from "../shared";
 
 /**
  * バッチ計算サービス

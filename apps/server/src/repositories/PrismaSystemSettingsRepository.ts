@@ -1,7 +1,7 @@
-import { SystemSetting } from "@fuji-calendar/types";
+import { SystemSetting } from "../shared";
 import { SystemSettingsRepository } from "./interfaces/SystemSettingsRepository";
 import { PrismaClientManager } from "../database/prisma";
-import { getComponentLogger } from "@fuji-calendar/utils";
+import { getComponentLogger } from "../shared";
 
 export class PrismaSystemSettingsRepository
   implements SystemSettingsRepository

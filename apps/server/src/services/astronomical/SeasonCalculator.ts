@@ -101,20 +101,6 @@ export class SeasonCalculator {
     return moonIllumination >= 0.3;
   }
 
-  /**
-   * 天候による撮影適性を判定
-   */
-  isFavorableWeatherCondition(
-    cloudCover: number,
-    visibility: number,
-    precipitation: number = 0,
-  ): boolean {
-    return (
-      cloudCover <= 30 && // 雲量 30% 以下
-      visibility >= 10 && // 視界 10km 以上
-      precipitation === 0 // 降水なし
-    );
-  }
 
   /**
    * 総合的な撮影条件を評価
@@ -151,18 +137,6 @@ export class SeasonCalculator {
       score += 20; // ダイアモンド富士の場合は月相を考慮しない
     }
 
-    // 天候判定
-    if (cloudCover !== undefined && visibility !== undefined) {
-      if (this.isFavorableWeatherCondition(cloudCover, visibility)) {
-        score += 30;
-        reasons.push("良好な天候");
-      } else {
-        if (cloudCover > 30) reasons.push("曇り空");
-        if (visibility < 10) reasons.push("視界不良");
-      }
-    } else {
-      score += 15; // 天候データなしの場合は中程度のスコア
-    }
 
     // 評価判定
     let rating: "excellent" | "good" | "fair" | "poor";

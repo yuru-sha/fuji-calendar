@@ -13,7 +13,6 @@ A web application for calculating and displaying optimal shooting times and loca
 - 🗺️ **Interactive Maps**: Location relationship display using Leaflet with route planning
 - 🚗 **Route Navigation**: Optimal route guidance from current location via Google Maps
 - ⭐ **Favorites System**: Save, manage, and export shooting locations and events
-- 🌤️ **Weather Integration**: 7-day forecast with shooting condition recommendations
 - 📊 **Shooting Quality Rating**: Evaluation based on astronomical calculations
 - 🔐 **Admin Panel**: Location management system with JWT authentication
 - 🕐 **JST Time Support**: Accurate time display in Japan Standard Time
@@ -162,8 +161,8 @@ git clone <repository-url>
 cd fuji-calendar
 cp .env.example .env
 
-# 2. Start Services
-docker-compose up -d
+# 2. Build and Start Services
+docker-compose up -d --build
 
 # 3. Database Setup
 docker-compose exec backend npx prisma migrate deploy
@@ -171,7 +170,8 @@ docker-compose exec backend node scripts/admin/create-admin.js
 ```
 
 ### Access
-- **Frontend**: http://localhost:3000
+- **Frontend**: http://localhost
+- **Backend API**: http://localhost/api
 - **Admin Login**: admin / admin123
 
 ## 💻 Development (Monorepo Environment)
@@ -323,7 +323,6 @@ npm run start
 
 ### System API
 - `GET /api/health` - Health check
-- Weather forecast data integration (mock implementation)
 
 ## 🏗️ Monorepo Benefits
 

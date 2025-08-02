@@ -87,18 +87,6 @@ class ApiClient {
     }
   }
 
-  async getWeather(date: string) {
-    try {
-      const response = await fetch(`${this.baseUrl}/weather/${date}`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      return await response.json();
-    } catch (error) {
-      console.error("Failed to fetch weather:", error);
-      return null;
-    }
-  }
 
   async getUpcomingEvents(limit: number = 50) {
     try {

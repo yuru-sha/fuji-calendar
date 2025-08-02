@@ -1,4 +1,4 @@
-import { FujiEvent, CalendarStats, WeatherInfo } from "@fuji-calendar/types";
+import { FujiEvent, CalendarStats } from "@fuji-calendar/types";
 import { CalendarService } from "./interfaces/CalendarService";
 import { CalendarRepository } from "../repositories/interfaces/CalendarRepository";
 import { getComponentLogger, timeUtils } from "@fuji-calendar/utils";
@@ -187,63 +187,6 @@ export class CalendarServiceImpl implements CalendarService {
     }
   }
 
-  async getWeatherInfo(eventDate: string): Promise<WeatherInfo | null> {
-    try {
-      // 現在の日付から 7 日以内の未来の日付のみ天気情報を提供
-      const now = new Date();
-      const targetDate = new Date(eventDate);
-      const diffDays = Math.ceil(
-        (targetDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
-      );
-
-      if (diffDays < 0 || diffDays > 7) {
-        return null;
-      }
-
-      // 模擬天気データ生成
-      const weatherConditions = ["晴れ", "曇り", "雨", "雪", "晴れ時々曇り"];
-      const condition =
-        weatherConditions[Math.floor(Math.random() * weatherConditions.length)];
-
-      let cloudCover: number;
-      let visibility: number;
-      let recommendation: WeatherInfo["recommendation"];
-
-      switch (condition) {
-        case "晴れ":
-        case "晴れ時々曇り":
-          cloudCover = Math.floor(Math.random() * 30);
-          visibility = 15 + Math.floor(Math.random() * 15);
-          recommendation = cloudCover < 20 ? "excellent" : "good";
-          break;
-        case "曇り":
-          cloudCover = 60 + Math.floor(Math.random() * 30);
-          visibility = 8 + Math.floor(Math.random() * 12);
-          recommendation = "fair";
-          break;
-        case "雨":
-        case "雪":
-          cloudCover = 80 + Math.floor(Math.random() * 20);
-          visibility = 3 + Math.floor(Math.random() * 7);
-          recommendation = "poor";
-          break;
-        default:
-          cloudCover = 50;
-          visibility = 10;
-          recommendation = "fair";
-      }
-
-      return {
-        condition,
-        cloudCover,
-        visibility,
-        recommendation,
-      };
-    } catch (error) {
-      logger.error("天気情報取得エラー", { eventDate, error });
-      return null;
-    }
-  }
 
   private determineEventType(events: FujiEvent[]): string {
     const hasDepth = events.some((event) => event.type === "diamond");

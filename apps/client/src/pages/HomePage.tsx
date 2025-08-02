@@ -5,7 +5,7 @@ import {
   Location,
   FujiEvent,
   CalendarResponse,
-  WeatherInfo,
+
 } from "@fuji-calendar/types";
 import { apiClient } from "../services/apiClient";
 import { timeUtils } from "@fuji-calendar/utils";
@@ -24,7 +24,7 @@ const HomePage: React.FC = () => {
   );
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [dayEvents, setDayEvents] = useState<FujiEvent[]>([]);
-  const [weather, setWeather] = useState<WeatherInfo | undefined>(undefined);
+
   const [locations, setLocations] = useState<Location[]>([]);
   const [selectedLocationId, setSelectedLocationId] = useState<
     number | undefined
@@ -55,21 +55,7 @@ const HomePage: React.FC = () => {
     orientation: "landscape",
   });
 
-  // 天気アイコンを取得する関数
-  const getWeatherIcon = (condition: string) => {
-    switch (condition) {
-      case "晴れ":
-        return <Icon name="sun" size={16} />;
-      case "曇り":
-        return <Icon name="cloud" size={16} />;
-      case "雨":
-        return <Icon name="cloudRain" size={16} />;
-      case "雪":
-        return <Icon name="snowflake" size={16} />;
-      default:
-        return <Icon name="partlyCloudy" size={16} />;
-    }
-  };
+
 
   // URL パラメータから日付や地点 ID を処理
   useEffect(() => {
@@ -212,25 +198,11 @@ const HomePage: React.FC = () => {
       }
 
       // 天気情報を取得（7 日間以内の未来日付のみ）
-      const today = new Date();
-      const diffTime = date.getTime() - today.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-      if (diffDays >= 0 && diffDays <= 7) {
-        try {
-          const weatherResponse = await apiClient.getWeather(dateString);
-          setWeather(weatherResponse);
-        } catch (weatherError) {
-          console.warn("Failed to load weather data:", weatherError);
-          setWeather(undefined);
-        }
-      } else {
-        setWeather(undefined);
-      }
     } catch (error) {
       console.error("Failed to load day events:", error);
       setDayEvents([]);
-      setWeather(undefined);
+
     } finally {
       setLoading(false);
     }
@@ -444,7 +416,6 @@ const HomePage: React.FC = () => {
               <EventDetail
                 date={selectedDate}
                 events={filteredEvents}
-                weather={weather}
                 selectedLocationId={selectedLocationId}
                 onLocationSelect={(location) => {
                   if (location) {
@@ -907,58 +878,7 @@ const HomePage: React.FC = () => {
                     </div>
                   )}
 
-                  {/* 天気情報（ある場合） */}
-                  {weather && (
-                    <div
-                      style={{
-                        padding: "0.75rem",
-                        backgroundColor: "#fefce8",
-                        borderRadius: "8px",
-                        border: "1px solid #fde047",
-                        boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontSize: "0.875rem",
-                          color: "#a16207",
-                          fontWeight: "600",
-                          marginBottom: "0.25rem",
-                        }}
-                      >
-                        天気予報
-                      </div>
-                      <div
-                        style={{
-                          fontSize: "1rem",
-                          color: "#713f12",
-                          fontWeight: "500",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "0.5rem",
-                        }}
-                      >
-                        {getWeatherIcon(weather.condition)}
-                        {weather.condition}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: "0.75rem",
-                          color: "#a16207",
-                          marginTop: "0.25rem",
-                        }}
-                      >
-                        撮影条件:{" "}
-                        {weather.recommendation === "excellent"
-                          ? "最適"
-                          : weather.recommendation === "good"
-                            ? "良い"
-                            : weather.recommendation === "fair"
-                              ? "可能"
-                              : "困難"}
-                      </div>
-                    </div>
-                  )}
+
                 </div>
               </div>
             )}

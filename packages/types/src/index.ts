@@ -73,7 +73,6 @@ export interface HistoricalEvent {
   azimuth: number;
   elevation: number;
   moonPhase?: number; // パール富士の場合のみ
-  weatherCondition?: string;
   visibilityRating?: number; // 1-5
   photoSuccessReported: boolean;
   calculationAccuracy: number;
@@ -95,7 +94,6 @@ export interface HistoricalEventResponse {
   azimuth: number;
   elevation: number;
   moonPhase?: number;
-  weatherCondition?: string;
   visibilityRating?: number;
   photoSuccessReported: boolean;
   calculationAccuracy: number;
@@ -167,12 +165,6 @@ export interface LocationRequest {
   processedBy?: number;
 }
 
-export interface WeatherInfo {
-  condition: string;
-  cloudCover: number;
-  visibility: number;
-  recommendation: "excellent" | "good" | "fair" | "poor";
-}
 
 // API レスポンス型
 export interface CalendarResponse {
@@ -184,7 +176,6 @@ export interface CalendarResponse {
 export interface EventsResponse {
   date: string;
   events: FujiEvent[];
-  weather?: WeatherInfo;
 }
 
 export interface LocationsResponse {

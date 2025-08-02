@@ -72,10 +72,6 @@ export const FUJI_COORDINATES = {
 export const JST_TIMEZONE = "Asia/Tokyo";
 export const JST_OFFSET = 9; // UTC+9
 
-/**
- * 天気推奨度
- */
-export type WeatherRecommendation = "excellent" | "good" | "fair" | "poor";
 
 /**
  * エラー型

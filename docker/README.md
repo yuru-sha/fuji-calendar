@@ -19,9 +19,10 @@ bash scripts/config/docker-prod.sh start
 
 **コンテナ:**
 - `postgres`: PostgreSQL 15 データベース
-- `backend`: Express.js API サーバー (Node.js ・モノレポ構成)
-- `nginx`: リバースプロキシ + 静的ファイル配信
 - `redis`: キューシステム (BullMQ)
+- `frontend`: Nginx + React 静的ファイル配信
+- `backend`: Express.js API サーバー (Node.js ・モノレポ構成)
+- `worker`: バックグラウンドジョブ処理
 
 ### 開発環境
 ホットリロード対応の開発用構成。
@@ -44,14 +45,15 @@ bash scripts/config/docker-dev.sh start
 ```
 docker/
 ├── README.md                    # このファイル
-├── Dockerfile.monolith          # 本番環境用 (統合ビルド)
 ├── Dockerfile.dev               # 開発環境用 (ホットリロード)
 ├── backend/
-│   └── Dockerfile              # バックエンド専用 (マイクロサービス用)
-└── frontend/
-    ├── Dockerfile              # フロントエンド用 (Nginx)
-    ├── nginx.conf              # Nginx メイン設定
-    └── default.conf            # サイト設定 + API プロキシ
+│   └── Dockerfile              # バックエンド専用 (本番環境)
+├── frontend/
+│   ├── Dockerfile              # フロントエンド用 (Nginx統合)
+│   ├── nginx.conf              # Nginx メイン設定
+│   └── default.conf            # サイト設定 + API プロキシ
+└── postgres/
+    └── init/                    # PostgreSQL初期化スクリプト
 ```
 
 ## 開発フロー

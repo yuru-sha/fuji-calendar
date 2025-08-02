@@ -1,4 +1,4 @@
-import { FujiEvent, CalendarStats, WeatherInfo } from "@fuji-calendar/types";
+import { FujiEvent, CalendarStats } from "@fuji-calendar/types";
 
 export interface CalendarService {
   // 月間カレンダーデータを取得
@@ -30,6 +30,4 @@ export interface CalendarService {
   // カレンダー統計情報取得
   getCalendarStats(year: number): Promise<CalendarStats>;
 
-  // 天気情報取得
-  getWeatherInfo(eventDate: string): Promise<WeatherInfo | null>;
 }

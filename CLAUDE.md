@@ -199,7 +199,7 @@ React 18 + TypeScript + Tailwind CSS v3.4.17 構成
 - 方位角許容範囲 (現在 1.5 度)
 - デバッグログで `minDifference` と `bestTime` の値を確認
 
-**型定義**: `packages/types/src/index.ts` の `FUJI_COORDINATES` で富士山の座標・標高を定義。Location 型には必須の `createdAt`/`updatedAt` フィールドあり。`WeatherInfo` インターフェースで天気情報を定義。月相データは 0-1 の照度率（0-360 度から変換済み）
+**型定義**: `packages/types/src/index.ts` の `FUJI_COORDINATES` で富士山の座標・標高を定義。Location 型には必須の `createdAt`/`updatedAt` フィールドあり。月相データは 0-1 の照度率（0-360 度から変換済み）
 
 **重要な修正履歴**:
 - AuthController を AdminModel から Prisma ベースに完全移行 (admin/admin123 でログイン)
@@ -307,28 +307,6 @@ LOG_DIR=/var/log/fuji-calendar
 - 🟢 テストを通したら: `feat: implement [feature] to pass test`
 - 🔵 リファクタリングしたら: `refactor: [description]`
 
-## 天気機能実装詳細
-
-### WeatherInfo Interface
-```typescript
-export interface WeatherInfo {
-  condition: string;           // 天候状態（'晴れ', '曇り', '雨', '雪'）
-  cloudCover: number;         // 雲量（0-100%）
-  visibility: number;         // 視界（km）
-  recommendation: 'excellent' | 'good' | 'fair' | 'poor';  // 撮影推奨度
-}
-```
-
-### 実装概要
-- **CalendarService.getWeatherInfo()**: 模擬天気データ生成（7 日間予報対応）
-- **EventDetail コンポーネント**: 天気アイコン・推奨度表示・カラーコード化
-- **撮影条件判定**: 晴れ+雲量 30% 未満で「撮影に最適」、曇り・雨・雪で段階的評価
-
-### UI Components
-- **天気アイコン**: 絵文字による視覚表現（☀️☁️🌧️❄️🌤️）
-- **推奨度カラー**: excellent(緑), good(青), fair(黄), poor(赤)
-- **表示項目**: 天候・雲量・視界・撮影条件をカード形式で表示
-- **ルートボタン**: 🗺️ アイコン付きの直感的なルート検索ボタン
 
 ## 2025 年 7 月の重要な修正履歴
 
@@ -368,9 +346,8 @@ utcDate.setUTCHours(utcDate.getUTCHours() - 9);
 1. **TypeScript エラー**: `npm run typecheck` でチェック、`npm run lint:fix` で自動修正
 2. **Tailwind CSS クラス未適用**: PostCSS 設定確認、Tailwind v3.4.17 使用確認
 3. **レイアウト崩れ**: `content-wide` クラス適用確認、max-width 統一確認
-4. **天気情報未表示**: 7 日間以内の未来日付のみ表示される仕様を確認
-5. **event_date が前日になる**: `EventCacheService.createJstDateOnly`の実装を確認
-6. **地点登録後にデータが作成されない**: Redis が起動しているか、`queueService`が有効か確認
+4. **event_date が前日になる**: `EventCacheService.createJstDateOnly`の実装を確認
+5. **地点登録後にデータが作成されない**: Redis が起動しているか、`queueService`が有効か確認
 
 ### 開発環境セットアップ
 ```bash
@@ -418,8 +395,7 @@ packages/
 │   │   ├── index.ts        # 共通型定義エクスポート
 │   │   ├── calendar.ts     # カレンダー関連型
 │   │   ├── location.ts     # 地点関連型
-│   │   ├── auth.ts         # 認証関連型
-│   │   └── weather.ts      # 天気関連型
+│   │   └── auth.ts         # 認証関連型
 │   └── package.json
 ├── utils/                   # @fuji-calendar/utils
 │   ├── src/

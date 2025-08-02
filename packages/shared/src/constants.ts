@@ -9,5 +9,4 @@ export const API_ENDPOINTS = {
   CALENDAR: "/api/calendar",
   LOCATIONS: "/api/locations",
   EVENTS: "/api/events",
-  WEATHER: "/api/weather",
 } as const;

@@ -16,7 +16,6 @@ export class RedisService {
     SESSION: "session:",
     USER_FAVORITES: "favorites:",
     LOCATION_CACHE: "location:",
-    WEATHER_CACHE: "weather:",
   } as const;
 
   // キャッシュ TTL 設定（秒）
@@ -25,7 +24,6 @@ export class RedisService {
     SESSION: 24 * 60 * 60, // 24 時間
     USER_FAVORITES: 30 * 24 * 60 * 60, // 30 日
     LOCATION_CACHE: 60 * 60, // 1 時間
-    WEATHER_CACHE: 30 * 60, // 30 分
   } as const;
 
   constructor() {
@@ -261,44 +259,7 @@ export class RedisService {
     }
   }
 
-  /**
-   * 天気情報キャッシュ
-   */
-  async cacheWeatherData(
-    locationId: number,
-    date: string,
-    weatherData: any,
-  ): Promise<void> {
-    try {
-      const key = `${RedisService.PREFIXES.WEATHER_CACHE}${locationId}-${date}`;
-      const value = JSON.stringify(weatherData);
 
-      await this.redis.setex(key, RedisService.TTL.WEATHER_CACHE, value);
-    } catch (error) {
-      this.logger.error("天気情報キャッシュ保存エラー", error, {
-        locationId,
-        date,
-      });
-    }
-  }
-
-  /**
-   * 天気情報キャッシュ取得
-   */
-  async getWeatherData(locationId: number, date: string): Promise<any | null> {
-    try {
-      const key = `${RedisService.PREFIXES.WEATHER_CACHE}${locationId}-${date}`;
-      const cached = await this.redis.get(key);
-
-      return cached ? JSON.parse(cached) : null;
-    } catch (error) {
-      this.logger.error("天気情報キャッシュ取得エラー", error, {
-        locationId,
-        date,
-      });
-      return null;
-    }
-  }
 
   /**
    * キャッシュ統計取得

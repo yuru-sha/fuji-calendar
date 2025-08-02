@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { CalendarResponse, FujiEvent, WeatherInfo } from "@fuji-calendar/types";
+import { CalendarResponse, FujiEvent } from "@fuji-calendar/types";
 import { apiClient } from "../services/apiClient";
 import { getComponentLogger } from "@fuji-calendar/utils";
 
@@ -16,7 +16,6 @@ export interface UseAstronomicalEventsOptions {
 export interface UseAstronomicalEventsResult {
   calendarData: CalendarResponse | null;
   dayEvents: FujiEvent[];
-  weather: WeatherInfo | undefined;
   loading: boolean;
   error: string | null;
   refreshData: () => Promise<void>;
@@ -36,7 +35,6 @@ export function useAstronomicalEvents(
     null,
   );
   const [dayEvents, setDayEvents] = useState<FujiEvent[]>([]);
-  const [weather, setWeather] = useState<WeatherInfo | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,27 +77,10 @@ export function useAstronomicalEvents(
         const eventsResponse = await apiClient.getDayEvents(dateString);
         setDayEvents(eventsResponse.events || []);
 
-        // 天気情報取得（7 日以内の未来日のみ）
-        const today = new Date();
-        const diffTime = date.getTime() - today.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-        if (diffDays >= 0 && diffDays <= 7) {
-          try {
-            const weatherResponse = await apiClient.getWeather(dateString);
-            setWeather(weatherResponse);
-          } catch (weatherError: any) {
-            logger.warn("天気情報取得失敗", weatherError);
-            setWeather(undefined);
-          }
-        } else {
-          setWeather(undefined);
-        }
 
         logger.info("日別データ取得成功", {
           date: dateString,
           eventCount: eventsResponse.events?.length || 0,
-          hasWeather: !!weather,
         });
       } catch (err: any) {
         logger.error("日別データ取得エラー", err, {
@@ -107,7 +88,6 @@ export function useAstronomicalEvents(
           selectedLocationId,
         });
         setDayEvents([]);
-        setWeather(undefined);
       }
     },
     [selectedLocationId, selectedEventId],
@@ -132,14 +112,12 @@ export function useAstronomicalEvents(
       loadDayData(selectedDate);
     } else {
       setDayEvents([]);
-      setWeather(undefined);
     }
   }, [selectedDate, loadDayData]);
 
   return {
     calendarData,
     dayEvents,
-    weather,
     loading,
     error,
     refreshData,

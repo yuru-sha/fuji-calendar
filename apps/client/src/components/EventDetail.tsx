@@ -1,5 +1,5 @@
 import React, { memo, useState } from "react";
-import { FujiEvent, WeatherInfo, Location } from "@fuji-calendar/types";
+import { FujiEvent, Location } from "@fuji-calendar/types";
 import { timeUtils } from "@fuji-calendar/utils";
 import { useFavorites } from "../hooks/useFavorites";
 import { Icon } from "@fuji-calendar/ui";
@@ -8,13 +8,12 @@ import styles from "./EventDetail.module.css";
 interface EventDetailProps {
   date: Date;
   events: FujiEvent[];
-  weather?: WeatherInfo;
   selectedLocationId?: number;
   onLocationSelect?: (location: Location | null) => void;
 }
 
 const EventDetail: React.FC<EventDetailProps> = memo(
-  ({ date, events, weather, selectedLocationId, onLocationSelect }) => {
+  ({ date, events, selectedLocationId, onLocationSelect }) => {
     const {
       isEventFavorite,
       toggleEventFavorite,
@@ -132,54 +131,7 @@ const EventDetail: React.FC<EventDetailProps> = memo(
       );
     };
 
-    const getWeatherIcon = (condition: string): JSX.Element => {
-      switch (condition) {
-        case "晴れ":
-          return <Icon name="sun" size={20} />;
-        case "曇り":
-          return <Icon name="cloud" size={20} />;
-        case "雨":
-          return <Icon name="cloudRain" size={20} />;
-        case "雪":
-          return <Icon name="snowflake" size={20} />;
-        default:
-          return <Icon name="partlyCloudy" size={20} />;
-      }
-    };
 
-    const getRecommendationText = (
-      recommendation: "excellent" | "good" | "fair" | "poor",
-    ): string => {
-      switch (recommendation) {
-        case "excellent":
-          return "撮影に最適";
-        case "good":
-          return "撮影に適している";
-        case "fair":
-          return "撮影可能";
-        case "poor":
-          return "撮影困難";
-        default:
-          return "";
-      }
-    };
-
-    const getRecommendationColor = (
-      recommendation: "excellent" | "good" | "fair" | "poor",
-    ): string => {
-      switch (recommendation) {
-        case "excellent":
-          return styles.excellent;
-        case "good":
-          return styles.good;
-        case "fair":
-          return styles.fair;
-        case "poor":
-          return styles.poor;
-        default:
-          return "";
-      }
-    };
 
     const getAccuracyText = (
       accuracy: "perfect" | "excellent" | "good" | "fair",
@@ -255,39 +207,7 @@ const EventDetail: React.FC<EventDetailProps> = memo(
           </h3>
         </div>
 
-        {/* 天気情報 */}
-        {weather && (
-          <div className={styles.weather}>
-            <h4 className={styles.weatherTitle}>
-              <span className={styles.weatherIcon}>
-                {getWeatherIcon(weather.condition)}
-              </span>
-              天気予報
-            </h4>
-            <div className={styles.weatherContent}>
-              <div className={styles.weatherItem}>
-                <span className={styles.weatherLabel}>天候:</span>
-                <span>{weather.condition}</span>
-              </div>
-              <div className={styles.weatherItem}>
-                <span className={styles.weatherLabel}>雲量:</span>
-                <span>{weather.cloudCover}%</span>
-              </div>
-              <div className={styles.weatherItem}>
-                <span className={styles.weatherLabel}>視界:</span>
-                <span>{weather.visibility}km</span>
-              </div>
-              <div className={`${styles.weatherItem} ${styles.recommendation}`}>
-                <span className={styles.weatherLabel}>撮影条件:</span>
-                <span
-                  className={getRecommendationColor(weather.recommendation)}
-                >
-                  {getRecommendationText(weather.recommendation)}
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
+
 
         {/* イベント一覧 */}
         <div className={styles.events}>

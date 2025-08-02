@@ -1,4 +1,28 @@
 services:
+  # フロントエンド（nginx + 静的ファイル配信）
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend/Dockerfile
+    container_name: fuji_calendar_frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      TZ: Asia/Tokyo
+    volumes:
+      - ./ssl:/etc/nginx/ssl:ro  # SSL証明書用（オプション）
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    networks:
+      - fuji_calendar_network
+
   # PostgreSQL
   postgres:
     image: postgres:15-alpine
@@ -44,38 +68,11 @@ services:
     networks:
       - fuji_calendar_network
 
-  # Nginx (リバースプロキシ + 静的ファイル配信)
-  nginx:
-    image: nginx:alpine
-    container_name: fuji_calendar_nginx
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    environment:
-      TZ: Asia/Tokyo
-      BACKEND_PORT: ${PORT:-3000}
-    volumes:
-      - ./nginx/nginx.conf.template:/etc/nginx/nginx.conf.template:ro
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./apps/client/dist:/usr/share/nginx/html:ro  # モノレポ構成の静的ファイル
-      - ./ssl:/etc/nginx/ssl:ro  # SSL 証明書用（オプション）
-    command: /bin/sh -c "export BACKEND_PORT=$${BACKEND_PORT:-3000} && envsubst '$$BACKEND_PORT' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && nginx -g 'daemon off;'"
-    depends_on:
-      - backend
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
-      interval: 30s
-      timeout: 3s
-      retries: 3
-    networks:
-      - fuji_calendar_network
-
   # バックエンド API（モノレポ構成）
   backend:
     build:
       context: .
-      dockerfile: docker/Dockerfile.monolith
+      dockerfile: docker/backend/Dockerfile
     container_name: fuji_calendar_backend
     restart: unless-stopped
     expose:
@@ -101,7 +98,6 @@ services:
       TZ: Asia/Tokyo
     volumes:
       - ./logs:/app/logs
-      - ./apps/client/dist:/app/apps/client/dist  # モノレポ構成の静的ファイル
     depends_on:
       postgres:
         condition: service_healthy
@@ -120,7 +116,7 @@ services:
   worker:
     build:
       context: .
-      dockerfile: docker/Dockerfile.monolith
+      dockerfile: docker/backend/Dockerfile
     container_name: fuji_calendar_worker
     restart: unless-stopped
     command: ["npm", "run", "start:worker"]

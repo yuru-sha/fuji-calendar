@@ -1,19 +1,19 @@
-# API仕様書
+# API 仕様書
 
 **バージョン 0.3.0** - モノレポ構成・高性能版
 
 ## 概要
 
-ダイヤモンド富士・パール富士カレンダーのRESTful API仕様書です。カレンダーデータの取得、撮影地点情報、管理者機能のエンドポイントを提供します。
+ダイヤモンド富士・パール富士カレンダーの RESTful API 仕様書です。カレンダーデータの取得、撮影地点情報、管理者機能のエンドポイントを提供します。
 
-## ベースURL
+## ベース URL
 
 - **開発環境**: `http://localhost:8000/api`
 - **本番環境**: `https://your-domain.com/api`
 
 ## 認証
 
-管理者APIは JWT Bearer Token 認証を使用します。
+管理者 API は JWT Bearer Token 認証を使用します。
 
 ```http
 Authorization: Bearer <access_token>
@@ -43,9 +43,9 @@ Authorization: Bearer <access_token>
 | `RATE_LIMIT_EXCEEDED` | レート制限超過 |
 | `INTERNAL_ERROR` | サーバー内部エラー |
 
-## 公開API
+## 公開 API
 
-### カレンダーAPI
+### カレンダー API
 
 #### 月間カレンダー取得
 
@@ -100,7 +100,7 @@ GET /api/events/:date
 ```
 
 **パラメータ**
-- `date` (string): 日付 (YYYY-MM-DD形式)
+- `date` (string): 日付 (YYYY-MM-DD 形式)
 
 **レスポンス**
 ```json
@@ -122,19 +122,13 @@ GET /api/events/:date
           "longitude": 138.6124,
           "elevation": 670,
           "description": "富士山の南西に位置する湖",
-          "accessInfo": "JR身延線富士宮駅からバス",
+          "accessInfo": "JR 身延線富士宮駅からバス",
           "warnings": "冬季は凍結注意"
         },
         "azimuth": 120.5,
         "elevation": 2.3
       }
-    ],
-    "weather": {
-      "condition": "晴れ",
-      "cloudCover": 20,
-      "visibility": 15,
-      "recommendation": "excellent"
-    }
+    ]
   }
 }
 ```
@@ -173,7 +167,7 @@ GET /api/events/upcoming
 }
 ```
 
-### 撮影地点API
+### 撮影地点 API
 
 #### 撮影地点一覧取得
 
@@ -200,7 +194,7 @@ GET /api/locations
         "longitude": 138.6124,
         "elevation": 670,
         "description": "富士山の南西に位置する湖",
-        "accessInfo": "JR身延線富士宮駅からバス",
+        "accessInfo": "JR 身延線富士宮駅からバス",
         "warnings": "冬季は凍結注意",
         "fujiAzimuth": 120.5,
         "fujiDistance": 15.2,
@@ -221,7 +215,7 @@ GET /api/locations/:id
 ```
 
 **パラメータ**
-- `id` (number): 撮影地点ID
+- `id` (number): 撮影地点 ID
 
 **レスポンス**
 ```json
@@ -236,7 +230,7 @@ GET /api/locations/:id
       "longitude": 138.6124,
       "elevation": 670,
       "description": "富士山の南西に位置する湖",
-      "accessInfo": "JR身延線富士宮駅からバス",
+      "accessInfo": "JR 身延線富士宮駅からバス",
       "warnings": "冬季は凍結注意",
       "fujiAzimuth": 120.5,
       "fujiDistance": 15.2,
@@ -247,7 +241,7 @@ GET /api/locations/:id
 }
 ```
 
-### システムAPI
+### システム API
 
 #### ヘルスチェック
 
@@ -266,8 +260,7 @@ GET /api/health
     "services": {
       "database": "connected",
       "redis": "connected",
-      "calculationEngine": "operational",
-      "weatherService": "mock"
+      "calculationEngine": "operational"
     },
     "cachePerformance": {
       "hitRate": 0.85,
@@ -277,9 +270,9 @@ GET /api/health
 }
 ```
 
-## 管理者API
+## 管理者 API
 
-### 認証API
+### 認証 API
 
 #### ログイン
 
@@ -356,7 +349,7 @@ Authorization: Bearer <access_token>
 }
 ```
 
-### 撮影地点管理API
+### 撮影地点管理 API
 
 #### 撮影地点作成
 
@@ -422,7 +415,7 @@ Content-Type: application/json
 ```
 
 **パラメータ**
-- `id` (number): 撮影地点ID
+- `id` (number): 撮影地点 ID
 
 **リクエストボディ**
 ```json
@@ -461,7 +454,7 @@ Authorization: Bearer <access_token>
 ```
 
 **パラメータ**
-- `id` (number): 撮影地点ID
+- `id` (number): 撮影地点 ID
 
 **レスポンス**
 ```json
@@ -477,9 +470,9 @@ Authorization: Bearer <access_token>
 
 | エンドポイント | 制限 | 範囲 |
 |----------------|------|------|
-| 公開API | 100リクエスト/分 | カレンダー・撮影地点・システムAPI |
-| 認証API | 5リクエスト/15分 | ログイン・ログアウト・トークン検証 |
-| 管理者API | 60リクエスト/分 | 地点作成・更新・削除・キャッシュ管理 |
+| 公開 API | 100 リクエスト/分 | カレンダー・撮影地点・システム API |
+| 認証 API | 5 リクエスト/15 分 | ログイン・ログアウト・トークン検証 |
+| 管理者 API | 60 リクエスト/分 | 地点作成・更新・削除・キャッシュ管理 |
 
 ### レート制限ヘッダー
 
@@ -492,19 +485,19 @@ Retry-After: 60
 
 ### レート制限の詳細
 
-#### 公開API
+#### 公開 API
 - **目的**: 一般ユーザーの日常的な利用をサポート
-- **制限**: 100リクエスト/分
+- **制限**: 100 リクエスト/分
 - **理由**: カレンダー閲覧、地点検索、イベント照会に十分なリクエスト数
 
-#### 認証API
+#### 認証 API
 - **目的**: ブルートフォース攻撃の防止
-- **制限**: 5リクエスト/15分
+- **制限**: 5 リクエスト/15 分
 - **特殊機能**: 成功したリクエストはカウントしない（`skipSuccessfulRequests: true`）
 
-#### 管理者API
+#### 管理者 API
 - **目的**: 管理操作の効率的な実行をサポート
-- **制限**: 60リクエスト/分
+- **制限**: 60 リクエスト/分
 - **理由**: 管理者の日常的なメンテナンス作業に必要な操作数
 
 ## WebSocket API
@@ -541,7 +534,7 @@ GET /api/locations/:id/yearly/:year
 ```
 
 **パラメータ**
-- `id` (number): 撮影地点ID
+- `id` (number): 撮影地点 ID
 - `year` (number): 年 (例: 2024)
 
 **レスポンス**
@@ -571,15 +564,6 @@ GET /api/locations/:id/yearly/:year
 
 ## データ型定義
 
-### WeatherInfo
-```typescript
-interface WeatherInfo {
-  condition: string;           // 天候状態（'晴れ', '曇り', '雨', '雪'）
-  cloudCover: number;         // 雲量（0-100%）
-  visibility: number;         // 視界（km）
-  recommendation: 'excellent' | 'good' | 'fair' | 'poor';
-}
-```
 
 ### Location
 ```typescript
@@ -632,22 +616,20 @@ interface Admin {
 - 存在しない地点・イベントへの遷移時のエラーハンドリング強化
 - 使い方ガイドの順番修正（日付→地図→詳細）
 - 日付変更時の地点選択リセット機能実装
-- 太陽軌道線の350km延長表示
+- 太陽軌道線の 350km 延長表示
 
 ### v0.1.0 (2024-12-20)
-- 初期API仕様策定
-- カレンダー・撮影地点・管理者APIの実装
-- JWT認証システムの導入
+- 初期 API 仕様策定
+- カレンダー・撮影地点・管理者 API の実装
+- JWT 認証システムの導入
 - レート制限機能の追加
 
 ### v0.1.1 (2024-12-20)
 - レート制限値を実用的な数値に調整
-- 認証API専用のレート制限を導入（ブルートフォース対策強化）
-- 管理者APIのレート制限を緊急時の操作に対応した値に調整
+- 認証 API 専用のレート制限を導入（ブルートフォース対策強化）
+- 管理者 API のレート制限を緊急時の操作に対応した値に調整
 
 ### v0.1.2 (2024-12-21)
-- 天気情報APIの追加（模擬実装）
-- WeatherInfoデータ型の定義と推奨度システム
-- 特定地点の年間イベントAPIの追加
+- 特定地点の年間イベント API の追加
 - ヘルスチェックレスポンスの拡張（キャッシュ性能等）
-- TypeScript型定義の更新と文書化改善
+- TypeScript 型定義の更新と文書化改善

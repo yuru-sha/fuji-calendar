@@ -1,11 +1,20 @@
-# バックエンド専用Dockerfile（マルチコンテナ構成用）
+# バックエンド専用Dockerfile（モノレポ対応）
 FROM node:18-alpine AS builder
+
+# 必要なシステムパッケージをインストール
+RUN apk add --no-cache postgresql-client python3 make g++
 
 # 作業ディレクトリを設定
 WORKDIR /app
 
-# package.jsonとpackage-lock.jsonをコピー
+# モノレポの package.json をコピー
 COPY package*.json ./
+
+# workspaces 設定をコピー
+COPY apps/server/package.json ./apps/server/
+COPY packages/types/package.json ./packages/types/
+COPY packages/utils/package.json ./packages/utils/
+COPY packages/shared/package.json ./packages/shared/
 
 # 依存関係をインストール
 RUN npm ci --silent
@@ -13,20 +22,26 @@ RUN npm ci --silent
 # ソースコードをコピー
 COPY . .
 
-# ビルド（フロントエンド + バックエンド）
-RUN npm run build
+# Prisma クライアントを生成
+RUN npx prisma generate
+
+# 共有パッケージをビルド
+RUN npm run build:packages
+
+# バックエンドをビルド
+RUN npm run build:server
 
 # 本番用イメージ
 FROM node:18-alpine AS production
 
 # 必要なシステムパッケージをインストール
 RUN apk add --no-cache \
-    sqlite \
-    sqlite-dev \
+    postgresql-client \
     python3 \
     make \
     g++ \
-    wget
+    curl \
+    tini
 
 # アプリケーション用ユーザーを作成
 RUN addgroup -g 1001 -S nodejs && \
@@ -35,26 +50,39 @@ RUN addgroup -g 1001 -S nodejs && \
 # 作業ディレクトリを設定
 WORKDIR /app
 
-# 本番依存関係のみをコピー
+# モノレポのpackage.jsonをコピー
 COPY package*.json ./
+COPY apps/server/package.json ./apps/server/
+COPY packages/types/package.json ./packages/types/
+COPY packages/utils/package.json ./packages/utils/
+COPY packages/shared/package.json ./packages/shared/
+
+# 本番依存関係のみをインストール
 RUN npm ci --only=production --silent && npm cache clean --force
 
 # ビルド済みアプリケーションをコピー
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/src/server/database/schema.sql ./src/server/database/
+COPY --from=builder /app/apps/server/dist ./apps/server/dist
+COPY --from=builder /app/packages ./packages
+COPY --from=builder /app/prisma ./prisma
 
-# データディレクトリを作成
-RUN mkdir -p /app/data && chown -R fuji-calendar:nodejs /app
+# Prismaクライアントを生成
+RUN npx prisma generate
+
+# ログディレクトリを作成
+RUN mkdir -p /app/logs && chown -R fuji-calendar:nodejs /app
 
 # ユーザーを切り替え
 USER fuji-calendar
 
 # ポートを公開
-EXPOSE 8000
+EXPOSE 3000
 
 # ヘルスチェック
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --quiet --tries=1 --spider http://localhost:8000/api/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD curl -f http://localhost:3000/api/health || exit 1
+
+# tiniを使用してプロセス管理
+ENTRYPOINT ["/sbin/tini", "--"]
 
 # アプリケーションを起動
 CMD ["npm", "start"]

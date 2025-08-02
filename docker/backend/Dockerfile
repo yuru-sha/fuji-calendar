@@ -58,8 +58,8 @@ COPY packages/utils/package.json ./packages/utils/
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/ui/package.json ./packages/ui/
 
-# 本番依存関係のみをインストール
-RUN npm ci --only=production --silent && npm cache clean --force
+# 全ての依存関係をインストール（ts-node 実行のため型定義が必要）
+RUN npm ci --silent && npm cache clean --force
 
 # ソースコードとビルド済みパッケージをコピー
 COPY --from=builder /app/apps/server/src ./apps/server/src

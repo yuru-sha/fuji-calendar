@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from "react";
 import { flushSync } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { Location } from "@fuji-calendar/types";
-import { APP_CONFIG } from "@fuji-calendar/shared";
 import LocationPicker from "../components/LocationPicker";
 import { Icon } from "@fuji-calendar/ui";
 import { authService } from "../services/authService";
@@ -897,7 +896,7 @@ const AdminPage: React.FC = () => {
                           アプリケーション
                         </span>
                         <span className="text-sm text-gray-900 font-medium">
-                          {APP_CONFIG.NAME} v{APP_CONFIG.VERSION}
+                          Fuji Calendar v{import.meta.env.APP_VERSION}
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
@@ -972,7 +971,7 @@ const AdminPage: React.FC = () => {
                     撮影地点管理
                   </h1>
                   <p className="text-gray-600 mt-1">
-                    撮影地点の追加・編集・削除を行います。エクスポート/インポート機能では、IDがある地点は更新、ない地点は新規登録されます。
+                    撮影地点の追加・編集・削除を行います。エクスポート/インポート機能では、ID がある地点は更新、ない地点は新規登録されます。
                   </p>
                 </div>
                 <div className="flex items-center space-x-3">

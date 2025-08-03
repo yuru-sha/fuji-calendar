@@ -1,4 +1,4 @@
-# フロントエンド専用Dockerfile（モノレポ対応）
+# フロントエンド専用 Dockerfile（モノレポ対応）
 FROM node:18-alpine AS builder
 
 # 作業ディレクトリを設定
@@ -12,7 +12,6 @@ COPY apps/client/package.json ./apps/client/
 COPY packages/types/package.json ./packages/types/
 COPY packages/utils/package.json ./packages/utils/
 COPY packages/ui/package.json ./packages/ui/
-COPY packages/shared/package.json ./packages/shared/
 
 # 依存関係をインストール
 RUN npm ci --silent
@@ -32,7 +31,7 @@ RUN npm run build:client
 # 静的ファイル配信用
 FROM nginx:alpine AS production
 
-# Nginxの設定をコピー
+# Nginx の設定をコピー
 COPY docker/frontend/nginx.conf /etc/nginx/nginx.conf
 COPY docker/frontend/default.conf /etc/nginx/conf.d/default.conf
 
@@ -46,5 +45,5 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 # ポートを公開
 EXPOSE 80
 
-# Nginxを起動
+# Nginx を起動
 CMD ["nginx", "-g", "daemon off;"]

@@ -1,45 +1,5 @@
-# バックエンド専用 Dockerfile（モノレポ対応）
-FROM node:18-alpine AS builder
-
-# 必要なシステムパッケージをインストール
-RUN apk add --no-cache postgresql-client python3 make g++
-
-# 作業ディレクトリを設定
-WORKDIR /app
-
-# モノレポの package.json をコピー
-COPY package*.json ./
-
-# workspaces 設定をコピー
-COPY apps/server/package.json ./apps/server/
-COPY packages/types/package.json ./packages/types/
-COPY packages/utils/package.json ./packages/utils/
-COPY packages/shared/package.json ./packages/shared/
-COPY packages/ui/package.json ./packages/ui/
-
-# TypeScript 設定ファイルをコピー
-COPY tsconfig*.json ./
-COPY apps/server/tsconfig.json ./apps/server/
-
-# 依存関係をインストール
-RUN npm ci --silent
-
-# ソースコードをコピー
-COPY . .
-
-# Prisma クライアントを生成
-RUN npx prisma generate
-
-# 依存関係順にパッケージをビルド
-RUN npm run build --workspace=packages/types
-RUN npm run build --workspace=packages/utils
-RUN npm run build --workspace=packages/shared
-RUN npm run build --workspace=packages/ui
-
-# バックエンドのビルドはスキップ（ts-nodeを使用）
-
-# 本番用イメージ
-FROM node:18-alpine AS production
+# 共通ベース Dockerfile（バックエンド API + ワーカー）
+FROM node:18-alpine AS base
 
 # 必要なシステムパッケージをインストール
 RUN apk add --no-cache \
@@ -57,38 +17,31 @@ RUN addgroup -g 1001 -S nodejs && \
 # 作業ディレクトリを設定
 WORKDIR /app
 
-# モノレポの package.json をコピー
+# package.json をコピーして依存関係をインストール
 COPY package*.json ./
-COPY --from=builder /app/apps/server/package.json ./apps/server/
-COPY --from=builder /app/packages/types/package.json ./packages/types/
-COPY --from=builder /app/packages/utils/package.json ./packages/utils/
-COPY --from=builder /app/packages/shared/package.json ./packages/shared/
-COPY --from=builder /app/packages/ui/package.json ./packages/ui/
 
-# TypeScript 設定ファイルをコピー
-COPY --from=builder /app/tsconfig*.json ./
-COPY --from=builder /app/apps/server/tsconfig.json ./apps/server/
+# ディレクトリ作成と package.json コピー
+COPY apps/server/package.json ./apps/server/
+COPY packages/types/package.json ./packages/types/
+COPY packages/utils/package.json ./packages/utils/
+COPY packages/ui/package.json ./packages/ui/
 
-# 全ての依存関係をインストール（ts-node 実行のため型定義が必要）
+# 依存関係をインストール
 RUN npm ci --silent && npm cache clean --force
 
-# ソースコードとビルド済みパッケージをコピー
-COPY --from=builder /app/apps/server/src ./apps/server/src
-COPY --from=builder /app/packages ./packages
-COPY --from=builder /app/prisma ./prisma
+# 全ソースコードをコピー
+COPY . .
 
 # Prisma クライアントを生成
 RUN npx prisma generate
 
-# 共有パッケージを本番ステージで再ビルド（型定義が必要）
+# 共有パッケージをビルド
 RUN npm run build --workspace=packages/types
 RUN npm run build --workspace=packages/utils
-RUN npm run build --workspace=packages/shared
 RUN npm run build --workspace=packages/ui
 
-# バックエンドのビルドはスキップ（ts-nodeを使用）
-
-# ts-node 環境変数を設定
+# 基本環境変数設定
+ENV NODE_ENV=production
 ENV TS_NODE_TRANSPILE_ONLY=true
 
 # ログディレクトリを作成
@@ -97,6 +50,15 @@ RUN mkdir -p /app/logs && chown -R fuji-calendar:nodejs /app
 # ユーザーを切り替え
 USER fuji-calendar
 
+# tini を使用してプロセス管理
+ENTRYPOINT ["/sbin/tini", "--"]
+
+# ===== API サーバー用ステージ =====
+FROM base AS api
+
+# API サーバー用環境変数
+ENV DISABLE_WORKER=true
+
 # ポートを公開
 EXPOSE 3000
 
@@ -104,8 +66,18 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD curl -f http://localhost:3000/api/health || exit 1
 
-# tini を使用してプロセス管理
-ENTRYPOINT ["/sbin/tini", "--"]
+# API サーバーを起動
+CMD ["npx", "ts-node", "--project", "apps/server/tsconfig.json", "apps/server/src/server.ts"]
 
-# アプリケーションを起動
-CMD ["npm", "start"]
+# ===== ワーカー用ステージ =====
+FROM base AS worker
+
+# ワーカー専用環境変数
+ENV WORKER_ONLY=true
+
+# ヘルスチェック（ワーカープロセスが動作しているかチェック）
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD pgrep -f "worker" || exit 1
+
+# ワーカープロセスを起動
+CMD ["npx", "ts-node", "--project", "apps/server/tsconfig.json", "apps/server/src/worker.ts"]

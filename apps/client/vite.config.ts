@@ -1,6 +1,12 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import { readFileSync } from "fs";
+
+// package.json を読み込む
+const packageJson = JSON.parse(
+  readFileSync(path.resolve(__dirname, "./package.json"), "utf-8")
+);
 
 export default defineConfig({
   root: __dirname,
@@ -32,5 +38,9 @@ export default defineConfig({
   build: {
     outDir: "dist",
     sourcemap: true,
+  },
+  define: {
+    "import.meta.env.APP_VERSION": JSON.stringify(packageJson.version),
+    "import.meta.env.APP_NAME": JSON.stringify(packageJson.name),
   },
 });

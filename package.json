@@ -15,7 +15,7 @@
     "build": "npm run build --workspaces --if-present",
     "build:client": "npm run build --workspace=apps/client",
     "build:server": "npm run build --workspace=apps/server",
-    "build:packages": "npm run build --workspace=packages/types && npm run build --workspace=packages/utils && npm run build --workspace=packages/shared && npm run build --workspace=packages/ui",
+    "build:packages": "npm run build --workspace=packages/types && npm run build --workspace=packages/utils && npm run build --workspace=packages/ui",
     "start": "npm run start --workspace=apps/server",
     "start:worker": "npm run start:worker --workspace=apps/server",
     "test": "npm run test --workspaces --if-present",

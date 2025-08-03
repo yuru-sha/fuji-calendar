@@ -72,7 +72,8 @@ services:
   backend:
     build:
       context: .
-      dockerfile: docker/backend/Dockerfile.backend
+      dockerfile: docker/backend/Dockerfile
+      target: api
     container_name: fuji_calendar_backend
     restart: unless-stopped
     expose:
@@ -129,7 +130,8 @@ services:
   worker:
     build:
       context: .
-      dockerfile: docker/backend/Dockerfile.worker
+      dockerfile: docker/backend/Dockerfile
+      target: worker
     container_name: fuji_calendar_worker
     restart: unless-stopped
     # Dockerfile でワーカー起動コマンドを指定済み

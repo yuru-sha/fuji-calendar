@@ -23,11 +23,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
+      - name: Install Graphviz
+        run: sudo apt-get update && sudo apt-get install -y graphviz
+      
       - name: Check circular dependencies
         run: npm run check-circular
         
       - name: Generate dependency graph
         run: npm run dependency-graph
+        continue-on-error: true
         
       - name: Upload dependency graph
         uses: actions/upload-artifact@v4

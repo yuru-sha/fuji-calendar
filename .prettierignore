@@ -1,0 +1,47 @@
+# Build outputs
+dist/
+build/
+coverage/
+.next/
+
+# Dependencies
+node_modules/
+
+# Generated files
+*.log
+*.pid
+*.seed
+*.pid.lock
+
+# Editor files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Package manager
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Database
+*.db
+*.sqlite
+
+# Prisma generated files
+prisma/migrations/
+
+# Docker
+docker-compose.override.yml
+
+# Git
+.git/

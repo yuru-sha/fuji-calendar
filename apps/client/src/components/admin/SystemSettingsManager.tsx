@@ -200,7 +200,7 @@ const SystemSettingsManager: React.FC = () => {
     }
   };
 
-;
+
 
   // パフォーマンス設定値の変更
   const handlePerformanceSettingChange = (key: keyof PerformanceSettings, value: any) => {

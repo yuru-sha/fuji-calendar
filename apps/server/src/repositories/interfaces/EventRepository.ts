@@ -1,5 +1,4 @@
 import { FujiEvent } from "@fuji-calendar/types";
-import { getComponentLogger } from "@fuji-calendar/utils";
 
 export interface EventRepository {
   /**

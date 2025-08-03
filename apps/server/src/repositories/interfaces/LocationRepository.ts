@@ -1,5 +1,4 @@
 import { Location, CreateLocationRequest } from "@fuji-calendar/types";
-import { getComponentLogger } from "@fuji-calendar/utils";
 
 /**
  * Location リポジトリインターフェース

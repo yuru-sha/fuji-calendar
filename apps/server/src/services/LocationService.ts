@@ -278,6 +278,7 @@ export class LocationService {
       data.fujiElevation !== undefined ||
       data.fujiDistance !== undefined;
 
+    let updateData = data;
     if (locationChanged || fujiDataProvided) {
       const newLatitude = data.latitude ?? currentLocation.latitude;
       const newLongitude = data.longitude ?? currentLocation.longitude;
@@ -328,7 +329,7 @@ export class LocationService {
               createdAt: currentLocation.createdAt,
               updatedAt: new Date(),
             });
-            finalFujiElevation = this.calculateFujiElevationSafely(locationObj, "更新・ null 指定");
+            finalFujiElevation = this.calculateFujiElevationSafely(locationObj, "更新・null指定");
           } else {
             // 値が指定されている場合はその値を使用
             finalFujiElevation = data.fujiElevation;
@@ -351,7 +352,7 @@ export class LocationService {
               createdAt: currentLocation.createdAt,
               updatedAt: new Date(),
             });
-            finalFujiElevation = this.calculateFujiElevationSafely(locationObj, "更新・既存値 null");
+            finalFujiElevation = this.calculateFujiElevationSafely(locationObj, "更新・既存値null");
           }
         }
 
@@ -399,12 +400,15 @@ export class LocationService {
       }
 
       // 富士山関連データを更新データに追加
-      (data as any).fujiAzimuth = finalFujiAzimuth;
-      (data as any).fujiElevation = finalFujiElevation;
-      (data as any).fujiDistance = finalFujiDistance;
+      updateData = {
+        ...data,
+        fujiAzimuth: finalFujiAzimuth,
+        fujiElevation: finalFujiElevation,
+        fujiDistance: finalFujiDistance,
+      };
     }
 
-    const updatedLocation = await this.locationRepository.update(id, data);
+    const updatedLocation = await this.locationRepository.update(id, updateData);
 
     if (updatedLocation) {
       logger.info("地点更新完了", { locationId: id });
@@ -463,6 +467,44 @@ export class LocationService {
     }
 
     return updatedLocation;
+  }
+
+  /**
+   * IDがある場合は更新、ない場合は新規作成（アップサート）
+   */
+  async upsertLocation(
+    data: CreateLocationRequest & {
+      id?: number;
+      fujiAzimuth?: number | null;
+      fujiElevation?: number | null;
+      fujiDistance?: number | null;
+      measurementNotes?: string;
+    },
+  ): Promise<{ location: Location; isNew: boolean }> {
+    const { id, ...locationData } = data;
+
+    if (id) {
+      // IDがある場合は更新
+      logger.info("地点アップサート - 更新モード", { locationId: id });
+      const existingLocation = await this.locationRepository.findById(id);
+      
+      if (existingLocation) {
+        const updatedLocation = await this.updateLocation(id, locationData);
+        if (updatedLocation) {
+          return { location: updatedLocation, isNew: false };
+        } else {
+          throw new Error(`地点ID ${id} の更新に失敗しました`);
+        }
+      } else {
+        // IDが指定されているが存在しない場合はエラー
+        throw new Error(`指定されたID ${id} の地点が見つかりません`);
+      }
+    } else {
+      // IDがない場合は新規作成
+      logger.info("地点アップサート - 新規作成モード");
+      const newLocation = await this.createLocation(locationData);
+      return { location: newLocation, isNew: true };
+    }
   }
 
   /**

@@ -483,10 +483,13 @@ const AdminPage: React.FC = () => {
       const result = await response.json();
 
       if (result.success) {
-        const { importedCount, skippedCount, errorCount } = result.summary;
-        let message = `インポートが完了しました。\n`;
-        message += `新規追加: ${importedCount}件\n`;
-        message += `重複スキップ: ${skippedCount}件\n`;
+        const { createdCount, updatedCount, errorCount } = result.summary;
+        let message = `インポートが完了しました。
+`;
+        message += `新規作成: ${createdCount}件
+`;
+        message += `更新: ${updatedCount}件
+`;
         if (errorCount > 0) {
           message += `エラー: ${errorCount}件`;
         }
@@ -969,7 +972,7 @@ const AdminPage: React.FC = () => {
                     撮影地点管理
                   </h1>
                   <p className="text-gray-600 mt-1">
-                    撮影地点の追加・編集・削除を行います
+                    撮影地点の追加・編集・削除を行います。エクスポート/インポート機能では、IDがある地点は更新、ない地点は新規登録されます。
                   </p>
                 </div>
                 <div className="flex items-center space-x-3">

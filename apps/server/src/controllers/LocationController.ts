@@ -343,6 +343,9 @@ export class LocationController {
   /**
    * JSON 形式の撮影地点データをインポート（重複データはスキップ）
    */
+  /**
+   * JSON 形式の撮影地点データをインポート（IDがある場合は更新、ない場合は新規登録）
+   */
   async importLocations(req: Request, res: Response): Promise<void> {
     try {
       logger.info("撮影地点インポート開始", {
@@ -366,8 +369,8 @@ export class LocationController {
         return;
       }
 
-      let importedCount = 0;
-      let skippedCount = 0;
+      let createdCount = 0;
+      let updatedCount = 0;
       let errorCount = 0;
       const errors: string[] = [];
 
@@ -388,7 +391,8 @@ export class LocationController {
             continue;
           }
 
-          const createData = {
+          const upsertData = {
+            id: locationData.id ? parseInt(locationData.id) : undefined,
             name: locationData.name,
             prefecture: locationData.prefecture,
             latitude: parseFloat(locationData.latitude),
@@ -408,27 +412,39 @@ export class LocationController {
             measurementNotes: locationData.measurementNotes || undefined,
           };
 
-          await this.locationService.createLocation(createData);
-          importedCount++;
-        } catch (error) {
-          if (
-            error instanceof Error &&
-            error.message.includes("Unique constraint failed")
-          ) {
-            skippedCount++;
+          const result = await this.locationService.upsertLocation(upsertData);
+          
+          if (result.isNew) {
+            createdCount++;
+            logger.debug("地点新規作成", {
+              locationId: result.location.id,
+              locationName: result.location.name,
+            });
           } else {
-            errors.push(
-              `地点「${locationData.name || "名前なし"}」: ${error instanceof Error ? error.message : "不明なエラー"}`,
-            );
-            errorCount++;
+            updatedCount++;
+            logger.debug("地点更新", {
+              locationId: result.location.id,
+              locationName: result.location.name,
+            });
           }
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : "不明なエラー";
+          errors.push(
+            `地点「${locationData.name || "名前なし"}」: ${errorMessage}`,
+          );
+          errorCount++;
+          logger.warn("地点インポートエラー", {
+            locationName: locationData.name,
+            locationId: locationData.id,
+            error: errorMessage,
+          });
         }
       }
 
       logger.info("撮影地点インポート完了", {
         totalCount: locations.length,
-        importedCount,
-        skippedCount,
+        createdCount,
+        updatedCount,
         errorCount,
       });
 
@@ -437,8 +453,8 @@ export class LocationController {
         message: "インポートが完了しました。",
         summary: {
           totalCount: locations.length,
-          importedCount,
-          skippedCount,
+          createdCount,
+          updatedCount,
           errorCount,
         },
         errors: errors.length > 0 ? errors : undefined,

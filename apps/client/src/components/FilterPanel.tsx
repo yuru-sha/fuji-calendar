@@ -83,86 +83,83 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
         border: "1px solid #e5e7eb",
       }}
     >
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          width: "100%",
-          background: "none",
-          border: "none",
-          padding: 0,
-          cursor: "pointer",
-          marginBottom: "0.5rem",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-            fontSize: "0.875rem",
-            fontWeight: "600",
-            color: "#1f2937",
-          }}
-        >
-          <Icon name="search" size={14} />
-          撮影地点フィルター
-        </div>
-        <span
-          style={{
-            transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
-            transition: "transform 0.2s",
-          }}
-        >
-          ▼
-        </span>
-      </button>
-
-      {/* 常に表示される統計情報 */}
+      {/* ヘッダー部分 */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          marginBottom: isExpanded ? "0.75rem" : 0,
+          width: "100%",
+          marginBottom: "0.5rem",
         }}
       >
-        <div style={{ display: "flex", gap: "0.375rem", alignItems: "center" }}>
-          <span
+        {/* 左側：アイコン + タイトル + 折りたたみアイコン + 統計情報 */}
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flex: 1 }}>
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
             style={{
-              fontSize: "0.65rem",
-              color: "#6b7280",
-              backgroundColor: "#f3f4f6",
-              padding: "0.125rem 0.375rem",
-              borderRadius: "8px",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.25rem",
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+              fontSize: "0.875rem",
+              fontWeight: "600",
+              color: "#1f2937",
             }}
           >
-            <Icon
-              name="location"
+            <Icon name="search" size={14} />
+            撮影地点フィルター
+            <Icon 
+              name="chevronDown" 
               size={12}
-              style={{ display: "inline", marginRight: "2px" }}
-            />{" "}
-            {uniqueLocationCount}地点
-          </span>
-          <span
-            style={{
-              fontSize: "0.65rem",
-              color: "#6b7280",
-              backgroundColor: "#fef3c7",
-              padding: "0.125rem 0.375rem",
-              borderRadius: "8px",
-            }}
-          >
-            <Icon
-              name="calendar"
-              size={12}
-              style={{ display: "inline", marginRight: "2px" }}
-            />{" "}
-            {eventCount}イベント
-          </span>
+              style={{
+                transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
+                transition: "transform 0.2s",
+              }}
+            />
+          </button>
+          
+          {/* 統計情報 */}
+          <div style={{ display: "flex", gap: "0.375rem", alignItems: "center" }}>
+            <span
+              style={{
+                fontSize: "0.65rem",
+                color: "#6b7280",
+                backgroundColor: "#f3f4f6",
+                padding: "0.125rem 0.375rem",
+                borderRadius: "8px",
+              }}
+            >
+              <Icon
+                name="location"
+                size={12}
+                style={{ display: "inline", marginRight: "2px" }}
+              />
+              {uniqueLocationCount}地点
+            </span>
+            <span
+              style={{
+                fontSize: "0.65rem",
+                color: "#6b7280",
+                backgroundColor: "#fef3c7",
+                padding: "0.125rem 0.375rem",
+                borderRadius: "8px",
+              }}
+            >
+              <Icon
+                name="calendar"
+                size={12}
+                style={{ display: "inline", marginRight: "2px" }}
+              />
+              {eventCount}イベント
+            </span>
+          </div>
         </div>
+        
+        {/* 右側：フィルター中表示 */}
         {hasActiveFilters() && (
           <span
             style={{
@@ -198,7 +195,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                 marginBottom: "0.25rem",
               }}
             >
-              <Icon name="ruler" size={12} className="inline mr-1" /> 距離
+              距離
             </label>
             <select
               value={filters.distance}
@@ -235,11 +232,6 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                 marginBottom: "0.25rem",
               }}
             >
-              <Icon
-                name="target"
-                size={12}
-                style={{ display: "inline", marginRight: "4px" }}
-              />
               種類
             </label>
             <div
@@ -272,12 +264,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                   }
                   style={{ margin: 0, width: "10px", height: "10px" }}
                 />
-                <span
-                  style={{ display: "flex", alignItems: "center", gap: "2px" }}
-                >
-                  <Icon name="sun" size={12} />
-                  <Icon name="sunrise" size={12} />
-                </span>
+                昇るダイヤモンド富士
               </label>
 
               <label
@@ -303,12 +290,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                   }
                   style={{ margin: 0, width: "10px", height: "10px" }}
                 />
-                <span
-                  style={{ display: "flex", alignItems: "center", gap: "2px" }}
-                >
-                  <Icon name="sun" size={12} />
-                  <Icon name="sunset" size={12} />
-                </span>
+                沈むダイヤモンド富士
               </label>
 
               <label
@@ -334,12 +316,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                   }
                   style={{ margin: 0, width: "10px", height: "10px" }}
                 />
-                <span
-                  style={{ display: "flex", alignItems: "center", gap: "2px" }}
-                >
-                  <Icon name="moon" size={12} />
-                  <Icon name="sunrise" size={12} />
-                </span>
+                昇るパール富士
               </label>
 
               <label
@@ -363,12 +340,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                   }
                   style={{ margin: 0, width: "10px", height: "10px" }}
                 />
-                <span
-                  style={{ display: "flex", alignItems: "center", gap: "2px" }}
-                >
-                  <Icon name="moon" size={12} />
-                  <Icon name="sunset" size={12} />
-                </span>
+                沈むパール富士
               </label>
             </div>
           </div>
@@ -384,7 +356,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                 marginBottom: "0.25rem",
               }}
             >
-              <Icon name="star" size={12} className="inline mr-1" /> 特別
+              特別
             </label>
             <div
               style={{
@@ -393,103 +365,89 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                 gap: "0.25rem",
               }}
             >
-              <label
+              <button
+                onClick={() =>
+                  updateSpecialEvent("solarEclipse", !filters.specialEvents.solarEclipse)
+                }
                 style={{
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  padding: "0.25rem",
+                  padding: "0.375rem",
                   backgroundColor: filters.specialEvents.solarEclipse
                     ? "#fee2e2"
                     : "#f9fafb",
-                  borderRadius: "4px",
+                  borderRadius: "6px",
                   cursor: "pointer",
-                  fontSize: "0.6rem",
-                  border: "1px solid #e5e7eb",
+                  fontSize: "0.65rem",
+                  fontWeight: "500",
+                  border: filters.specialEvents.solarEclipse
+                    ? "2px solid #ef4444"
+                    : "2px solid #e5e7eb",
+                  transition: "all 0.2s",
+                  background: "none",
+                  color: filters.specialEvents.solarEclipse ? "#991b1b" : "#374151",
                 }}
+                title="日食"
               >
-                <input
-                  type="checkbox"
-                  checked={filters.specialEvents.solarEclipse}
-                  onChange={(e) =>
-                    updateSpecialEvent("solarEclipse", e.target.checked)
-                  }
-                  style={{
-                    margin: 0,
-                    width: "8px",
-                    height: "8px",
-                    marginRight: "2px",
-                  }}
-                />
-                <Icon name="newMoon" size={12} />
-              </label>
+                日食
+              </button>
 
-              <label
+              <button
+                onClick={() =>
+                  updateSpecialEvent("lunarEclipse", !filters.specialEvents.lunarEclipse)
+                }
                 style={{
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  padding: "0.25rem",
+                  padding: "0.375rem",
                   backgroundColor: filters.specialEvents.lunarEclipse
-                    ? "#fee2e2"
+                    ? "#fef3c7"
                     : "#f9fafb",
-                  borderRadius: "4px",
+                  borderRadius: "6px",
                   cursor: "pointer",
-                  fontSize: "0.6rem",
-                  border: "1px solid #e5e7eb",
+                  fontSize: "0.65rem",
+                  fontWeight: "500",
+                  border: filters.specialEvents.lunarEclipse
+                    ? "2px solid #f59e0b"
+                    : "2px solid #e5e7eb",
+                  transition: "all 0.2s",
+                  background: "none",
+                  color: filters.specialEvents.lunarEclipse ? "#92400e" : "#374151",
                 }}
+                title="月食"
               >
-                <input
-                  type="checkbox"
-                  checked={filters.specialEvents.lunarEclipse}
-                  onChange={(e) =>
-                    updateSpecialEvent("lunarEclipse", e.target.checked)
-                  }
-                  style={{
-                    margin: 0,
-                    width: "8px",
-                    height: "8px",
-                    marginRight: "2px",
-                  }}
-                />
-                <Icon name="fullMoon" size={12} />
-              </label>
+                月食
+              </button>
 
-              <label
+              <button
+                onClick={() =>
+                  updateSpecialEvent("supermoon", !filters.specialEvents.supermoon)
+                }
                 style={{
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  padding: "0.25rem",
+                  padding: "0.375rem",
                   backgroundColor: filters.specialEvents.supermoon
                     ? "#f3e8ff"
                     : "#f9fafb",
-                  borderRadius: "4px",
+                  borderRadius: "6px",
                   cursor: "pointer",
-                  fontSize: "0.6rem",
-                  border: "1px solid #e5e7eb",
+                  fontSize: "0.65rem",
+                  fontWeight: "500",
+                  border: filters.specialEvents.supermoon
+                    ? "2px solid #8b5cf6"
+                    : "2px solid #e5e7eb",
+                  transition: "all 0.2s",
+                  background: "none",
+                  color: filters.specialEvents.supermoon ? "#6b21a8" : "#374151",
                 }}
+                title="スーパームーン"
               >
-                <input
-                  type="checkbox"
-                  checked={filters.specialEvents.supermoon}
-                  onChange={(e) =>
-                    updateSpecialEvent("supermoon", e.target.checked)
-                  }
-                  style={{
-                    margin: 0,
-                    width: "8px",
-                    height: "8px",
-                    marginRight: "2px",
-                  }}
-                />
-                <span
-                  style={{ display: "flex", alignItems: "center", gap: "1px" }}
-                >
-                  <Icon name="fullMoon" size={12} />
-                  <Icon name="star" size={8} />
-                </span>
-              </label>
+                スーパームーン
+              </button>
             </div>
           </div>
 

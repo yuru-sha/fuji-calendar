@@ -420,7 +420,7 @@
 .mapContainer {
   border-radius: 8px;
   overflow: hidden;
-  height: 400px;
+  aspect-ratio: 3 / 2;
   background: #f3f4f6;
 }
 
@@ -436,7 +436,7 @@
   }
   
   .mapContainer {
-    height: 300px;
+    aspect-ratio: 3 / 2;
   }
 }
 

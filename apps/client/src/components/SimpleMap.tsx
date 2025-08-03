@@ -492,7 +492,7 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
       <div
         ref={mapRef}
         style={{
-          height: "400px",
+          aspectRatio: "3 / 2",
           width: "100%",
         }}
       />

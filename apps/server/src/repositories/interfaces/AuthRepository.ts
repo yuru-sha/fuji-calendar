@@ -3,6 +3,7 @@ import { Admin } from "@fuji-calendar/types";
 export interface AuthRepository {
   // 管理者アカウント関連
   findAdminByUsername(username: string): Promise<Admin | null>;
+  findAdminById(adminId: number): Promise<Admin | null>;
   updateAdminPassword(adminId: number, passwordHash: string): Promise<void>;
 
   // トークン管理関連

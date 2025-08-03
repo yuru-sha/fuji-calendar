@@ -31,6 +31,29 @@ export class PrismaAuthRepository implements AuthRepository {
     }
   }
 
+  async findAdminById(adminId: number): Promise<Admin | null> {
+    try {
+      const admin = await this.prisma.admin.findUnique({
+        where: { id: adminId },
+      });
+
+      if (!admin) {
+        return null;
+      }
+
+      return {
+        id: admin.id,
+        username: admin.username,
+        email: admin.email,
+        passwordHash: admin.passwordHash,
+        createdAt: admin.createdAt,
+      };
+    } catch (error) {
+      logger.error("管理者 ID 取得エラー", { adminId, error });
+      throw error;
+    }
+  }
+
   async updateAdminPassword(
     adminId: number,
     passwordHash: string,

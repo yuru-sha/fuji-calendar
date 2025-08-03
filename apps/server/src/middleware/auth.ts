@@ -1,12 +1,13 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
+import rateLimit from "express-rate-limit";
 import { PrismaClientManager } from "../database/prisma";
 import { getComponentLogger } from "@fuji-calendar/utils";
 import { AUTH_CONFIG } from "../config/auth";
 
 const logger = getComponentLogger("AuthMiddleware");
 
-interface AuthenticatedRequest extends Request {
+export interface AuthenticatedRequest extends Request {
   admin?: {
     id: number;
     username: string;
@@ -132,26 +133,65 @@ export const optionalAuth = async (
 
 /**
  * レート制限ミドルウェア（認証 API 用）
+ * ログイン試行の制限: 15 分間で 5 回まで
  */
-export const authRateLimit = (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): void => {
-  // 簡易的なレート制限実装
-  // 本番環境では express-rate-limit などを使用することを推奨
-  next();
-};
+export const authRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 分
+  max: 5, // 最大 5 回の試行
+  standardHeaders: true, // `RateLimit-*` ヘッダーを返す
+  legacyHeaders: false, // `X-RateLimit-*` ヘッダーを無効化
+  message: {
+    success: false,
+    error: "Too many login attempts",
+    message: "ログイン試行回数が上限に達しました。15 分後に再試行してください。",
+  },
+  handler: (req, res) => {
+    logger.warn("認証レート制限に達しました", {
+      ip: req.ip,
+      userAgent: req.get("User-Agent"),
+    });
+    res.status(429).json({
+      success: false,
+      error: "Too many login attempts",
+      message: "ログイン試行回数が上限に達しました。15 分後に再試行してください。",
+    });
+  },
+  skip: (req) => {
+    // 開発環境では localhost からの制限をスキップ
+    return process.env.NODE_ENV === "development" && 
+           (req.ip === "127.0.0.1" || req.ip === "::1");
+  },
+});
 
 /**
  * 管理者 API 用レート制限
+ * 管理者 API: 1 分間で 100 回まで（通常使用に支障なく、悪用は防ぐ）
  */
-export const adminApiRateLimit = (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): void => {
-  // 簡易的なレート制限実装
-  // 本番環境では express-rate-limit などを使用することを推奨
-  next();
-};
+export const adminApiRateLimit = rateLimit({
+  windowMs: 60 * 1000, // 1 分
+  max: 100, // 最大 100 回の操作
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: "Too many API requests",
+    message: "API 使用回数が上限に達しました。1 分後に再試行してください。",
+  },
+  handler: (req, res) => {
+    logger.warn("管理者 API レート制限に達しました", {
+      ip: req.ip,
+      userAgent: req.get("User-Agent"),
+      url: req.url,
+    });
+    res.status(429).json({
+      success: false,
+      error: "Too many API requests", 
+      message: "API 使用回数が上限に達しました。1 分後に再試行してください。",
+    });
+  },
+  skip: (req) => {
+    // 開発環境では localhost からの制限をスキップ
+    return process.env.NODE_ENV === "development" && 
+           (req.ip === "127.0.0.1" || req.ip === "::1");
+  },
+});

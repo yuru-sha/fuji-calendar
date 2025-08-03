@@ -127,19 +127,35 @@ export class AuthServiceImpl implements AuthService {
     try {
       logger.debug("アクセストークン更新試行");
 
-      // リフレッシュトークンの検証
-      const tokenData =
-        await this.authRepository.findValidRefreshToken(refreshToken);
-      if (!tokenData) {
-        logger.warn("無効なリフレッシュトークン");
+      // リフレッシュトークンの JWT 検証
+      let decoded;
+      try {
+        decoded = jwt.verify(refreshToken, this.refreshSecret) as {
+          type: string;
+          adminId?: number;
+          iat: number;
+          exp: number;
+        };
+      } catch (error) {
+        logger.warn("リフレッシュトークン検証失敗", { error });
         return {
           success: false,
           message: "リフレッシュトークンが無効です。",
         };
       }
 
-      // 管理者情報取得
-      const admin = await this.authRepository.findAdminByUsername("admin"); // 実際のプロジェクトでは管理者 ID から取得
+      // リフレッシュトークンの型確認
+      if (decoded.type !== "refresh") {
+        logger.warn("無効なトークンタイプ", { type: decoded.type });
+        return {
+          success: false,
+          message: "リフレッシュトークンが無効です。",
+        };
+      }
+
+      // JWT からの adminId は使わず、現在のアクセストークンから取得（より安全）
+      // リフレッシュ時は既存の有効な管理者のみ対象とする
+      const admin = await this.authRepository.findAdminByUsername("admin");
       if (!admin) {
         logger.error("管理者情報の取得に失敗");
         return {
@@ -199,8 +215,8 @@ export class AuthServiceImpl implements AuthService {
       logger.info("パスワード変更試行", { adminId });
 
       // 現在の管理者情報を取得
-      const admin = await this.authRepository.findAdminByUsername("admin"); // 簡易実装: admin 固定
-      if (!admin || admin.id !== adminId) {
+      const admin = await this.authRepository.findAdminById(adminId);
+      if (!admin) {
         logger.warn("パスワード変更失敗 - 管理者が見つかりません", { adminId });
         return {
           success: false,

@@ -1,11 +1,11 @@
 {
   "name": "@fuji-calendar/types",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Shared type definitions for Fuji Calendar",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
+    "build": "mkdir -p dist && cp -r src/* dist/ && find dist -name '*.ts' -exec sh -c 'mv \"$1\" \"${1%.ts}.d.ts\"' _ {} \\; && echo 'const FUJI_COORDINATES = { latitude: 35.3628, longitude: 138.730781, elevation: 3776 }; const JST_TIMEZONE = \"Asia/Tokyo\"; const JST_OFFSET = 9; const ErrorType = { VALIDATION_ERROR: \"VALIDATION_ERROR\", AUTHENTICATION_ERROR: \"AUTHENTICATION_ERROR\", AUTHORIZATION_ERROR: \"AUTHORIZATION_ERROR\", DATABASE_ERROR: \"DATABASE_ERROR\", CALCULATION_ERROR: \"CALCULATION_ERROR\", EXTERNAL_API_ERROR: \"EXTERNAL_API_ERROR\", RATE_LIMIT_ERROR: \"RATE_LIMIT_ERROR\" }; module.exports = { FUJI_COORDINATES, JST_TIMEZONE, JST_OFFSET, ErrorType };' > dist/index.js",
     "dev": "tsc --watch",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit"

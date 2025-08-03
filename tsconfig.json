@@ -20,9 +20,9 @@
     "sourceMap": true,
     "baseUrl": ".",
     "paths": {
-      "@fuji-calendar/types": ["packages/types/src"],
-      "@fuji-calendar/utils": ["packages/utils/src"],
-      "@fuji-calendar/ui": ["packages/ui/src"]
+      "@fuji-calendar/types": ["packages/types/dist"],
+      "@fuji-calendar/utils": ["packages/utils/dist"],
+      "@fuji-calendar/ui": ["packages/ui/dist"]
     }
   },
   "include": [

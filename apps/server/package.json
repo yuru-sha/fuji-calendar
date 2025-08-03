@@ -1,22 +1,26 @@
 {
   "name": "@fuji-calendar/server",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Fuji Calendar Express Backend",
+
   "main": "dist/server.js",
   "scripts": {
     "dev": "nodemon",
     "dev:worker": "nodemon --exec ts-node src/worker.ts",
-    "build": "tsc",
-    "start": "node dist/server.js",
-    "worker": "node dist/worker.js",
+    "build": "tsc --project tsconfig.json",
+    "start": "ts-node --project tsconfig.json src/server.ts",
+    "start:dev": "ts-node --project tsconfig-node.json src/server.ts",
+    "start:worker": "ts-node --project tsconfig.json src/worker.ts",
+    "start:worker:dev": "ts-node src/worker.ts",
+    "worker": "ts-node src/worker.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@fuji-calendar/types": "*",
-    "@fuji-calendar/utils": "*",
+    "@fuji-calendar/types": "^0.4.0",
+    "@fuji-calendar/utils": "^0.4.0",
     "@prisma/client": "^6.12.0",
     "@types/pg": "^8.15.4",
     "astronomy-engine": "^2.1.19",
@@ -28,24 +32,26 @@
     "helmet": "^7.1.0",
     "ioredis": "^5.6.1",
     "jsonwebtoken": "^9.0.2",
+    "node-cron": "^4.2.1",
     "pg": "^8.16.3",
     "pino": "^9.7.0",
     "pino-http": "^10.5.0",
     "pino-pretty": "^13.0.0",
-    "prisma": "^6.12.0"
-  },
-  "devDependencies": {
+    "prisma": "^6.12.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.2.2",
     "@types/bcrypt": "^5.0.2",
     "@types/cors": "^2.8.16",
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20.9.0",
+    "@types/node-cron": "^3.0.11",
+    "tsconfig-paths": "^4.2.0"
+  },
+  "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^6.10.0",
     "@typescript-eslint/parser": "^6.10.0",
     "eslint": "^8.53.0",
-    "nodemon": "^3.0.1",
-    "ts-node": "^10.9.1",
-    "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.2.2"
+    "nodemon": "^3.0.1"
   }
 }

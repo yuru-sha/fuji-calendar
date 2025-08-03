@@ -316,14 +316,6 @@ interface CacheStrategy {
   calculations: 'hybrid'
 }
 
-// 天気情報キャッシュ
-interface WeatherCache {
-  // 7 日間予報: 6 時間キャッシュ
-  forecast: '6h',
-  
-  // 推奨度計算: 天気データに依存
-  recommendations: 'weather-dependent'
-}
 ```
 
 ## 拡張可能性
@@ -335,7 +327,6 @@ interface WeatherCache {
 services:
   calendar-service:     # カレンダー機能
   calculation-service:  # 天体計算
-  weather-service:      # 天気情報サービス（外部 API 統合）
   auth-service:        # 認証サービス
   notification-service: # 通知機能（将来）
   favorites-service:   # お気に入り管理（将来）
@@ -361,12 +352,6 @@ interface AstronomicalCalculator {
 // 実装：AstronomyEngine, VSOP87, Swiss Ephemeris 等
 
 // 天気サービスプラグイン
-interface WeatherProvider {
-  getForecast(date: Date, location: GeoLocation): Promise<WeatherInfo>;
-  getRecommendation(weather: WeatherInfo): Promise<ShootingRecommendation>;
-}
-
-// 実装：OpenWeatherMap, JMA API, 独自模擬等
 ```
 
 ## 監視・運用
@@ -380,7 +365,6 @@ interface HealthStatus {
   database: 'connected' | 'disconnected';
   redis: 'connected' | 'disconnected' | 'unavailable';
   calculationEngine: 'operational' | 'error';
-  weatherService: 'operational' | 'mock' | 'error';
   cachePerformance: {
     hitRate: number;
     avgResponseTime: number;
@@ -406,7 +390,6 @@ logger.ui('info', 'ユーザー操作', {
   action: 'calendar-date-click',
   date: '2024-12-26',
   eventsFound: 2,
-  weatherDisplayed: true,
   favoriteInteraction: false
 });
 ```

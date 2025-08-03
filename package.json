@@ -1,6 +1,6 @@
 {
   "name": "fuji-calendar-monorepo",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "ダイヤモンド富士とパール富士のカレンダーアプリケーション - モノレポ構成",
   "private": true,
   "workspaces": [
@@ -17,13 +17,22 @@
     "build:server": "npm run build --workspace=apps/server",
     "build:packages": "npm run build --workspace=packages/types && npm run build --workspace=packages/utils && npm run build --workspace=packages/ui",
     "start": "npm run start --workspace=apps/server",
+    "start:worker": "npm run start:worker --workspace=apps/server",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "lint:fix": "npm run lint:fix --workspaces --if-present",
     "clean": "npm run clean --workspaces --if-present && rm -rf node_modules",
     "worker": "npm run worker --workspace=apps/server",
-    "create-admin": "node scripts/admin/create-admin.js"
+    "create-admin": "node scripts/admin/create-admin.js",
+    "init-system-settings": "node scripts/init-system-settings.js",
+    "check-circular": "madge --circular --extensions ts,tsx --exclude 'node_modules' apps/ packages/",
+    "dependency-graph": "madge --image dependency-graph.svg --extensions ts,tsx --exclude 'node_modules' apps/ packages/",
+    "analyze-deps": "madge --extensions ts,tsx --exclude 'node_modules' --summary apps/ packages/",
+    "analyze-deps-json": "madge --extensions ts,tsx --exclude 'node_modules' --json apps/ packages/",
+    "validate-architecture": "node scripts/architecture/validate.js",
+    "analyze-bundle": "node scripts/performance/analyze-bundle.js",
+    "performance-check": "npm run analyze-bundle && npm run analyze-deps"
   },
   "keywords": [
     "fuji",
@@ -37,11 +46,13 @@
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^20.9.0",
-    "typescript": "^5.2.2",
-    "concurrently": "^8.2.2",
     "@typescript-eslint/eslint-plugin": "^6.10.0",
     "@typescript-eslint/parser": "^6.10.0",
-    "eslint": "^8.53.0"
+    "concurrently": "^8.2.2",
+    "eslint": "^8.53.0",
+    "js-yaml": "^4.1.0",
+    "madge": "^7.0.0",
+    "typescript": "^5.9.2"
   },
   "engines": {
     "node": ">=18.0.0",

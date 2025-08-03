@@ -1,18 +1,18 @@
-import pino, { Logger } from 'pino';
+import pino, { Logger } from "pino";
 
 /**
  * ログレベル定義
  */
 export const LOG_LEVELS = {
-  TRACE: 'trace',
-  DEBUG: 'debug', 
-  INFO: 'info',
-  WARN: 'warn',
-  ERROR: 'error',
-  FATAL: 'fatal'
+  TRACE: "trace",
+  DEBUG: "debug",
+  INFO: "info",
+  WARN: "warn",
+  ERROR: "error",
+  FATAL: "fatal",
 } as const;
 
-export type LogLevel = typeof LOG_LEVELS[keyof typeof LOG_LEVELS];
+export type LogLevel = (typeof LOG_LEVELS)[keyof typeof LOG_LEVELS];
 
 /**
  * ログコンテキスト型定義
@@ -31,7 +31,7 @@ export interface LogContext {
  * 天体計算専用ログコンテキスト
  */
 export interface AstronomicalLogContext extends LogContext {
-  calculationType?: 'diamond' | 'pearl' | 'position';
+  calculationType?: "diamond" | "pearl" | "position";
   date?: string;
   locationName?: string;
   azimuth?: number;
@@ -54,15 +54,19 @@ interface LoggerConfig {
  */
 function getLoggerConfig(): LoggerConfig {
   // ブラウザ環境では process オブジェクトが存在しないことがある
-  const isServer = typeof process !== 'undefined' && process.env;
-  const isDevelopment = isServer ? process.env.NODE_ENV !== 'production' : true;
-  const logLevel = (isServer ? (process.env.LOG_LEVEL as LogLevel) : null) || (isDevelopment ? LOG_LEVELS.DEBUG : LOG_LEVELS.INFO);
-  
+  const isServer = typeof process !== "undefined" && process.env;
+  const isDevelopment = isServer ? process.env.NODE_ENV !== "production" : true;
+  const logLevel =
+    (isServer ? (process.env.LOG_LEVEL as LogLevel) : null) ||
+    (isDevelopment ? LOG_LEVELS.DEBUG : LOG_LEVELS.INFO);
+
   return {
     level: logLevel,
     isDevelopment,
-    enableFileOutput: isServer ? process.env.ENABLE_FILE_LOGGING === 'true' : false,
-    logDir: isServer ? process.env.LOG_DIR || './logs' : './logs'
+    enableFileOutput: isServer
+      ? process.env.ENABLE_FILE_LOGGING === "true"
+      : false,
+    logDir: isServer ? process.env.LOG_DIR || "./logs" : "./logs",
   };
 }
 
@@ -72,50 +76,50 @@ function getLoggerConfig(): LoggerConfig {
 class BrowserLogger {
   level: string;
 
-  constructor(level: string = 'info') {
+  constructor(level: string = "info") {
     this.level = level;
   }
 
   private shouldLog(level: string): boolean {
-    const levels = ['trace', 'debug', 'info', 'warn', 'error', 'fatal'];
+    const levels = ["trace", "debug", "info", "warn", "error", "fatal"];
     const currentLevelIndex = levels.indexOf(this.level);
     const requestedLevelIndex = levels.indexOf(level);
     return requestedLevelIndex >= currentLevelIndex;
   }
 
   trace(data: any, message?: string): void {
-    if (this.shouldLog('trace')) {
-      console.log(`[TRACE] ${message || ''}`, data);
+    if (this.shouldLog("trace")) {
+      console.log(`[TRACE] ${message || ""}`, data);
     }
   }
 
   debug(data: any, message?: string): void {
-    if (this.shouldLog('debug')) {
-      console.log(`[DEBUG] ${message || ''}`, data);
+    if (this.shouldLog("debug")) {
+      console.log(`[DEBUG] ${message || ""}`, data);
     }
   }
 
   info(data: any, message?: string): void {
-    if (this.shouldLog('info')) {
-      console.info(`[INFO] ${message || ''}`, data);
-    }  
+    if (this.shouldLog("info")) {
+      console.info(`[INFO] ${message || ""}`, data);
+    }
   }
 
   warn(data: any, message?: string): void {
-    if (this.shouldLog('warn')) {
-      console.warn(`[WARN] ${message || ''}`, data);
+    if (this.shouldLog("warn")) {
+      console.warn(`[WARN] ${message || ""}`, data);
     }
   }
 
   error(data: any, message?: string): void {
-    if (this.shouldLog('error')) {
-      console.error(`[ERROR] ${message || ''}`, data);
+    if (this.shouldLog("error")) {
+      console.error(`[ERROR] ${message || ""}`, data);
     }
   }
 
   fatal(data: any, message?: string): void {
-    if (this.shouldLog('fatal')) {
-      console.error(`[FATAL] ${message || ''}`, data);
+    if (this.shouldLog("fatal")) {
+      console.error(`[FATAL] ${message || ""}`, data);
     }
   }
 
@@ -133,12 +137,15 @@ class BrowserLogger {
  */
 function createPinoLogger(): Logger {
   const config = getLoggerConfig();
-  
+
   // ブラウザ環境では軽量なロガーを使用
-  if (typeof globalThis !== 'undefined' && typeof (globalThis as any).window !== 'undefined') {
+  if (
+    typeof globalThis !== "undefined" &&
+    typeof (globalThis as any).window !== "undefined"
+  ) {
     return new BrowserLogger(config.level) as any;
   }
-  
+
   const baseConfig = {
     level: config.level,
     timestamp: pino.stdTimeFunctions.isoTime,
@@ -149,7 +156,7 @@ function createPinoLogger(): Logger {
       req: pino.stdSerializers.req,
       res: pino.stdSerializers.res,
       err: pino.stdSerializers.err,
-    }
+    },
   };
 
   // 開発環境では見やすいフォーマットを使用
@@ -157,15 +164,15 @@ function createPinoLogger(): Logger {
     return pino({
       ...baseConfig,
       transport: {
-        target: 'pino-pretty',
+        target: "pino-pretty",
         options: {
           colorize: true,
-          translateTime: 'SYS:standard',
-          ignore: 'pid,hostname',
-          messageFormat: '{msg}',
-          levelFirst: true
-        }
-      }
+          translateTime: "SYS:standard",
+          ignore: "pid,hostname",
+          messageFormat: "{msg}",
+          levelFirst: true,
+        },
+      },
     });
   }
 
@@ -195,9 +202,10 @@ export class StructuredLogger {
    */
   child(additionalContext: LogContext): StructuredLogger {
     const mergedContext = { ...this.context, ...additionalContext };
-    const childLogger = 'child' in this.baseLogger 
-      ? this.baseLogger.child(mergedContext)
-      : this.baseLogger;
+    const childLogger =
+      "child" in this.baseLogger
+        ? this.baseLogger.child(mergedContext)
+        : this.baseLogger;
     return new StructuredLogger(childLogger, mergedContext);
   }
 
@@ -228,7 +236,7 @@ export class StructuredLogger {
   error(message: string, error?: Error | any, data?: any): void {
     const logData = {
       ...data,
-      err: error instanceof Error ? error : error
+      err: error instanceof Error ? error : error,
     };
     this.baseLogger.error(logData, message);
   }
@@ -239,7 +247,7 @@ export class StructuredLogger {
   fatal(message: string, error?: Error | any, data?: any): void {
     const logData = {
       ...data,
-      err: error instanceof Error ? error : error
+      err: error instanceof Error ? error : error,
     };
     this.baseLogger.fatal(logData, message);
   }
@@ -248,16 +256,19 @@ export class StructuredLogger {
    * 天体計算専用ログ
    */
   astronomical(
-    level: 'debug' | 'info' | 'warn' | 'error',
+    level: "debug" | "info" | "warn" | "error",
     message: string,
-    context: AstronomicalLogContext
+    context: AstronomicalLogContext,
   ): void {
     const logData = {
-      component: 'astronomical-calculator',
-      ...context
+      component: "astronomical-calculator",
+      ...context,
     };
-    
-    if (level in this.baseLogger && typeof this.baseLogger[level] === 'function') {
+
+    if (
+      level in this.baseLogger &&
+      typeof this.baseLogger[level] === "function"
+    ) {
       (this.baseLogger as any)[level](logData, `[ASTRONOMICAL] ${message}`);
     }
   }
@@ -266,24 +277,30 @@ export class StructuredLogger {
    * パフォーマンス測定ログ
    */
   performance(operation: string, durationMs: number, data?: any): void {
-    this.baseLogger.info({
-      component: 'performance',
-      operation,
-      duration: durationMs,
-      ...data
-    }, `Performance: ${operation} completed in ${durationMs}ms`);
+    this.baseLogger.info(
+      {
+        component: "performance",
+        operation,
+        duration: durationMs,
+        ...data,
+      },
+      `Performance: ${operation} completed in ${durationMs}ms`,
+    );
   }
 
   /**
    * データベース操作ログ
    */
   database(operation: string, table: string, data?: any): void {
-    this.baseLogger.debug({
-      component: 'database',
-      operation,
-      table,
-      ...data
-    }, `[DB] ${operation} on ${table}`);
+    this.baseLogger.debug(
+      {
+        component: "database",
+        operation,
+        table,
+        ...data,
+      },
+      `[DB] ${operation} on ${table}`,
+    );
   }
 }
 
@@ -295,10 +312,13 @@ export const structuredLogger = new StructuredLogger(logger);
 /**
  * コンポーネント別ロガー生成関数
  */
-export function getComponentLogger(component: string, additionalContext?: LogContext): StructuredLogger {
+export function getComponentLogger(
+  component: string,
+  additionalContext?: LogContext,
+): StructuredLogger {
   return structuredLogger.child({
     component,
-    ...additionalContext
+    ...additionalContext,
   });
 }
 
@@ -318,7 +338,7 @@ export function serializeError(error: any): any {
       errorName: error.name,
       errorMessage: error.message,
       stack: error.stack,
-      ...error
+      ...error,
     };
   }
   return error;
@@ -328,7 +348,7 @@ export function serializeError(error: any): any {
  * ログレベルの動的変更（開発用）
  */
 export function setLogLevel(level: LogLevel): void {
-  if ('level' in logger) {
+  if ("level" in logger) {
     logger.level = level;
   }
 }
@@ -337,14 +357,14 @@ export function setLogLevel(level: LogLevel): void {
  * ログ出力の一時停止/再開（テスト用）
  */
 export function muteLogger(): void {
-  if ('level' in logger) {
-    logger.level = 'silent';
+  if ("level" in logger) {
+    logger.level = "silent";
   }
 }
 
 export function unmuteLogger(): void {
   const config = getLoggerConfig();
-  if ('level' in logger) {
+  if ("level" in logger) {
     logger.level = config.level;
   }
 }

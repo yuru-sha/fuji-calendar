@@ -1,231 +1,284 @@
-import { Request, Response } from 'express';
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
-import { PrismaClientManager } from '../database/prisma';
-import { getComponentLogger } from '@fuji-calendar/utils';
-import { AUTH_CONFIG } from '../config/auth';
+import { Request, Response } from "express";
+import { AuthService } from "../services/interfaces/AuthService";
+import { getComponentLogger } from "@fuji-calendar/utils";
 
 export class AuthController {
-  private logger = getComponentLogger('auth-controller');
-  // 管理者ログイン
-  // POST /api/admin/login
+  private logger = getComponentLogger("auth-controller");
+
+  constructor(private authService: AuthService) {}
+
+  // ログイン
+  // POST /api/auth/login
   async login(req: Request, res: Response) {
     try {
-      const { username, password }: { username: string; password: string } = req.body;
+      const { username, password } = req.body;
 
       // バリデーション
       if (!username || !password) {
         return res.status(400).json({
-          success: false,
-          error: 'Bad Request',
-          message: 'ユーザー名とパスワードを入力してください。'
+          error: "Missing credentials",
+          message: "ユーザー名とパスワードを入力してください。",
         });
       }
 
-      // 管理者の検索
-      const prisma = PrismaClientManager.getInstance();
-      const admin = await prisma.admin.findUnique({
-        where: { username }
-      });
-      
-      if (!admin) {
-        this.logger.warn('ログイン失敗: ユーザーが見つからない', { username });
-        return res.status(401).json({
-          success: false,
-          error: 'Unauthorized',
-          message: 'ユーザー名またはパスワードが正しくありません。'
+      if (typeof username !== "string" || typeof password !== "string") {
+        return res.status(400).json({
+          error: "Invalid credentials format",
+          message: "ユーザー名とパスワードは文字列で入力してください。",
         });
       }
 
-      // パスワード検証
-      const isValidPassword = await bcrypt.compare(password, admin.passwordHash);
-      if (!isValidPassword) {
-        this.logger.warn('ログイン失敗: パスワード不正', { username });
-        return res.status(401).json({
-          success: false,
-          error: 'Unauthorized',
-          message: 'ユーザー名またはパスワードが正しくありません。'
-        });
-      }
+      // IP アドレス取得
+      const ipAddress = req.ip || req.connection.remoteAddress || "不明";
 
-      // 最終ログイン時刻を更新
-      await prisma.admin.update({
-        where: { id: admin.id },
-        data: { updatedAt: new Date() }
-      });
+      this.logger.info("ログイン試行", { username, ipAddress });
 
-      // JWT トークン生成
-      const token = jwt.sign(
-        { 
-          adminId: admin.id, 
-          username: admin.username,
-          role: 'admin'
-        },
-        AUTH_CONFIG.JWT_SECRET,
-        { expiresIn: AUTH_CONFIG.JWT_EXPIRES_IN } as jwt.SignOptions
+      // 認証実行
+      const result = await this.authService.authenticate(
+        username,
+        password,
+        ipAddress,
       );
 
-      this.logger.info('ログイン成功', { username, adminId: admin.id });
-      
+      if (result.success) {
+        // Set-Cookie ヘッダーでリフレッシュトークンを httpOnly クッキーに設定
+        res.cookie("refreshToken", result.refreshToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "strict",
+          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 日
+        });
+
+        this.logger.info("ログイン成功", { username, ipAddress });
+
+        return res.json({
+          success: true,
+          accessToken: result.accessToken,
+          message: result.message,
+          admin: {
+            id: result.admin?.id,
+            username: result.admin?.username,
+          },
+        });
+      } else {
+        this.logger.warn("ログイン失敗", {
+          username,
+          ipAddress,
+          message: result.message,
+        });
+
+        return res.status(401).json({
+          error: "Authentication failed",
+          message: result.message,
+        });
+      }
+    } catch (error) {
+      this.logger.error("ログイン処理エラー", { error });
+
+      res.status(500).json({
+        error: "Internal Server Error",
+        message: "ログイン処理中にエラーが発生しました。",
+      });
+    }
+  }
+
+  // ログアウト
+  // POST /api/auth/logout
+  async logout(req: Request, res: Response) {
+    try {
+      const refreshToken = req.cookies.refreshToken;
+
+      if (refreshToken) {
+        // リフレッシュトークンを無効化
+        try {
+          await this.authService.revokeRefreshToken(refreshToken);
+        } catch (error) {
+          this.logger.warn("リフレッシュトークン無効化エラー", { error });
+          // エラーでもログアウト処理は継続
+        }
+      }
+
+      // クッキーを削除
+      res.clearCookie("refreshToken");
+
+      this.logger.info("ログアウト完了");
+
       res.json({
         success: true,
-        token,
-        admin: {
-          id: admin.id,
-          username: admin.username,
-          email: admin.email,
-          lastLogin: new Date()
-        },
-        message: 'ログインが完了しました。'
+        message: "ログアウトしました。",
       });
-
     } catch (error) {
-      this.logger.error('ログインエラー', error);
+      this.logger.error("ログアウト処理エラー", { error });
+
       res.status(500).json({
-        success: false,
-        error: 'Internal Server Error',
-        message: 'ログイン処理中にエラーが発生しました。'
+        error: "Internal Server Error",
+        message: "ログアウト処理中にエラーが発生しました。",
       });
     }
   }
 
   // トークン検証
-  // GET /api/admin/verify
+  // GET /api/auth/verify
   async verifyToken(req: Request, res: Response) {
     try {
-      const token = req.headers.authorization?.replace('Bearer ', '');
-      
-      if (!token) {
+      const authHeader = req.headers.authorization;
+
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
         return res.status(401).json({
-          success: false,
-          error: 'Unauthorized',
-          message: 'トークンが提供されていません。'
+          error: "Missing token",
+          message: "アクセストークンが必要です。",
         });
       }
 
-      const decoded = jwt.verify(token, AUTH_CONFIG.JWT_SECRET) as any;
-      
-      // 管理者の存在確認
-      const prisma = PrismaClientManager.getInstance();
-      const admin = await prisma.admin.findUnique({
-        where: { id: decoded.adminId }
-      });
-      
-      if (!admin) {
-        this.logger.warn('トークン検証失敗: 管理者が見つからない', { adminId: decoded.adminId });
-        return res.status(401).json({
-          success: false,
-          error: 'Unauthorized',
-          message: '無効なトークンです。'
+      const token = authHeader.substring(7);
+      const result = await this.authService.verifyAccessToken(token);
+
+      if (result.valid) {
+        res.json({
+          valid: true,
+          adminId: result.adminId,
+          username: result.username,
+        });
+      } else {
+        res.status(401).json({
+          error: "Invalid token",
+          message: "アクセストークンが無効です。",
         });
       }
-
-      res.json({
-        success: true,
-        admin: {
-          id: admin.id,
-          username: admin.username,
-          email: admin.email
-        }
-      });
-
     } catch (error) {
-      this.logger.warn('トークン検証エラー', error);
-      res.status(401).json({
-        success: false,
-        error: 'Unauthorized',
-        message: '無効なトークンです。'
+      this.logger.error("トークン検証エラー", { error });
+
+      res.status(500).json({
+        error: "Internal Server Error",
+        message: "トークン検証中にエラーが発生しました。",
       });
     }
   }
 
-  // ログアウト（トークン無効化）
-  // POST /api/admin/logout
-  async logout(req: Request, res: Response) {
-    // クライアント側でトークンを削除するだけで OK
-    // より高度な実装では、無効化されたトークンのブラックリストを管理
-    res.json({
-      success: true,
-      message: 'ログアウトが完了しました。'
-    });
-  }
-
   // パスワード変更
-  // POST /api/admin/change-password
+  // POST /api/auth/change-password
   async changePassword(req: Request, res: Response) {
     try {
-      const { currentPassword, newPassword }: { currentPassword: string; newPassword: string } = req.body;
-      const adminId = (req as any).admin?.id;
+      const { currentPassword, newPassword } = req.body;
 
       // バリデーション
       if (!currentPassword || !newPassword) {
         return res.status(400).json({
-          success: false,
-          error: 'Bad Request',
-          message: '現在のパスワードと新しいパスワードを入力してください。'
+          error: "Missing passwords",
+          message: "現在のパスワードと新しいパスワードを入力してください。",
         });
       }
 
-      if (newPassword.length < 6) {
+      if (
+        typeof currentPassword !== "string" ||
+        typeof newPassword !== "string"
+      ) {
         return res.status(400).json({
-          success: false,
-          error: 'Bad Request',
-          message: '新しいパスワードは 6 文字以上で入力してください。'
+          error: "Invalid password format",
+          message: "パスワードは文字列で入力してください。",
         });
       }
 
-      // 管理者の取得
-      const prisma = PrismaClientManager.getInstance();
-      const admin = await prisma.admin.findUnique({
-        where: { id: adminId }
-      });
+      if (newPassword.length < 8) {
+        return res.status(400).json({
+          error: "Password too short",
+          message: "新しいパスワードは 8 文字以上で入力してください。",
+        });
+      }
 
-      if (!admin) {
+      // 認証済みの管理者 ID を取得（ミドルウェアで設定される想定）
+      const admin = (req as any).admin;
+      if (!admin || !admin.id) {
         return res.status(401).json({
-          success: false,
-          error: 'Unauthorized',
-          message: '認証エラーが発生しました。'
+          error: "Unauthorized",
+          message: "認証されていません。",
         });
       }
+      const adminId = admin.id;
 
-      // 現在のパスワード検証
-      const isValidPassword = await bcrypt.compare(currentPassword, admin.passwordHash);
-      if (!isValidPassword) {
-        return res.status(401).json({
-          success: false,
-          error: 'Unauthorized',
-          message: '現在のパスワードが正しくありません。'
+      this.logger.info("パスワード変更試行", { adminId });
+
+      // パスワード変更実行
+      const result = await this.authService.changePassword(
+        adminId,
+        currentPassword,
+        newPassword,
+      );
+
+      if (result.success) {
+        this.logger.info("パスワード変更成功", { adminId });
+
+        res.json({
+          success: true,
+          message: result.message,
+        });
+      } else {
+        this.logger.warn("パスワード変更失敗", {
+          adminId,
+          message: result.message,
+        });
+
+        res.status(400).json({
+          error: "Password change failed",
+          message: result.message,
         });
       }
-
-      // 新しいパスワードのハッシュ化
-      const newPasswordHash = await bcrypt.hash(newPassword, AUTH_CONFIG.BCRYPT_SALT_ROUNDS);
-
-      // パスワード更新
-      await prisma.admin.update({
-        where: { id: adminId },
-        data: { 
-          passwordHash: newPasswordHash,
-          updatedAt: new Date()
-        }
-      });
-
-      this.logger.info('パスワード変更成功', { adminId, username: admin.username });
-
-      res.json({
-        success: true,
-        message: 'パスワードが変更されました。'
-      });
-
     } catch (error) {
-      this.logger.error('パスワード変更エラー', error);
+      this.logger.error("パスワード変更処理エラー", { error });
+
       res.status(500).json({
-        success: false,
-        error: 'Internal Server Error',
-        message: 'パスワード変更処理中にエラーが発生しました。'
+        error: "Internal Server Error",
+        message: "パスワード変更処理中にエラーが発生しました。",
+      });
+    }
+  }
+
+  // アクセストークン更新
+  // POST /api/auth/refresh
+  async refreshToken(req: Request, res: Response) {
+    try {
+      const refreshToken = req.cookies.refreshToken;
+
+      if (!refreshToken) {
+        return res.status(401).json({
+          error: "Missing refresh token",
+          message: "リフレッシュトークンが必要です。",
+        });
+      }
+
+      this.logger.debug("アクセストークン更新試行");
+
+      // トークン更新実行
+      const result = await this.authService.refreshAccessToken(refreshToken);
+
+      if (result.success) {
+        this.logger.info("アクセストークン更新成功");
+
+        res.json({
+          success: true,
+          accessToken: result.accessToken,
+          message: result.message,
+        });
+      } else {
+        this.logger.warn("アクセストークン更新失敗", {
+          message: result.message,
+        });
+
+        // リフレッシュトークンが無効な場合はクッキーも削除
+        res.clearCookie("refreshToken");
+
+        res.status(401).json({
+          error: "Token refresh failed",
+          message: result.message,
+        });
+      }
+    } catch (error) {
+      this.logger.error("アクセストークン更新処理エラー", { error });
+
+      res.status(500).json({
+        error: "Internal Server Error",
+        message: "トークン更新処理中にエラーが発生しました。",
       });
     }
   }
 }
-
-export default AuthController;

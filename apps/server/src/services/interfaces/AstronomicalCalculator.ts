@@ -1,4 +1,9 @@
-import { Location, FujiEvent, SunPosition, MoonPosition } from '@fuji-calendar/types';
+import {
+  Location,
+  FujiEvent,
+  SunPosition,
+  MoonPosition,
+} from "@fuji-calendar/types";
 
 /**
  * 天体計算インターフェース
@@ -18,17 +23,37 @@ export interface AstronomicalCalculator {
   /**
    * 月間イベントを計算
    */
-  calculateMonthlyEvents(year: number, month: number, locations: Location[]): Promise<FujiEvent[]>;
+  calculateMonthlyEvents(
+    year: number,
+    month: number,
+    locations: Location[],
+  ): Promise<FujiEvent[]>;
+
+  /**
+   * 特定地点の年間イベントを計算
+   */
+  calculateLocationYearlyEvents(
+    location: Location,
+    year: number,
+  ): Promise<FujiEvent[]>;
 
   /**
    * 太陽の位置を取得
    */
-  getSunPosition(date: Date, latitude: number, longitude: number): SunPosition | null;
+  getSunPosition(
+    date: Date,
+    latitude: number,
+    longitude: number,
+  ): SunPosition | null;
 
   /**
    * 月の位置を取得
    */
-  getMoonPosition(date: Date, latitude: number, longitude: number): MoonPosition | null;
+  getMoonPosition(
+    date: Date,
+    latitude: number,
+    longitude: number,
+  ): MoonPosition | null;
 
   /**
    * 撮影地点から富士山への方位角を計算
@@ -43,7 +68,11 @@ export interface AstronomicalCalculator {
   /**
    * 天体が可視範囲にあるかチェック
    */
-  isVisible(fromLocation: Location, targetAzimuth: number, celestialBody?: 'sun' | 'moon'): boolean;
+  isVisible(
+    fromLocation: Location,
+    targetAzimuth: number,
+    celestialBody?: "sun" | "moon",
+  ): boolean;
 
   /**
    * ダイヤモンド富士の観測期間かチェック
@@ -80,18 +109,45 @@ export interface AstronomicalCalculatorDependencies {
  * 座標計算インターフェース
  */
 export interface CoordinateCalculator {
-  calculateAzimuth(lat1: number, lng1: number, lat2: number, lng2: number): number;
-  calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number;
-  calculateBearing(lat1: number, lng1: number, lat2: number, lng2: number): number;
+  calculateAzimuth(
+    lat1: number,
+    lng1: number,
+    lat2: number,
+    lng2: number,
+  ): number;
+  calculateDistance(
+    lat1: number,
+    lng1: number,
+    lat2: number,
+    lng2: number,
+  ): number;
+  calculateBearing(
+    lat1: number,
+    lng1: number,
+    lat2: number,
+    lng2: number,
+  ): number;
 }
 
 /**
  * 天体位置計算インターフェース
  */
 export interface CelestialPositionCalculator {
-  getSunPosition(date: Date, latitude: number, longitude: number): SunPosition | null;
-  getMoonPosition(date: Date, latitude: number, longitude: number): MoonPosition | null;
-  calculateSunTimes(date: Date, latitude: number, longitude: number): {
+  getSunPosition(
+    date: Date,
+    latitude: number,
+    longitude: number,
+  ): SunPosition | null;
+  getMoonPosition(
+    date: Date,
+    latitude: number,
+    longitude: number,
+  ): MoonPosition | null;
+  calculateSunTimes(
+    date: Date,
+    latitude: number,
+    longitude: number,
+  ): {
     sunrise: Date | null;
     sunset: Date | null;
     solarNoon: Date | null;
@@ -103,8 +159,16 @@ export interface CelestialPositionCalculator {
  */
 export interface FujiAlignmentCalculator {
   calculateElevationToFuji(fromLocation: Location): number;
-  isAlignedWithFuji(date: Date, location: Location, celestialBody: 'sun' | 'moon'): boolean;
-  calculateOptimalViewingTime(date: Date, location: Location, eventType: 'diamond' | 'pearl'): Date | null;
+  isAlignedWithFuji(
+    date: Date,
+    location: Location,
+    celestialBody: "sun" | "moon",
+  ): boolean;
+  calculateOptimalViewingTime(
+    date: Date,
+    location: Location,
+    eventType: "diamond" | "pearl",
+  ): Date | null;
 }
 
 /**

@@ -1,11 +1,11 @@
-import { Routes, Route } from 'react-router-dom';
-import Layout from './components/Layout';
-import HomePage from './pages/HomePage';
-import FavoritesPage from './pages/FavoritesPage';
-import LocationDetailPage from './pages/LocationDetailPage';
-import AdminPage from './pages/AdminPage';
-import LoginPage from './pages/LoginPage';
-import './App.css';
+import { Routes, Route } from "react-router-dom";
+import Layout from "./components/Layout";
+import HomePage from "./pages/HomePage";
+import FavoritesPage from "./pages/FavoritesPage";
+import LocationDetailPage from "./pages/LocationDetailPage";
+import AdminPage from "./pages/AdminPage";
+import LoginPage from "./pages/LoginPage";
+import "./App.css";
 
 function App() {
   return (

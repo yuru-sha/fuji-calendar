@@ -1,20 +1,20 @@
-import React from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Icon } from './icons/IconMap';
+import React from "react";
+import { Outlet, Link, useLocation } from "react-router-dom";
+import { Icon } from "@fuji-calendar/ui";
 
 const Layout: React.FC = () => {
   const location = useLocation();
-  
+
   const isActive = (path: string) => location.pathname === path;
-  
+
   const navItems = [
-    { path: '/', label: 'ホーム', icon: 'home' as const },
-    { path: '/favorites', label: 'お気に入り', icon: 'favorites' as const },
-    { path: '/admin', label: '管理', icon: 'admin' as const }
+    { path: "/", label: "ホーム", icon: "home" as const },
+    { path: "/favorites", label: "お気に入り", icon: "star" as const },
+    { path: "/admin", label: "管理", icon: "settings" as const },
   ];
 
   // 管理画面の場合はヘッダー・フッターなしのレイアウト
-  if (location.pathname.startsWith('/admin')) {
+  if (location.pathname.startsWith("/admin")) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Outlet />
@@ -49,9 +49,12 @@ const Layout: React.FC = () => {
                   className={`
                     flex items-center space-x-2 px-3 py-2 rounded-md font-medium text-sm
                     transition-all duration-200
-                    ${isActive(item.path)
-                      ? 'text-gray-900 font-semibold'
-                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    ${
+                      isActive(item.path)
+                        ? item.path === "/" 
+                          ? "text-gray-900"
+                          : "text-gray-900 font-semibold"
+                        : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                     }
                   `}
                 >
@@ -63,12 +66,12 @@ const Layout: React.FC = () => {
           </div>
         </div>
       </header>
-      
+
       {/* Main Content */}
       <main className="flex-1">
         <Outlet />
       </main>
-      
+
       {/* Modern Footer */}
       <footer className="bg-white border-t border-gray-200 mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

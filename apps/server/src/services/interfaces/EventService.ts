@@ -11,17 +11,27 @@ export interface EventService {
   /**
    * 月間天体イベントを計算
    */
-  calculateMonthlyEvents(year: number, month: number, locationIds: number[]): Promise<MonthlyEventResult>;
+  calculateMonthlyEvents(
+    year: number,
+    month: number,
+    locationIds: number[],
+  ): Promise<MonthlyEventResult>;
 
   /**
    * 年間天体イベントを計算
    */
-  calculateYearlyEvents(year: number, locationIds: number[]): Promise<YearlyEventResult>;
+  calculateYearlyEvents(
+    year: number,
+    locationIds: number[],
+  ): Promise<YearlyEventResult>;
 
   /**
    * イベントキャッシュの健全性チェック
    */
-  validateEventCache(locationId: number, year: number): Promise<CacheValidationResult>;
+  validateEventCache(
+    locationId: number,
+    year: number,
+  ): Promise<CacheValidationResult>;
 }
 
 /**

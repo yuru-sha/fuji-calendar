@@ -1,29 +1,77 @@
-import express, { Express } from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import path from 'path';
+import express, { Express } from "express";
+import cors from "cors";
+import helmet from "helmet";
+import path from "path";
 
 export function setupMiddleware(app: Express): void {
   // セキュリティヘッダー
-  app.use(helmet({
-    contentSecurityPolicy: false, // 開発環境では無効化
-  }));
+  app.use(
+    helmet({
+      contentSecurityPolicy: process.env.NODE_ENV === "production" ? {
+        directives: {
+          defaultSrc: ["'self'"],
+          styleSrc: [
+            "'self'", 
+            "'unsafe-inline'", // Tailwind CSS の動的スタイル用
+            "https://fonts.googleapis.com",
+          ],
+          scriptSrc: [
+            "'self'",
+            // 本番環境では 'unsafe-eval' は除去（セキュリティ強化）
+          ],
+          imgSrc: [
+            "'self'", 
+            "data:", 
+            "https:",
+            "blob:", // 地図画像用
+          ],
+          fontSrc: [
+            "'self'",
+            "https://fonts.gstatic.com",
+          ],
+          connectSrc: [
+            "'self'",
+            "https:", // API 通信用
+          ],
+          frameSrc: ["'none'"],
+          objectSrc: ["'none'"],
+          mediaSrc: ["'self'"],
+          manifestSrc: ["'self'"],
+          workerSrc: ["'self'"],
+          upgradeInsecureRequests: [], // HTTPS 強制
+        },
+      } : false, // 開発環境では無効化（デバッグ容易性のため）
+      // セキュリティヘッダー追加設定
+      hsts: {
+        maxAge: 31536000, // 1 年
+        includeSubDomains: true,
+        preload: true,
+      },
+      noSniff: true, // MIME-type sniffing 防止
+      frameguard: { action: 'deny' }, // clickjacking 防止
+      xssFilter: true, // XSS フィルター有効化
+      referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+    }),
+  );
 
-  // CORS設定
-  app.use(cors({
-    origin: process.env.NODE_ENV === 'production' 
-      ? process.env.FRONTEND_URL 
-      : ['http://localhost:3000', 'http://localhost:5173'],
-    credentials: true,
-  }));
+  // CORS 設定
+  app.use(
+    cors({
+      origin:
+        process.env.NODE_ENV === "production"
+          ? process.env.FRONTEND_URL
+          : ["http://localhost:3000", "http://localhost:5173"],
+      credentials: true,
+    }),
+  );
 
-  // JSON解析
-  app.use(express.json({ limit: '10mb' }));
-  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+  // JSON 解析
+  app.use(express.json({ limit: "10mb" }));
+  app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
   // 静的ファイル配信（本番環境用）
-  if (process.env.NODE_ENV === 'production') {
-    const staticPath = path.join(__dirname, '../../../apps/client/dist');
+  if (process.env.NODE_ENV === "production") {
+    const staticPath = path.join(__dirname, "../../../apps/client/dist");
     app.use(express.static(staticPath));
   }
 }

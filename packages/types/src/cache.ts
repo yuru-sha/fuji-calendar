@@ -2,7 +2,7 @@
  * イベントキャッシュ関連の型定義
  */
 
-import { BaseFujiEvent, CalculationAccuracy } from './common';
+import { BaseFujiEvent, CalculationAccuracy } from "./common";
 
 /**
  * キャッシュエントリの基本型
@@ -45,7 +45,7 @@ export interface CacheKeyOptions {
   month: number;
   day?: number; // day が指定されない場合は月間キャッシュ
   locationId: number;
-  calculationType?: 'all' | 'diamond' | 'pearl';
+  calculationType?: "all" | "diamond" | "pearl";
 }
 
 /**
@@ -68,13 +68,13 @@ export interface CacheStats {
  */
 export interface BatchCalculationJob {
   id: string;
-  type: 'monthly' | 'daily' | 'yearly';
+  type: "monthly" | "daily" | "yearly";
   year: number;
   month?: number;
   day?: number;
   locationIds: number[];
-  priority: 'high' | 'medium' | 'low';
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  priority: "high" | "medium" | "low";
+  status: "pending" | "running" | "completed" | "failed";
   createdAt: Date;
   startedAt?: Date;
   completedAt?: Date;
@@ -140,7 +140,7 @@ export interface PreloadPriority {
  * キャッシュ更新通知
  */
 export interface CacheUpdateNotification {
-  type: 'cache_updated' | 'cache_expired' | 'batch_completed';
+  type: "cache_updated" | "cache_expired" | "batch_completed";
   year: number;
   month: number;
   locationId?: number;

@@ -13,7 +13,6 @@ A web application for calculating and displaying optimal shooting times and loca
 - 🗺️ **Interactive Maps**: Location relationship display using Leaflet with route planning
 - 🚗 **Route Navigation**: Optimal route guidance from current location via Google Maps
 - ⭐ **Favorites System**: Save, manage, and export shooting locations and events
-- 🌤️ **Weather Integration**: 7-day forecast with shooting condition recommendations
 - 📊 **Shooting Quality Rating**: Evaluation based on astronomical calculations
 - 🔐 **Admin Panel**: Location management system with JWT authentication
 - 🕐 **JST Time Support**: Accurate time display in Japan Standard Time
@@ -137,6 +136,23 @@ fuji-calendar/
 - Docker & Docker Compose v2 **Recommended**
 - Node.js 18+ (for initial setup only)
 
+### Environment Configuration
+
+The project supports different environment configurations:
+
+- **`.env`**: Docker-based development (default)
+- **`.env.local`**: Local development without Docker  
+- **`.env.example`**: Template with all available options
+
+```bash
+# Docker-based development (default)
+cp .env.example .env
+
+# For local development without Docker
+cp .env.example .env.local
+# Edit .env.local to use localhost instead of container names
+```
+
 ### Docker Setup (Recommended)
 
 ```bash
@@ -145,20 +161,17 @@ git clone <repository-url>
 cd fuji-calendar
 cp .env.example .env
 
-# 2. Database Migration
-docker-compose -f docker-compose.dev.yml up postgres -d
-sleep 15
-DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" npx prisma migrate deploy
+# 2. Build and Start Services
+docker-compose up -d --build
 
-# 3. Initial Setup
-DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" node scripts/admin/create-admin.js
-
-# 4. Start Application
-docker-compose -f docker-compose.dev.yml up -d
+# 3. Database Setup
+docker-compose exec backend npx prisma migrate deploy
+docker-compose exec backend node scripts/admin/create-admin.js
 ```
 
 ### Access
-- **Frontend**: http://localhost:3000
+- **Frontend**: http://localhost
+- **Backend API**: http://localhost/api
 - **Admin Login**: admin / admin123
 
 ## 💻 Development (Monorepo Environment)
@@ -310,7 +323,6 @@ npm run start
 
 ### System API
 - `GET /api/health` - Health check
-- Weather forecast data integration (mock implementation)
 
 ## 🏗️ Monorepo Benefits
 

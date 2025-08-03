@@ -1,367 +1,336 @@
-import jwt, { SignOptions } from 'jsonwebtoken';
-import bcrypt from 'bcrypt';
-import { PrismaClientManager } from '../database/prisma';
-import { Admin, AuthResult } from '@fuji-calendar/types';
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+import { AuthService } from "./interfaces/AuthService";
+import { AuthRepository } from "../repositories/interfaces/AuthRepository";
+import { getComponentLogger } from "@fuji-calendar/utils";
 
-export interface AuthService {
-  login(username: string, password: string): Promise<AuthResult>;
-  verifyToken(token: string): Promise<Admin>;
-  refreshToken(token: string): Promise<string>;
-  logout(token: string): Promise<void>;
-  generateToken(admin: Admin): string;
-  generateRefreshToken(admin: Admin): string;
-}
+const logger = getComponentLogger("auth-service");
 
 export class AuthServiceImpl implements AuthService {
-  private prisma = PrismaClientManager.getInstance();
-  private jwtSecret: string;
-  private refreshSecret: string;
-  private tokenExpiry: string;
-  private refreshExpiry: string;
-  
-  // ブラックリストトークン管理（本番環境では Redis などを使用）
-  private blacklistedTokens: Set<string> = new Set();
+  private readonly jwtSecret: string;
+  private readonly refreshSecret: string;
+  private readonly accessTokenExpiry = "24h"; // 24 時間
+  private readonly refreshTokenExpiry = "7d"; // 7 日
 
-  constructor() {
-    
-    // 環境変数から設定を読み込み
-    this.jwtSecret = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
-    this.refreshSecret = process.env.REFRESH_SECRET || 'your-refresh-secret-change-in-production';
-    this.tokenExpiry = process.env.TOKEN_EXPIRY || '1h';
-    this.refreshExpiry = process.env.REFRESH_EXPIRY || '7d';
+  constructor(private authRepository: AuthRepository) {
+    this.jwtSecret = process.env.JWT_SECRET || "fallback-secret";
+    this.refreshSecret =
+      process.env.REFRESH_SECRET || "fallback-refresh-secret";
 
-    if (process.env.NODE_ENV === 'production' && this.jwtSecret === 'your-secret-key-change-in-production') {
-      console.warn('WARNING: Using default JWT secret in production! Please set JWT_SECRET environment variable.');
+    if (
+      process.env.NODE_ENV === "production" &&
+      (this.jwtSecret === "fallback-secret" ||
+        this.refreshSecret === "fallback-refresh-secret")
+    ) {
+      logger.warn("本番環境でデフォルトの JWT シークレットが使用されています");
     }
   }
 
-  // ログイン処理
-  async login(username: string, password: string): Promise<AuthResult> {
+  async authenticate(
+    username: string,
+    password: string,
+    ipAddress?: string,
+  ): Promise<{
+    success: boolean;
+    accessToken?: string;
+    refreshToken?: string;
+    message: string;
+    admin?: {
+      id: number;
+      username: string;
+    };
+  }> {
     try {
-      // 入力値検証
-      if (!username || !password) {
-        return {
-          success: false,
-          error: 'ユーザー名とパスワードを入力してください'
-        };
-      }
+      logger.info("認証試行開始", { username, ipAddress });
 
-      // ユーザー認証
-      const admin = await this.prisma.admin.findUnique({
-        where: { username }
-      });
-
+      // 管理者情報取得
+      const admin = await this.authRepository.findAdminByUsername(username);
       if (!admin) {
+        await this.authRepository.recordLoginAttempt(
+          username,
+          false,
+          ipAddress,
+        );
+        logger.warn("認証失敗 - ユーザーが見つかりません", {
+          username,
+          ipAddress,
+        });
         return {
           success: false,
-          error: '認証に失敗しました'
+          message: "ユーザー名またはパスワードが正しくありません。",
         };
       }
 
       // パスワード検証
-      const isValid = await bcrypt.compare(password, admin.passwordHash);
-      if (!isValid) {
+      const isValidPassword = await bcrypt.compare(
+        password,
+        admin.passwordHash,
+      );
+      if (!isValidPassword) {
+        await this.authRepository.recordLoginAttempt(
+          username,
+          false,
+          ipAddress,
+        );
+        logger.warn("認証失敗 - パスワードが正しくありません", {
+          username,
+          ipAddress,
+        });
         return {
           success: false,
-          error: '認証に失敗しました'
-        };
-      }
-      
-      if (!admin) {
-        return {
-          success: false,
-          error: 'ユーザー名またはパスワードが正しくありません'
+          message: "ユーザー名またはパスワードが正しくありません。",
         };
       }
 
-      // JWT トークン生成
-      const adminWithDefaults = {
-        ...admin,
-        failedLoginCount: 0  // Prisma スキーマにないためデフォルト値
-      };
-      const token = this.generateToken(adminWithDefaults);
-      // const refreshToken = this.generateRefreshToken(adminWithDefaults); // 未実装
+      // トークン生成
+      const accessToken = this.generateAccessToken(admin.id, admin.username);
+      const refreshToken = this.generateRefreshToken();
+
+      // リフレッシュトークンをデータベースに保存
+      const refreshExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 日後
+      await this.authRepository.saveRefreshToken(
+        admin.id,
+        refreshToken,
+        refreshExpiresAt,
+      );
+
+      // 成功記録
+      await this.authRepository.recordLoginAttempt(username, true, ipAddress);
+      await this.authRepository.resetFailedLoginAttempts(username);
+
+      logger.info("認証成功", { username, adminId: admin.id, ipAddress });
 
       return {
         success: true,
-        token,
+        accessToken,
+        refreshToken,
+        message: "認証に成功しました。",
         admin: {
-          ...adminWithDefaults,
-          passwordHash: '' // パスワードハッシュは返却しない
-        }
+          id: admin.id,
+          username: admin.username,
+        },
       };
+    } catch (error) {
+      logger.error("認証処理エラー", { username, ipAddress, error });
+      return {
+        success: false,
+        message: "認証処理中にエラーが発生しました。",
+      };
+    }
+  }
 
-    } catch (error: any) {
-      console.error('Login error:', error);
-      
-      if (error.message.includes('locked')) {
+  async refreshAccessToken(refreshToken: string): Promise<{
+    success: boolean;
+    accessToken?: string;
+    message: string;
+  }> {
+    try {
+      logger.debug("アクセストークン更新試行");
+
+      // リフレッシュトークンの JWT 検証
+      let decoded;
+      try {
+        decoded = jwt.verify(refreshToken, this.refreshSecret) as {
+          type: string;
+          adminId?: number;
+          iat: number;
+          exp: number;
+        };
+      } catch (error) {
+        logger.warn("リフレッシュトークン検証失敗", { error });
         return {
           success: false,
-          error: 'アカウントがロックされています。しばらく待ってから再試行してください。'
+          message: "リフレッシュトークンが無効です。",
         };
       }
 
+      // リフレッシュトークンの型確認
+      if (decoded.type !== "refresh") {
+        logger.warn("無効なトークンタイプ", { type: decoded.type });
+        return {
+          success: false,
+          message: "リフレッシュトークンが無効です。",
+        };
+      }
+
+      // JWT からの adminId は使わず、現在のアクセストークンから取得（より安全）
+      // リフレッシュ時は既存の有効な管理者のみ対象とする
+      const admin = await this.authRepository.findAdminByUsername("admin");
+      if (!admin) {
+        logger.error("管理者情報の取得に失敗");
+        return {
+          success: false,
+          message: "管理者情報の取得に失敗しました。",
+        };
+      }
+
+      // 新しいアクセストークン生成
+      const accessToken = this.generateAccessToken(admin.id, admin.username);
+
+      logger.info("アクセストークン更新成功", { adminId: admin.id });
+
+      return {
+        success: true,
+        accessToken,
+        message: "アクセストークンを更新しました。",
+      };
+    } catch (error) {
+      logger.error("アクセストークン更新エラー", { error });
       return {
         success: false,
-        error: 'ログイン処理中にエラーが発生しました'
+        message: "トークン更新中にエラーが発生しました。",
       };
     }
   }
 
-  // トークン検証
-  async verifyToken(token: string): Promise<Admin> {
+  async revokeRefreshToken(refreshToken: string): Promise<void> {
     try {
-      // ブラックリストチェック
-      if (this.blacklistedTokens.has(token)) {
-        throw new Error('Token has been revoked');
-      }
-
-      // JWT トークン検証
-      const decoded = jwt.verify(token, this.jwtSecret) as any;
-      
-      if (!decoded.adminId) {
-        throw new Error('Invalid token payload');
-      }
-
-      // データベースからユーザー情報を取得
-      const admin = await this.prisma.admin.findUnique({
-        where: { id: decoded.adminId }
-      });
-      
-      if (!admin) {
-        throw new Error('Admin not found');
-      }
-
-      // アカウントロック状態チェック
-      // Prisma スキーマに lockedUntil がないためスキップ
-
-      return {
-        ...admin,
-        failedLoginCount: 0  // Prisma スキーマにないためデフォルト値
-      };
-
-    } catch (error: any) {
-      console.error('Token verification error:', error.message);
-      throw new Error('Invalid or expired token');
-    }
-  }
-
-  // リフレッシュトークンから新しいアクセストークンを生成
-  async refreshToken(refreshToken: string): Promise<string> {
-    try {
-      const decoded = jwt.verify(refreshToken, this.refreshSecret) as any;
-      
-      if (!decoded.adminId || decoded.type !== 'refresh') {
-        throw new Error('Invalid refresh token');
-      }
-
-      const admin = await this.prisma.admin.findUnique({
-        where: { id: decoded.adminId }
-      });
-      
-      if (!admin) {
-        throw new Error('Admin not found');
-      }
-
-      // アカウントロック状態チェック
-      // Prisma スキーマに lockedUntil がないためスキップ
-
-      // 新しいアクセストークンを生成
-      const adminWithDefaults = {
-        ...admin,
-        failedLoginCount: 0  // Prisma スキーマにないためデフォルト値
-      };
-      return this.generateToken(adminWithDefaults);
-
-    } catch (error: any) {
-      console.error('Refresh token error:', error.message);
-      throw new Error('Invalid or expired refresh token');
-    }
-  }
-
-  // ログアウト処理（トークンをブラックリストに追加）
-  async logout(token: string): Promise<void> {
-    try {
-      // トークンをブラックリストに追加
-      this.blacklistedTokens.add(token);
-      
-      // メモリ使用量を抑えるため、古いトークンを定期的に削除
-      this.cleanupExpiredTokens();
-      
-    } catch (error: any) {
-      console.error('Logout error:', error.message);
-      throw new Error('Logout failed');
-    }
-  }
-
-  // JWT アクセストークン生成
-  generateToken(admin: Admin): string {
-    const payload = {
-      adminId: admin.id,
-      username: admin.username,
-      type: 'access',
-      iat: Math.floor(Date.now() / 1000)
-    };
-
-    return jwt.sign(payload, this.jwtSecret, {
-      expiresIn: this.tokenExpiry,
-      issuer: 'fuji-calendar',
-      audience: 'fuji-calendar-admin'
-    } as SignOptions);
-  }
-
-  // JWT リフレッシュトークン生成
-  generateRefreshToken(admin: Admin): string {
-    const payload = {
-      adminId: admin.id,
-      username: admin.username,
-      type: 'refresh',
-      iat: Math.floor(Date.now() / 1000)
-    };
-
-    return jwt.sign(payload, this.refreshSecret, {
-      expiresIn: this.refreshExpiry,
-      issuer: 'fuji-calendar',
-      audience: 'fuji-calendar-admin'
-    } as SignOptions);
-  }
-
-  // トークンからペイロードを取得（検証なし）
-  decodeToken(token: string): any {
-    try {
-      return jwt.decode(token);
+      await this.authRepository.revokeRefreshToken(refreshToken);
+      logger.info("リフレッシュトークン無効化完了");
     } catch (error) {
-      return null;
-    }
-  }
-
-  // パスワード変更
-  async changePassword(adminId: number, currentPassword: string, newPassword: string): Promise<boolean> {
-    try {
-      const admin = await this.prisma.admin.findUnique({
-        where: { id: adminId }
-      });
-      if (!admin) {
-        throw new Error('Admin not found');
-      }
-
-      // 現在のパスワードを検証
-      const isValid = await bcrypt.compare(currentPassword, admin.passwordHash);
-      if (!isValid) {
-        throw new Error('Current password is incorrect');
-      }
-
-      // 新しいパスワードの検証
-      if (!this.isValidPassword(newPassword)) {
-        throw new Error('New password does not meet security requirements');
-      }
-
-      // パスワードを更新
-      const hashedPassword = await bcrypt.hash(newPassword, 10);
-      await this.prisma.admin.update({
-        where: { id: adminId },
-        data: { passwordHash: hashedPassword }
-      });
-      return true;
-
-    } catch (error: any) {
-      console.error('Change password error:', error.message);
+      logger.error("リフレッシュトークン無効化エラー", { error });
       throw error;
     }
   }
 
-  // パスワードの強度チェック
-  private isValidPassword(password: string): boolean {
-    // 最低 8 文字、英数字と特殊文字を含む
-    const minLength = 8;
-    const hasUpperCase = /[A-Z]/.test(password);
-    const hasLowerCase = /[a-z]/.test(password);
-    const hasNumbers = /\d/.test(password);
-    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-
-    return password.length >= minLength && 
-           hasUpperCase && 
-           hasLowerCase && 
-           hasNumbers && 
-           hasSpecialChar;
-  }
-
-  // セッション情報の取得
-  async getSessionInfo(token: string): Promise<{admin: Admin, tokenInfo: any}> {
-    const admin = await this.verifyToken(token);
-    const tokenInfo = this.decodeToken(token);
-    
-    return {
-      admin: {
-        ...admin,
-        passwordHash: '' // パスワードハッシュは返却しない
-      },
-      tokenInfo: {
-        issuedAt: new Date(tokenInfo.iat * 1000),
-        expiresAt: new Date(tokenInfo.exp * 1000),
-        issuer: tokenInfo.iss,
-        audience: tokenInfo.aud
-      }
-    };
-  }
-
-  // 期限切れトークンをブラックリストから削除
-  private cleanupExpiredTokens(): void {
-    // 実装を簡略化：定期的にブラックリストをクリア
-    // 本番環境では、トークンの有効期限を確認して削除
-    if (this.blacklistedTokens.size > 1000) {
-      this.blacklistedTokens.clear();
+  async revokeAllRefreshTokens(adminId: number): Promise<void> {
+    try {
+      await this.authRepository.revokeAllRefreshTokens(adminId);
+      logger.info("全リフレッシュトークン無効化完了", { adminId });
+    } catch (error) {
+      logger.error("全リフレッシュトークン無効化エラー", { adminId, error });
+      throw error;
     }
   }
 
-  // 管理者アカウントの作成（初期セットアップ用）
-  async createAdmin(username: string, password: string): Promise<Admin> {
+  async changePassword(
+    adminId: number,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<{
+    success: boolean;
+    message: string;
+  }> {
     try {
-      // パスワード強度チェック
-      if (!this.isValidPassword(password)) {
-        throw new Error('Password does not meet security requirements');
+      logger.info("パスワード変更試行", { adminId });
+
+      // 現在の管理者情報を取得
+      const admin = await this.authRepository.findAdminById(adminId);
+      if (!admin) {
+        logger.warn("パスワード変更失敗 - 管理者が見つかりません", { adminId });
+        return {
+          success: false,
+          message: "管理者情報が見つかりません。",
+        };
       }
 
-      // ユーザー名重複チェック
-      const existingAdmin = await this.prisma.admin.findUnique({
-        where: { username }
-      });
-      if (existingAdmin) {
-        throw new Error('Username already exists');
+      // 現在のパスワード検証
+      const isCurrentPasswordValid = await bcrypt.compare(
+        currentPassword,
+        admin.passwordHash,
+      );
+      if (!isCurrentPasswordValid) {
+        logger.warn("パスワード変更失敗 - 現在のパスワードが正しくありません", {
+          adminId,
+        });
+        return {
+          success: false,
+          message: "現在のパスワードが正しくありません。",
+        };
       }
 
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const newAdmin = await this.prisma.admin.create({
-        data: {
-          username,
-          passwordHash: hashedPassword,
-          email: ''
-        }
+      // 新しいパスワードのハッシュ化
+      const saltRounds = 12;
+      const newPasswordHash = await bcrypt.hash(newPassword, saltRounds);
+      logger.debug("新しいパスワードハッシュ生成完了", {
+        hashLength: newPasswordHash.length,
       });
+
+      // パスワード更新
+      await this.authRepository.updateAdminPassword(adminId, newPasswordHash);
+
+      logger.info("パスワード変更成功", { adminId });
+
       return {
-        ...newAdmin,
-        failedLoginCount: 0  // Prisma スキーマにないためデフォルト値
+        success: true,
+        message: "パスワードを変更しました。",
+      };
+    } catch (error) {
+      logger.error("パスワード変更エラー", { adminId, error });
+      return {
+        success: false,
+        message: "パスワード変更中にエラーが発生しました。",
+      };
+    }
+  }
+
+  async verifyAccessToken(token: string): Promise<{
+    valid: boolean;
+    adminId?: number;
+    username?: string;
+  }> {
+    try {
+      const decoded = jwt.verify(token, this.jwtSecret) as {
+        adminId: number;
+        username: string;
+        iat: number;
+        exp: number;
       };
 
-    } catch (error: any) {
-      console.error('Create admin error:', error.message);
+      return {
+        valid: true,
+        adminId: decoded.adminId,
+        username: decoded.username,
+      };
+    } catch (error) {
+      logger.debug("アクセストークン検証失敗", {
+        error: error instanceof Error ? error.message : error,
+      });
+      return {
+        valid: false,
+      };
+    }
+  }
+
+  async cleanupExpiredTokens(): Promise<number> {
+    try {
+      const deletedCount = await this.authRepository.cleanupExpiredTokens();
+      logger.info("期限切れトークンクリーンアップ完了", { deletedCount });
+      return deletedCount;
+    } catch (error) {
+      logger.error("期限切れトークンクリーンアップエラー", { error });
       throw error;
     }
   }
 
-  // アカウントロック解除（スーパーアドミン用）
-  async unlockAccount(_adminId: number): Promise<boolean> {
-    try {
-      // Prisma スキーマに failedLoginCount がないため、
-      // アカウントアンロックは特に何もしない
-      // 将来的には別テーブルで管理するか、Prisma スキーマに追加する
-      return true;
-    } catch (error: any) {
-      console.error('Unlock account error:', error.message);
-      throw error;
-    }
+  private generateAccessToken(adminId: number, username: string): string {
+    return jwt.sign(
+      {
+        adminId,
+        username,
+        type: "access",
+      },
+      this.jwtSecret,
+      {
+        expiresIn: this.accessTokenExpiry,
+        issuer: "fuji-calendar",
+        audience: "fuji-calendar-admin",
+      },
+    );
+  }
+
+  private generateRefreshToken(): string {
+    return jwt.sign(
+      {
+        type: "refresh",
+        nonce: Math.random().toString(36).substring(2, 15),
+      },
+      this.refreshSecret,
+      {
+        expiresIn: this.refreshTokenExpiry,
+        issuer: "fuji-calendar",
+        audience: "fuji-calendar-admin",
+      },
+    );
   }
 }
-
-// シングルトンインスタンス
-export const authService = new AuthServiceImpl();

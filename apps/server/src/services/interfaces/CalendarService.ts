@@ -1,8 +1,11 @@
-import { FujiEvent, CalendarStats, WeatherInfo } from '@fuji-calendar/types';
+import { FujiEvent, CalendarStats } from "@fuji-calendar/types";
 
 export interface CalendarService {
   // 月間カレンダーデータを取得
-  getMonthlyCalendar(year: number, month: number): Promise<{
+  getMonthlyCalendar(
+    year: number,
+    month: number,
+  ): Promise<{
     year: number;
     month: number;
     events: Array<{
@@ -19,11 +22,12 @@ export interface CalendarService {
   getUpcomingEvents(limit?: number): Promise<FujiEvent[]>;
 
   // 地点別年間イベント取得
-  getLocationYearlyEvents(locationId: number, year: number): Promise<FujiEvent[]>;
+  getLocationYearlyEvents(
+    locationId: number,
+    year: number,
+  ): Promise<FujiEvent[]>;
 
   // カレンダー統計情報取得
   getCalendarStats(year: number): Promise<CalendarStats>;
 
-  // 天気情報取得
-  getWeatherInfo(eventDate: string): Promise<WeatherInfo | null>;
 }

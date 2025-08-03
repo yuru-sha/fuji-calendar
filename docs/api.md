@@ -112,13 +112,7 @@ GET /events/:date
       "azimuth": 231.5,
       "elevation": 1.2
     }
-  ],
-  "weather": {
-    "condition": "晴れ",
-    "cloudCover": 20,
-    "visibility": 15,
-    "recommendation": "excellent"
-  }
+  ]
 }
 ```
 
@@ -207,7 +201,6 @@ GET /health
   "database": "connected",
   "redis": "connected",
   "calculationEngine": "operational",
-  "weatherService": "mock",
   "cachePerformance": {
     "hitRate": 0.85,
     "avgResponseTime": 120

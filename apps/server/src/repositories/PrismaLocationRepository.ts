@@ -1,9 +1,9 @@
-import { Location, CreateLocationRequest } from '@fuji-calendar/types';
-import { PrismaClientManager } from '../database/prisma';
-import { LocationRepository } from './interfaces/LocationRepository';
-import { getComponentLogger } from '@fuji-calendar/utils';
+import { Location, CreateLocationRequest } from "@fuji-calendar/types";
+import { getComponentLogger } from "@fuji-calendar/utils";
+import { PrismaClientManager } from "../database/prisma";
+import { LocationRepository } from "./interfaces/LocationRepository";
 
-const logger = getComponentLogger('PrismaLocationRepository');
+const logger = getComponentLogger("PrismaLocationRepository");
 
 /**
  * Prisma を使用した LocationRepository の実装
@@ -13,63 +13,65 @@ export class PrismaLocationRepository implements LocationRepository {
   private prisma = PrismaClientManager.getInstance();
 
   async findAll(): Promise<Location[]> {
-    logger.debug('全撮影地点取得開始');
-    
+    logger.debug("全撮影地点取得開始");
+
     const locations = await this.prisma.location.findMany({
       orderBy: {
-        id: 'asc'
-      }
+        id: "asc",
+      },
     });
 
-    logger.info('全撮影地点取得成功', {
-      locationCount: locations.length
+    logger.info("全撮影地点取得成功", {
+      locationCount: locations.length,
     });
 
     return locations.map(this.formatLocation);
   }
 
   async findById(id: number): Promise<Location | null> {
-    logger.debug('撮影地点取得開始', { locationId: id });
-    
+    logger.debug("撮影地点取得開始", { locationId: id });
+
     const location = await this.prisma.location.findUnique({
       where: { id },
       include: {
         events: {
           where: {
             eventDate: {
-              gte: new Date()
-            }
+              gte: new Date(),
+            },
           },
           orderBy: {
-            eventDate: 'asc'
+            eventDate: "asc",
           },
-          take: 10
-        }
-      }
+          take: 10,
+        },
+      },
     });
 
     if (!location) {
-      logger.warn('撮影地点が見つかりません', { locationId: id });
+      logger.warn("撮影地点が見つかりません", { locationId: id });
       return null;
     }
 
-    logger.info('撮影地点取得成功', {
+    logger.info("撮影地点取得成功", {
       locationId: id,
       locationName: location.name,
-      upcomingEvents: location.events.length
+      upcomingEvents: location.events.length,
     });
 
     return this.formatLocation(location);
   }
 
-  async create(data: CreateLocationRequest & {
-    fujiAzimuth?: number;
-    fujiElevation?: number;
-    fujiDistance?: number;
-    measurementNotes?: string;
-  }): Promise<Location> {
-    logger.debug('撮影地点作成開始', { name: data.name });
-    
+  async create(
+    data: CreateLocationRequest & {
+      fujiAzimuth?: number;
+      fujiElevation?: number;
+      fujiDistance?: number;
+      measurementNotes?: string;
+    },
+  ): Promise<Location> {
+    logger.debug("撮影地点作成開始", { name: data.name });
+
     const location = await this.prisma.location.create({
       data: {
         name: data.name,
@@ -82,73 +84,79 @@ export class PrismaLocationRepository implements LocationRepository {
         fujiAzimuth: data.fujiAzimuth,
         fujiElevation: data.fujiElevation,
         fujiDistance: data.fujiDistance,
-        measurementNotes: data.measurementNotes
-      }
+        measurementNotes: data.measurementNotes,
+      },
     });
 
-    logger.info('撮影地点作成成功', {
+    logger.info("撮影地点作成成功", {
       locationId: location.id,
       locationName: location.name,
-      prefecture: location.prefecture
+      prefecture: location.prefecture,
     });
 
     return this.formatLocation(location);
   }
 
-  async update(id: number, data: Partial<CreateLocationRequest> & {
-    fujiAzimuth?: number;
-    fujiElevation?: number;
-    fujiDistance?: number;
-    measurementNotes?: string;
-  }): Promise<Location> {
-    logger.debug('撮影地点更新開始', { locationId: id });
-    
+  async update(
+    id: number,
+    data: Partial<CreateLocationRequest> & {
+      fujiAzimuth?: number;
+      fujiElevation?: number;
+      fujiDistance?: number;
+      measurementNotes?: string;
+    },
+  ): Promise<Location> {
+    logger.debug("撮影地点更新開始", { locationId: id });
+
     const location = await this.prisma.location.update({
       where: { id },
       data: {
         ...data,
-        updatedAt: new Date()
-      }
+        updatedAt: new Date(),
+      },
     });
 
-    logger.info('撮影地点更新成功', {
+    logger.info("撮影地点更新成功", {
       locationId: id,
-      locationName: location.name
+      locationName: location.name,
     });
 
     return this.formatLocation(location);
   }
 
   async delete(id: number): Promise<void> {
-    logger.debug('撮影地点削除開始', { locationId: id });
-    
+    logger.debug("撮影地点削除開始", { locationId: id });
+
     await this.prisma.location.delete({
-      where: { id }
+      where: { id },
     });
 
-    logger.info('撮影地点削除成功', { locationId: id });
+    logger.info("撮影地点削除成功", { locationId: id });
   }
 
-  async updateFujiMetrics(id: number, metrics: {
-    fujiAzimuth: number;
-    fujiElevation: number;
-    fujiDistance: number;
-  }): Promise<void> {
-    logger.debug('富士山メトリクス更新開始', { locationId: id });
-    
+  async updateFujiMetrics(
+    id: number,
+    metrics: {
+      fujiAzimuth: number;
+      fujiElevation: number;
+      fujiDistance: number;
+    },
+  ): Promise<void> {
+    logger.debug("富士山メトリクス更新開始", { locationId: id });
+
     await this.prisma.location.update({
       where: { id },
       data: {
         fujiAzimuth: metrics.fujiAzimuth,
         fujiElevation: metrics.fujiElevation,
         fujiDistance: metrics.fujiDistance,
-        updatedAt: new Date()
-      }
+        updatedAt: new Date(),
+      },
     });
 
-    logger.info('富士山メトリクス更新成功', {
+    logger.info("富士山メトリクス更新成功", {
       locationId: id,
-      metrics
+      metrics,
     });
   }
 
@@ -157,15 +165,18 @@ export class PrismaLocationRepository implements LocationRepository {
     minElevation?: number;
     maxElevation?: number;
   }): Promise<Location[]> {
-    logger.debug('条件検索開始', { condition });
-    
+    logger.debug("条件検索開始", { condition });
+
     const where: any = {};
-    
+
     if (condition.prefecture) {
       where.prefecture = condition.prefecture;
     }
-    
-    if (condition.minElevation !== undefined || condition.maxElevation !== undefined) {
+
+    if (
+      condition.minElevation !== undefined ||
+      condition.maxElevation !== undefined
+    ) {
       where.elevation = {};
       if (condition.minElevation !== undefined) {
         where.elevation.gte = condition.minElevation;
@@ -178,13 +189,13 @@ export class PrismaLocationRepository implements LocationRepository {
     const locations = await this.prisma.location.findMany({
       where,
       orderBy: {
-        id: 'asc'
-      }
+        id: "asc",
+      },
     });
 
-    logger.info('条件検索成功', {
+    logger.info("条件検索成功", {
       condition,
-      locationCount: locations.length
+      locationCount: locations.length,
     });
 
     return locations.map(this.formatLocation);
@@ -209,7 +220,7 @@ export class PrismaLocationRepository implements LocationRepository {
       fujiDistance: prismaLocation.fujiDistance,
       measurementNotes: prismaLocation.measurementNotes,
       createdAt: prismaLocation.createdAt,
-      updatedAt: prismaLocation.updatedAt
+      updatedAt: prismaLocation.updatedAt,
     };
   }
 }

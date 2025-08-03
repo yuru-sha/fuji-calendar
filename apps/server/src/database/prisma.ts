@@ -1,7 +1,7 @@
-import { PrismaClient } from '@prisma/client';
-import { getComponentLogger } from '@fuji-calendar/utils';
+import { PrismaClient } from "@prisma/client";
+import { getComponentLogger } from "@fuji-calendar/utils";
 
-const logger = getComponentLogger('prisma');
+const logger = getComponentLogger("prisma");
 
 export class PrismaClientManager {
   private static instance: PrismaClient | null = null;
@@ -10,14 +10,14 @@ export class PrismaClientManager {
     if (!this.instance) {
       this.instance = new PrismaClient({
         log: [
-          { level: 'query', emit: 'stdout' },
-          { level: 'error', emit: 'stdout' },
-          { level: 'info', emit: 'stdout' },
-          { level: 'warn', emit: 'stdout' },
+          { level: "query", emit: "stdout" },
+          { level: "error", emit: "stdout" },
+          { level: "info", emit: "stdout" },
+          { level: "warn", emit: "stdout" },
         ],
       });
 
-      logger.info('Prisma Client initialized');
+      logger.info("Prisma Client initialized");
     }
 
     return this.instance;
@@ -27,10 +27,10 @@ export class PrismaClientManager {
     try {
       const client = this.getInstance();
       await client.$queryRaw`SELECT 1`;
-      logger.info('Database connection test successful');
+      logger.info("Database connection test successful");
       return true;
     } catch (error) {
-      logger.error('Database connection test failed', error);
+      logger.error("Database connection test failed", error);
       return false;
     }
   }
@@ -39,7 +39,7 @@ export class PrismaClientManager {
     if (this.instance) {
       await this.instance.$disconnect();
       this.instance = null;
-      logger.info('Prisma Client disconnected');
+      logger.info("Prisma Client disconnected");
     }
   }
 }

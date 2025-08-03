@@ -1,4 +1,4 @@
-import { EventService } from './EventService';
+import { EventService } from "./EventService";
 
 /**
  * QueueService インターフェース
@@ -11,13 +11,18 @@ export interface QueueService {
   setEventService(eventService: EventService): void;
 
   /**
+   * SystemSettingsService を後から注入（循環依存対策）
+   */
+  setSystemSettingsService?(systemSettingsService: any): void;
+
+  /**
    * 地点計算ジョブをスケジュール
    */
   scheduleLocationCalculation(
     locationId: number,
     startYear: number,
     endYear: number,
-    priority?: 'low' | 'normal' | 'high'
+    priority?: "low" | "normal" | "high",
   ): Promise<string | null>;
 
   /**
@@ -29,6 +34,16 @@ export interface QueueService {
    * Redis 接続テスト
    */
   testRedisConnection(): Promise<boolean>;
+
+  /**
+   * ワーカーの同時実行数をリアルタイムで変更
+   */
+  updateConcurrency(newConcurrency: number): Promise<boolean>;
+
+  /**
+   * 現在の同時実行数を取得
+   */
+  getCurrentConcurrency(): number;
 
   /**
    * キューサービスを終了

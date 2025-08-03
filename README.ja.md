@@ -13,7 +13,6 @@
 - 🗺️ **地図表示**: Leaflet を使用した撮影地点と富士山の位置関係表示
 - 🚗 **ルートナビゲーション**: Google Maps 連携による現在地からの最適ルート案内
 - ⭐ **お気に入り機能**: 撮影地点・イベントの保存・管理・エクスポート機能
-- 🌤️ **天気予報連携**: 7 日間天気予報と撮影条件レコメンデーション
 - 📊 **撮影推奨度**: 天体計算に基づく撮影条件の評価
 - 🔐 **管理機能**: 管理者による撮影地点の登録・管理
 - 🕐 **JST 時刻対応**: 日本標準時での正確な時刻表示
@@ -100,20 +99,17 @@ git clone <repository-url>
 cd fuji-calendar
 cp .env.example .env
 
-# 2. Database Migration
-docker-compose -f docker-compose.dev.yml up postgres -d
-sleep 15
-DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" npx prisma migrate deploy
+# 2. ビルドと起動
+docker-compose up -d --build
 
-# 3. Initial Setup
-DATABASE_URL="postgresql://fuji_user:dev_password_123@localhost:5432/fuji_calendar" node scripts/admin/create-admin.js          # admin/admin123
-
-# 4. Start Application
-docker-compose -f docker-compose.dev.yml up -d
+# 3. データベースセットアップ
+docker-compose exec backend npx prisma migrate deploy
+docker-compose exec backend node scripts/admin/create-admin.js
 ```
 
 ### アクセス
-- **フロントエンド**: http://localhost:3000
+- **フロントエンド**: http://localhost
+- **バックエンド API**: http://localhost/api
 - **管理者ログイン**: admin / admin123
 
 ### 本番環境
@@ -275,7 +271,6 @@ npm run test:watch
 ### システム API
 
 - `GET /api/health` - ヘルスチェック
-- 天気予報データ連携（模擬実装）
 
 ## ディレクトリ構造（モノレポ構成）
 
@@ -359,11 +354,6 @@ fuji-calendar/
 - ±1.5 度以内の方位角精度
 - 最適タイミングの 10 秒間隔計算
 
-### 天気情報システム
-- 7 日間天気予報連携（模擬実装）
-- 天気に基づく撮影条件レコメンデーション
-- 天気アイコンとカラーコード付きレコメンデーション
-- イベント詳細表示との統合
 
 ### 管理機能
 - ページネーション・検索付き地点管理

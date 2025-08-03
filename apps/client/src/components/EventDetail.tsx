@@ -285,7 +285,10 @@ const EventDetail: React.FC<EventDetailProps> = memo(
                                   : "詳細を表示（地図に表示）"
                               }
                             >
-                              {isExpanded ? "▼ 折りたたみ" : "▶ 表示"}
+                              <Icon 
+                                name={isExpanded ? "chevronDown" : "chevronRight"} 
+                                size={14}
+                              />
                             </button>
                           </div>
                         </div>

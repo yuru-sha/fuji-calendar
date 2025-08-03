@@ -4,6 +4,14 @@ import helmet from "helmet";
 import path from "path";
 
 export function setupMiddleware(app: Express): void {
+  // プロキシ信頼設定（本番環境ではプロキシ経由でアクセスされることが多い）
+  if (process.env.NODE_ENV === "production") {
+    app.set("trust proxy", 1); // 最初のプロキシを信頼
+  } else {
+    // 開発環境でも Docker 等を使用する場合は必要
+    app.set("trust proxy", true);
+  }
+
   // セキュリティヘッダー
   app.use(
     helmet({

@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Icon } from "@fuji-calendar/ui";
+import { getComponentLogger } from "@fuji-calendar/utils";
 import { authService } from "../../services/authService";
+
+const logger = getComponentLogger("SystemSettingsManager");
 
 // 型定義
 interface SystemSetting {
@@ -168,7 +171,7 @@ const SystemSettingsManager: React.FC = () => {
       });
       setExpandedCategories(initialExpanded);
     } catch (err) {
-      console.error("設定読み込みエラー:", err);
+      logger.error("設定読み込みエラー", err);
       setError(
         err instanceof Error ? err.message : "設定の読み込みに失敗しました",
       );
@@ -193,10 +196,10 @@ const SystemSettingsManager: React.FC = () => {
         };
         
         setPerformanceSettings(newSettings);
-        console.log('パフォーマンス設定をロード:', newSettings);
+        logger.debug('パフォーマンス設定をロード', newSettings);
       }
     } catch (err) {
-      console.warn("パフォーマンス設定の読み込みに失敗:", err);
+      logger.warn("パフォーマンス設定の読み込みに失敗", err);
     }
   };
 
@@ -252,7 +255,7 @@ const SystemSettingsManager: React.FC = () => {
         throw new Error(result.message || "設定の保存に失敗しました");
       }
     } catch (err) {
-      console.error("設定保存エラー:", err);
+      logger.error("設定保存エラー", err);
       setError(err instanceof Error ? err.message : "設定の保存に失敗しました");
     } finally {
       setSaving(false);
@@ -291,7 +294,7 @@ const SystemSettingsManager: React.FC = () => {
         throw new Error(result.message || "キャッシュクリアに失敗しました");
       }
     } catch (err) {
-      console.error("キャッシュクリアエラー:", err);
+      logger.error("キャッシュクリアエラー", err);
       setError(
         err instanceof Error ? err.message : "キャッシュクリアに失敗しました",
       );

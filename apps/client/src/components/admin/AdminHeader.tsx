@@ -1,108 +1,169 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Icon } from "@fuji-calendar/ui";
-import { getComponentLogger } from "@fuji-calendar/utils";
-import { authService } from "../../services/authService";
+import React, { useState, useEffect } from 'react';
+import { Icon } from '@fuji-calendar/ui';
+import { authService } from '../../services/authService';
+import { getComponentLogger } from '@fuji-calendar/utils';
+import PasswordChangeModal from './PasswordChangeModal';
 
-const logger = getComponentLogger("AdminHeader");
+const logger = getComponentLogger('AdminHeader');
 
+// Types
 interface AdminHeaderProps {
-  onPasswordChangeClick: () => void;
+  onLogout: () => void;
+  loading: boolean;
 }
 
-// TODO: この useClickOutside フックは共通フック（hooks/useClickOutside.ts）として切り出すべき
-const useClickOutside = (isOpen: boolean, callback: () => void) => {
+interface PasswordForm {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
+const AdminHeader: React.FC<AdminHeaderProps> = ({ onLogout, loading }) => {
+  // State
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordForm, setPasswordForm] = useState<PasswordForm>({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+
+  // Effects
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
-        isOpen &&
-        !(event.target as HTMLElement).closest(".user-menu-container")
+        showUserMenu &&
+        !(event.target as HTMLElement).closest('.user-menu-container')
       ) {
-        callback();
+        setShowUserMenu(false);
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isOpen, callback]);
-};
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showUserMenu]);
 
-const AdminHeader: React.FC<AdminHeaderProps> = ({
-  onPasswordChangeClick,
-}) => {
-  const navigate = useNavigate();
-  const [showUserMenu, setShowUserMenu] = useState(false);
+  // Event handlers
+  const handlePasswordChange = async () => {
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      alert('新しいパスワードが一致しません。');
+      return;
+    }
 
-  useClickOutside(showUserMenu, () => setShowUserMenu(false));
+    if (passwordForm.newPassword.length < 6) {
+      alert('新しいパスワードは 6 文字以上で入力してください。');
+      return;
+    }
 
-  const handleLogout = async () => {
     try {
-      await authService.logout();
-      navigate("/admin/login");
+      const result = await authService.changePassword(
+        passwordForm.currentPassword,
+        passwordForm.newPassword,
+      );
+
+      if (result.success) {
+        alert(result.message);
+        setShowPasswordModal(false);
+      } else {
+        alert(result.message);
+      }
     } catch (error) {
-      logger.error("ログアウトエラー", error);
+      logger.error('パスワード変更エラー', error as Error);
+      alert('パスワード変更中にエラーが発生しました。');
     }
   };
 
-  return (
-    <div className="bg-white border-b border-gray-200 px-6 py-4">
-      <div className="flex items-start justify-between">
-        <div className="pt-1 ml-52">
-          <h1 className="text-lg font-bold text-gray-900">管理画面</h1>
-        </div>
-        <div className="relative mr-64 user-menu-container">
-          <button
-            onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex items-center space-x-2 hover:bg-gray-50 rounded-lg px-3 py-2 transition-colors"
-          >
-            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-              <Icon name="users" size={16} className="text-blue-600" />
-            </div>
-            <div className="text-left">
-              <div className="text-sm font-medium text-gray-900">admin</div>
-              <div className="text-xs text-gray-500">スーパー管理者</div>
-            </div>
-            <Icon
-              name="chevronDown"
-              size={16}
-              className="text-gray-400 ml-1"
-            />
-          </button>
+  const handlePasswordFormChange = (field: keyof PasswordForm, value: string) => {
+    setPasswordForm(prev => ({ ...prev, [field]: value }));
+  };
 
-          {/* Dropdown Menu */}
-          {showUserMenu && (
-            <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
-              <div className="py-2">
-                <div className="px-4 py-2 border-b border-gray-100">
-                  <p className="text-sm font-medium text-gray-900">admin</p>
-                  <p className="text-xs text-gray-500">スーパー管理者</p>
-                </div>
-                <button
-                  onClick={() => {
-                    setShowUserMenu(false);
-                    onPasswordChangeClick();
-                  }}
-                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
-                >
-                  <Icon name="key" size={16} className="text-gray-400" />
-                  <span>パスワード変更</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setShowUserMenu(false);
-                    handleLogout();
-                  }}
-                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
-                >
-                  <Icon name="logout" size={16} className="text-gray-400" />
-                  <span>ログアウト</span>
-                </button>
-              </div>
+  return (
+    <>
+      <header className="bg-white shadow-sm border-b border-gray-100">
+        <div className="flex items-center justify-between px-8 py-4">
+          {/* Logo & Title */}
+          <div className="flex items-center space-x-4">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-sm">
+              <Icon name="dashboard" size={20} className="text-white" />
             </div>
-          )}
+            <div>
+              <h1 className="text-xl font-semibold text-gray-900">管理画面</h1>
+              <p className="text-sm text-gray-500">富士カレンダー</p>
+            </div>
+          </div>
+
+          {/* User Menu */}
+          <div className="relative user-menu-container">
+            <button
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              className="flex items-center space-x-3 hover:bg-gray-50 rounded-xl px-4 py-3 transition-all duration-200 border border-transparent hover:border-gray-200 hover:shadow-sm"
+            >
+              <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-sm">
+                <Icon name="users" size={18} className="text-white" />
+              </div>
+              <div className="text-left">
+                <div className="text-sm font-semibold text-gray-900">admin</div>
+                <div className="text-xs text-gray-500">スーパー管理者</div>
+              </div>
+              <Icon
+                name="chevronDown"
+                size={16}
+                className={`text-gray-400 transition-transform duration-200 ${showUserMenu ? 'rotate-180' : ''}`}
+              />
+            </button>
+
+            {/* Dropdown Menu */}
+            {showUserMenu && (
+              <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden">
+                <div className="bg-gradient-to-r from-indigo-50 to-purple-50 px-4 py-3 border-b border-gray-100">
+                  <p className="text-sm font-semibold text-gray-900">admin</p>
+                  <p className="text-xs text-gray-600">スーパー管理者</p>
+                </div>
+                <div className="py-2">
+                  <button
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      setShowPasswordModal(true);
+                    }}
+                    className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-3 transition-colors duration-150"
+                  >
+                    <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
+                      <Icon name="key" size={16} className="text-gray-600" />
+                    </div>
+                    <span>パスワード変更</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      onLogout();
+                    }}
+                    className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 flex items-center space-x-3 transition-colors duration-150"
+                  >
+                    <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-red-100">
+                      <Icon name="logout" size={16} className="text-gray-600" />
+                    </div>
+                    <span>ログアウト</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
-    </div>
+      </header>
+
+      {showPasswordModal && (
+        <PasswordChangeModal
+          isOpen={showPasswordModal}
+          onClose={() => setShowPasswordModal(false)}
+          passwordForm={passwordForm}
+          onPasswordFormChange={handlePasswordFormChange}
+          onPasswordChange={handlePasswordChange}
+          loading={loading}
+        />
+      )}
+    </>
   );
 };
 

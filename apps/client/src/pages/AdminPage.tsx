@@ -7,8 +7,6 @@ import { authService } from "../services/authService";
 import QueueManager from "../components/admin/QueueManager";
 import SystemSettingsManager from "../components/admin/SystemSettingsManager";
 import AdminLayout from "../components/admin/AdminLayout";
-import AdminHeader from "../components/admin/AdminHeader";
-import AdminSidebar from "../components/admin/AdminSidebar";
 import Dashboard from "../components/admin/Dashboard";
 import LocationManager from "../components/admin/LocationManager";
 import LocationFormModal from "../components/admin/LocationFormModal";
@@ -484,17 +482,12 @@ const AdminPage: React.FC = () => {
 
 
   return (
-    <AdminLayout>
-      <AdminHeader onPasswordChangeClick={() => setShowPasswordModal(true)} />
-      
-      <div className="flex">
-        <AdminSidebar 
-          activeView={activeView} 
-          onViewChange={setActiveView} 
-        />
-
-        {/* Main Content */}
-        <div className="flex-1 p-8">
+    <AdminLayout 
+      activeView={activeView} 
+      onViewChange={setActiveView}
+    >
+      {/* Main Content */}
+      <div>
           {/* Dashboard View */}
           {activeView === "dashboard" && (
             <Dashboard stats={stats} queueStats={queueStats} />
@@ -593,7 +586,6 @@ const AdminPage: React.FC = () => {
             activeView !== "queue" && (
               <Placeholder title={activeView} />
             )}
-        </div>
       </div>
 
       {/* Location Form Modal */}

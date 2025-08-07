@@ -1,9 +1,8 @@
-import React, { memo, useState } from "react";
+import React, { memo, useState, useEffect } from "react";
 import { FujiEvent, Location } from "@fuji-calendar/types";
 import { timeUtils } from "@fuji-calendar/utils";
 import { useFavorites } from "../hooks/useFavorites";
 import { Icon } from "@fuji-calendar/ui";
-import styles from "./EventDetail.module.css";
 
 interface EventDetailProps {
   date: Date;
@@ -22,8 +21,10 @@ const EventDetail: React.FC<EventDetailProps> = memo(
     } = useFavorites();
     const [expandedLocationIds, setExpandedLocationIds] = useState<Set<number>>(
       () => {
-        // 初期状態では一番上（最初）の地点のみ展開
-        if (events.length > 0) {
+        // selectedLocationId が指定されている場合はそれを展開、なければ最初の地点を展開
+        if (selectedLocationId && events.some(e => e.location.id === selectedLocationId)) {
+          return new Set([selectedLocationId]);
+        } else if (events.length > 0) {
           const firstLocationId = events[0].location.id;
           return new Set([firstLocationId]);
         }
@@ -31,8 +32,17 @@ const EventDetail: React.FC<EventDetailProps> = memo(
       },
     );
 
-    // HomePage 側で選択管理されるため、ここでの自動選択は不要
-    // （HomePage の handleDateClick で最初の地点が自動選択される）
+    // selectedLocationId が変更された時にアコーディオンを更新
+    useEffect(() => {
+      if (selectedLocationId && events.some(e => e.location.id === selectedLocationId)) {
+        // 選択された地点のみを展開し、他は閉じる
+        setExpandedLocationIds(new Set([selectedLocationId]));
+      } else if (!selectedLocationId) {
+        // 地点が選択されていない場合は全て閉じる
+        setExpandedLocationIds(new Set());
+      }
+    }, [selectedLocationId, events]);
+
     const formatTime = (time: Date): string => {
       return timeUtils.formatJstTime(time);
     };
@@ -109,9 +119,8 @@ const EventDetail: React.FC<EventDetailProps> = memo(
       };
     };
 
-    const formatEventTitle = (event: FujiEvent): string => {
-      const typeLabel =
-        event.type === "diamond" ? "ダイヤモンド富士" : "パール富士";
+    const getEventDisplayName = (event: FujiEvent): string => {
+      const typeLabel = event.type === "diamond" ? "ダイヤモンド富士" : "パール富士";
       let subTypeLabel = "";
 
       if (event.type === "diamond") {
@@ -120,56 +129,23 @@ const EventDetail: React.FC<EventDetailProps> = memo(
         subTypeLabel = event.subType === "rising" ? "昇る" : "沈む";
       }
 
-      return `【${subTypeLabel}${typeLabel}】`;
+      return `${subTypeLabel}${typeLabel}`;
     };
 
-    const getEventIcon = (event: FujiEvent): JSX.Element => {
-      return event.type === "diamond" ? (
-        <Icon name="sun" className={`${styles.eventIcon} text-orange-500`} />
-      ) : (
-        <Icon name="moon" className={`${styles.eventIcon} text-blue-500`} />
-      );
+    // 仰角の表示用フォーマット（-0.0 を 0.0 に統一）
+    const formatElevation = (elevation: number): string => {
+      const rounded = Math.round(elevation * 10) / 10;
+      return rounded === 0 ? "0.0" : rounded.toFixed(1);
     };
 
-
-
-    const getAccuracyText = (
-      accuracy: "perfect" | "excellent" | "good" | "fair",
-    ): string => {
-      switch (accuracy) {
-        case "perfect":
-          return "完全一致";
-        case "excellent":
-          return "非常に高精度";
-        case "good":
-          return "高精度";
-        case "fair":
-          return "標準精度";
-        default:
-          return "";
-      }
-    };
-
-    const getAccuracyBadge = (
-      accuracy: "perfect" | "excellent" | "good" | "fair",
-    ): string => {
-      switch (accuracy) {
-        case "perfect":
-          return styles.accuracyPerfect;
-        case "excellent":
-          return styles.accuracyExcellent;
-        case "good":
-          return styles.accuracyGood;
-        case "fair":
-          return styles.accuracyFair;
-        default:
-          return "";
-      }
-    };
-
-    const handleGoogleMapsClick = (event: FujiEvent) => {
-      const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${event.location.latitude},${event.location.longitude}`;
-      window.open(googleMapsUrl, "_blank");
+    const getAccuracyDisplayName = (accuracy: string): string => {
+      const accuracyMap = {
+        perfect: "完全一致",
+        excellent: "非常に高精度",
+        good: "高精度",
+        fair: "標準精度"
+      };
+      return accuracyMap[accuracy as keyof typeof accuracyMap] || accuracy;
     };
 
     // 折りたたみボタンで地図連携も含めて制御
@@ -195,28 +171,26 @@ const EventDetail: React.FC<EventDetailProps> = memo(
       }
     };
 
-    // 不要になった関数を削除
-
     return (
-      <div className={styles.eventDetail}>
+      <div className="bg-white rounded-lg shadow-sm border p-6">
         {/* ヘッダー */}
-        <div className={styles.header}>
-          <h3 className={styles.title}>
+        <div className="flex items-center mb-6 pb-4 border-b border-gray-200">
+          <Icon name="calendar" size={20} className="mr-2" />
+          <h3 className="text-lg font-semibold text-gray-900 m-0">
             {date.getFullYear()}年{date.getMonth() + 1}月{date.getDate()}
             日の撮影情報
           </h3>
         </div>
 
-
-
         {/* イベント一覧 */}
-        <div className={styles.events}>
+        <div>
           {events.length === 0 ? (
-            <div className={styles.noEvents}>
-              <p>この日はダイヤモンド富士・パール富士は発生しません。</p>
+            <div className="text-center py-8">
+              <Icon name="searchX" size={48} className="mx-auto text-gray-400 mb-4" />
+              <p className="text-gray-600">この日はダイヤモンド富士・パール富士は発生しません。</p>
             </div>
           ) : (
-            <div className={styles.eventsList}>
+            <div className="space-y-3">
               {(() => {
                 // 地点ごとにイベントをグループ化
                 const eventsByLocation = events.reduce(
@@ -239,281 +213,199 @@ const EventDetail: React.FC<EventDetailProps> = memo(
                     const isSelected = selectedLocationId === locationId;
 
                     return (
-                      <div key={locationId} className={styles.locationGroup}>
+                      <div key={locationId} className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
                         {/* 地点ヘッダー */}
                         <div
-                          className={`${styles.locationHeader} ${isSelected ? styles.selectedLocation : ""}`}
+                          className={`p-4 cursor-pointer ${isSelected ? 'bg-blue-50 border-l-4 border-l-blue-500' : 'bg-gray-50'} transition-colors`}
+                          onClick={() => handleLocationToggle(locationId, location)}
                         >
-                          <div className={styles.locationInfo}>
-                            <Icon
-                              name="location"
-                              size={16}
-                              className={styles.locationIcon}
-                            />
-                            <span className={styles.locationText}>
-                              {location.prefecture}・{location.name}
-                            </span>
-                            {isSelected && (
-                              <span className={styles.selectedBadge}>
-                                地図表示中
-                              </span>
-                            )}
-                            <button
-                              className={`${styles.locationFavoriteButton} ${isLocationFavorite(location.id) ? styles.favorited : styles.unfavorited}`}
-                              onClick={() => toggleLocationFavorite(location)}
-                              title={
-                                isLocationFavorite(location.id)
-                                  ? "お気に入り地点から削除"
-                                  : "お気に入り地点に追加"
-                              }
-                            >
-                              {isLocationFavorite(location.id)
-                                ? "お気に入り済み"
-                                : "お気に入りに追加"}
-                            </button>
-                          </div>
-
-                          <div className={styles.locationActions}>
-                            <button
-                              className={`${styles.expandButton} ${isExpanded ? styles.expanded : styles.collapsed}`}
-                              onClick={() =>
-                                handleLocationToggle(locationId, location)
-                              }
-                              title={
-                                isExpanded
-                                  ? "詳細を折りたたむ（地図から除去）"
-                                  : "詳細を表示（地図に表示）"
-                              }
-                            >
-                              <Icon 
-                                name={isExpanded ? "chevronDown" : "chevronRight"} 
-                                size={14}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3 flex-1">
+                              <Icon
+                                name="location"
+                                size={16}
+                                className="text-gray-600"
                               />
-                            </button>
+                              <div className="flex-1">
+                                <span className="font-medium text-gray-900">
+                                  {location.name}
+                                </span>
+                                {isSelected && (
+                                  <span className="ml-2 px-2 py-1 bg-blue-600 text-white text-xs rounded-full">
+                                    地図表示中
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-gray-500">
+                                {locationEvents.length}件のイベント
+                              </span>
+                              <Icon
+                                name={isExpanded ? "chevronDown" : "chevronRight"}
+                                size={14}
+                                className="text-gray-400"
+                              />
+                            </div>
                           </div>
                         </div>
 
-                        {/* イベント詳細（展開時のみ表示） */}
-                        {isExpanded &&
-                          locationEvents.map((event, index) => (
-                            <div
-                              key={event.id || index}
-                              className={styles.eventItem}
-                            >
-                              <div className={styles.eventMainInfo}>
-                                <div className={styles.eventBasicInfo}>
-                                  <div className={styles.eventTitleSection}>
-                                    <span className={styles.eventIcon}>
-                                      {getEventIcon(event)}
-                                    </span>
-                                    <div className={styles.eventTitleGroup}>
-                                      <h5 className={styles.eventTitle}>
-                                        {formatEventTitle(event)}
-                                      </h5>
-                                      <span className={styles.eventTime}>
-                                        {formatTime(event.time)}頃
-                                      </span>
-                                    </div>
-                                  </div>
-
-                                  <div className={styles.eventActions}>
-                                    <button
-                                      className={`${styles.eventScheduleButton} ${isEventFavorite(event.id) ? styles.scheduled : styles.unscheduled}`}
-                                      onClick={() => toggleEventFavorite(event)}
-                                      title={
-                                        isEventFavorite(event.id)
-                                          ? "撮影予定から削除"
-                                          : "撮影予定に追加"
-                                      }
-                                    >
-                                      {isEventFavorite(event.id) ? (
-                                        <>
-                                          <Icon name="calendar" size={14} />
-                                          予定済み
-                                        </>
-                                      ) : (
-                                        <>
-                                          <Icon name="calendar" size={14} />
-                                          予定に追加
-                                        </>
-                                      )}
-                                    </button>
-                                    <button
-                                      className={styles.googleMapsButton}
-                                      onClick={() =>
-                                        handleGoogleMapsClick(event)
-                                      }
-                                      title="Google Maps でルート検索"
-                                    >
-                                      <Icon name="map" size={14} />
-                                      ルート検索
-                                    </button>
-                                  </div>
-                                </div>
-
-                                {/* イベント固有の詳細データ */}
-                                <div className={styles.eventSpecificDetails}>
-                                  {event.elevation !== undefined && (
-                                    <div className={styles.detailItem}>
-                                      <span className={styles.detailLabel}>
-                                        高度:
-                                      </span>
-                                      <span className={styles.detailValue}>
-                                        {Math.round(event.elevation)}°
-                                      </span>
-                                    </div>
-                                  )}
-                                  {event.type === "pearl" &&
-                                  event.moonPhase !== undefined ? (
-                                    <div className={styles.detailItem}>
-                                      <span className={styles.detailLabel}>
-                                        月相:
-                                      </span>
-                                      <span className={styles.detailValue}>
-                                        {getMoonPhaseName(event.moonPhase).icon}{" "}
-                                        {getMoonPhaseName(event.moonPhase).name}
-                                        {event.moonIllumination !==
-                                          undefined && (
-                                          <small
-                                            style={{
-                                              marginLeft: "8px",
-                                              opacity: 0.7,
-                                            }}
-                                          >
-                                            (
-                                            {Math.round(
-                                              event.moonIllumination * 100,
-                                            )}
-                                            %)
-                                          </small>
-                                        )}
-                                      </span>
-                                    </div>
-                                  ) : (
-                                    <div className={styles.detailItem}>
-                                      {/* ダイヤモンド富士用の空カラム（レイアウト統一のため） */}
-                                    </div>
-                                  )}
-                                  {event.accuracy && (
-                                    <div className={styles.detailItem}>
-                                      <span className={styles.detailLabel}>
-                                        精度:
-                                      </span>
-                                      <span
-                                        className={getAccuracyBadge(
-                                          event.accuracy,
-                                        )}
-                                      >
-                                        {getAccuracyText(event.accuracy)}
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-
-                        {/* 地点共通情報（展開時のみ表示） */}
+                        {/* 撮影地データ（展開時のみ表示） */}
                         {isExpanded && (
-                          <div className={styles.locationDetails}>
-                            {location.description && (
-                              <div className={styles.locationDescription}>
-                                <p>{location.description}</p>
-                              </div>
-                            )}
-
+                          <div className="p-4 bg-white border-t border-gray-100">
                             {/* 撮影地データ */}
-                            <div className={styles.locationDataSection}>
-                              <h6 className={styles.sectionTitle}>
-                                <Icon name="data" size={14} />
-                                撮影地データ
-                              </h6>
-                              <div className={styles.locationDataGrid}>
-                                <div className={styles.detailItem}>
-                                  <span className={styles.detailLabel}>
-                                    緯度:
-                                  </span>
-                                  <span className={styles.detailValue}>
-                                    {location.latitude.toFixed(6)}°
-                                  </span>
+                            <div className="mb-4">
+                              <div className="flex items-center justify-between mb-2">
+                                <h6 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                                  <Icon name="data" size={14} />
+                                  撮影地データ
+                                </h6>
+                                <div className="flex gap-1">
+                                  <button
+                                    className={`px-2 py-1 text-xs rounded transition-colors border ${
+                                      isLocationFavorite(location.id)
+                                        ? "bg-yellow-100 hover:bg-yellow-200 text-yellow-800 border-yellow-300"
+                                        : "bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200"
+                                    }`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleLocationFavorite(location);
+                                    }}
+                                    title={
+                                      isLocationFavorite(location.id)
+                                        ? "お気に入り地点から削除"
+                                        : "お気に入り地点に追加"
+                                    }
+                                  >
+                                    <Icon 
+                                      name={isLocationFavorite(location.id) ? "starFilled" : "star"} 
+                                      size={12} 
+                                      className="inline mr-1" 
+                                    />
+                                    {isLocationFavorite(location.id) ? "お気に入り済み" : "お気に入り"}
+                                  </button>
+                                  <a
+                                    href={`https://www.google.com/maps/dir/?api=1&destination=${location.latitude},${location.longitude}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="px-3 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 rounded text-xs transition-colors border border-green-200 flex items-center gap-1.5"
+                                    title="Google Maps で経路案内"
+                                  >
+                                    <Icon name="route" size={14} className="inline" />
+                                    経路案内
+                                  </a>
                                 </div>
-                                <div className={styles.detailItem}>
-                                  <span className={styles.detailLabel}>
-                                    経度:
-                                  </span>
-                                  <span className={styles.detailValue}>
-                                    {location.longitude.toFixed(6)}°
-                                  </span>
-                                </div>
-                                <div className={styles.detailItem}>
-                                  <span className={styles.detailLabel}>
-                                    海抜標高:
-                                  </span>
-                                  <span className={styles.detailValue}>
-                                    約{location.elevation.toFixed(1)}m
-                                  </span>
-                                </div>
-                                {location.fujiAzimuth !== undefined && (
-                                  <div className={styles.detailItem}>
-                                    <span className={styles.detailLabel}>
-                                      富士山の方角:
-                                    </span>
-                                    <span className={styles.detailValue}>
+                              </div>
+                              <div className="space-y-3">
+                                <div className="grid grid-cols-4 gap-3 text-xs">
+                                  <div>
+                                    <div className="text-gray-500 mb-1">緯度:</div>
+                                    <div className="font-medium text-gray-900">{location.latitude.toFixed(6)}°</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-gray-500 mb-1">経度:</div>
+                                    <div className="font-medium text-gray-900">{location.longitude.toFixed(6)}°</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-gray-500 mb-1">海抜標高:</div>
+                                    <div className="font-medium text-gray-900">約{location.elevation.toFixed(1)}m</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-gray-500 mb-1">富士山の方角:</div>
+                                    <div className="font-medium text-gray-900">
                                       {location.fujiAzimuth
-                                        ? `${getCompassDirection(location.fujiAzimuth)}（${Math.round(location.fujiAzimuth)}°）`
+                                        ? `${getCompassDirection(location.fujiAzimuth)} (${Math.round(location.fujiAzimuth)}°)`
                                         : "計算中"}
-                                    </span>
+                                    </div>
                                   </div>
-                                )}
-                                {location.fujiDistance && (
-                                  <div className={styles.detailItem}>
-                                    <span className={styles.detailLabel}>
-                                      富士山まで:
-                                    </span>
-                                    <span className={styles.detailValue}>
-                                      約
-                                      {(location.fujiDistance / 1000).toFixed(
-                                        1,
-                                      )}
-                                      km
-                                    </span>
+                                </div>
+                                <div className="text-xs">
+                                  <div className="text-gray-500 mb-1">富士山まで:</div>
+                                  <div className="font-medium text-gray-900">
+                                    {location.fujiDistance
+                                      ? `約${(location.fujiDistance / 1000).toFixed(1)}km`
+                                      : "計算中"}
                                   </div>
-                                )}
+                                </div>
                               </div>
                             </div>
+                          </div>
+                        )}
 
-                            {/* アクセス情報セクション */}
-                            <div className={styles.accessSection}>
-                              {location.accessInfo && (
-                                <div className={styles.accessInfo}>
-                                  <h6 className={styles.accessTitle}>
-                                    <Icon name="car" size={14} />
-                                    アクセス情報
-                                  </h6>
-                                  <p>{location.accessInfo}</p>
+                        {/* イベント詳細（展開時のみ表示） */}
+                        {isExpanded && (
+                          <div className="border-t border-gray-100">
+                            {locationEvents.map((event, index) => (
+                              <div
+                                key={event.id || index}
+                                className="p-4 border-b border-gray-100 last:border-b-0"
+                              >
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-2">
+                                      <Icon
+                                        name={event.type === "diamond" ? "sun" : "moon"}
+                                        size={16}
+                                        className={event.type === "diamond" ? "text-yellow-500" : "text-blue-400"}
+                                      />
+                                      <span className="font-medium text-gray-900">
+                                        {getEventDisplayName(event)}
+                                      </span>
+                                    </div>
+                                    <span className={`px-2 py-1 text-xs rounded font-medium ${
+                                      event.accuracy === "perfect" ? "bg-gray-100 text-gray-700 border border-gray-200" :
+                                      event.accuracy === "excellent" ? "bg-gray-50 text-gray-600 border border-gray-200" :
+                                        event.accuracy === "good" ? "bg-gray-50 text-gray-600 border border-gray-200" :
+                                          "bg-gray-50 text-gray-500 border border-gray-200"
+                                    }`}>
+                                      {getAccuracyDisplayName(event.accuracy)}
+                                    </span>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="font-medium text-gray-900">
+                                      {event.time.toLocaleTimeString("ja-JP", {
+                                        hour: "2-digit",
+                                        minute: "2-digit"
+                                      })}
+                                    </div>
+                                  </div>
                                 </div>
-                              )}
 
-                              {location.parkingInfo && (
-                                <div className={styles.parkingInfo}>
-                                  <h6 className={styles.parkingTitle}>
-                                    <Icon name="parking" size={14} />
-                                    駐車場情報
-                                  </h6>
-                                  <p>{location.parkingInfo}</p>
+                                <div className="flex items-center justify-between text-sm text-gray-600">
+                                  <div className="flex items-center gap-4">
+                                    <span>方位角 {getCompassDirection(event.azimuth)}（{event.azimuth.toFixed(1)}°）</span>
+                                    <span>
+                                      仰角 {formatElevation(event.elevation)}°
+                                      {event.elevation < 0 && (
+                                        <span className="text-xs text-gray-500 ml-1">（見下ろし）</span>
+                                      )}
+                                    </span>
+                                    {event.moonPhase !== undefined && event.type === "pearl" && (
+                                      <span>
+                                        {getMoonPhaseName(event.moonPhase).icon} {getMoonPhaseName(event.moonPhase).name}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleEventFavorite(event);
+                                      }}
+                                      className={`px-2 py-1 text-xs rounded transition-colors ${
+                                        isEventFavorite(event.id)
+                                          ? "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                          : "bg-gray-50 text-gray-600 hover:bg-gray-100"
+                                      }`}
+                                    >
+                                      <Icon name="calendar" size={12} className="inline mr-1" />
+                                      {isEventFavorite(event.id) ? "予定済み" : "予定に追加"}
+                                    </button>
+                                  </div>
                                 </div>
-                              )}
-
-                              {location.description && (
-                                <div className={styles.warnings}>
-                                  <h6 className={styles.warningsTitle}>
-                                    <Icon name="warning" size={14} />
-                                    注意事項
-                                  </h6>
-                                  <p>{location.description}</p>
-                                </div>
-                              )}
-                            </div>
+                              </div>
+                            ))}
                           </div>
                         )}
                       </div>

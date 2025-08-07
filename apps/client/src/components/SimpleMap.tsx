@@ -469,208 +469,66 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
   ]);
 
   return (
-    <div
-      style={{
-        backgroundColor: "white",
-        borderRadius: "8px",
-        overflow: "hidden",
-        boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-      }}
-    >
-      <div
-        style={{
-          padding: "0.75rem 1rem",
-          borderBottom: "1px solid #e5e7eb",
-          backgroundColor: "#f9fafb",
-        }}
-      >
-        <h3 style={{ margin: 0, fontSize: "1.125rem", fontWeight: "600" }}>
-          撮影地点
-        </h3>
+    <div className="bg-white rounded-lg overflow-hidden shadow-md">
+      <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+        <h3 className="m-0 text-lg font-semibold">撮影地点</h3>
       </div>
 
       <div
         ref={mapRef}
-        style={{
-          aspectRatio: "3 / 2",
-          width: "100%",
-        }}
+        className="w-full h-96"
       />
 
-      {selectedEvents && selectedEvents.length > 0 && (
-        <div
-          style={{
-            padding: "0.75rem",
-            backgroundColor: "#f9fafb",
-            borderTop: "1px solid #e5e7eb",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "1rem",
-              fontSize: "0.875rem",
-              flexWrap: "wrap",
-            }}
-          >
-            <div
-              style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}
-            >
-              <div
-                style={{
-                  width: "12px",
-                  height: "2px",
-                  backgroundColor: "#ef4444",
-                  border: "1px dashed #ef4444",
-                  borderStyle: "dashed",
-                }}
-              ></div>
+      <div className="px-3 py-2 bg-gray-50 border-t border-gray-200">
+          <div className="flex items-center gap-4 text-sm flex-wrap">
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-0.5 bg-red-500 border-t border-b border-dashed border-red-500"></div>
               <span>撮影地点→富士山</span>
             </div>
-            <div
-              style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}
-            >
-              <div
-                style={{
-                  width: "12px",
-                  height: "2px",
-                  backgroundColor: "#fbbf24",
-                  border: "1px dashed #fbbf24",
-                  borderStyle: "dashed",
-                }}
-              ></div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-0.5 bg-yellow-400 border-t border-b border-dashed border-yellow-400"></div>
               <span>撮影地点→太陽</span>
             </div>
-            <div
-              style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}
-            >
-              <div
-                style={{
-                  width: "12px",
-                  height: "2px",
-                  backgroundColor: "#a855f7",
-                  border: "1px dashed #a855f7",
-                  borderStyle: "dashed",
-                }}
-              ></div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-0.5 bg-purple-400 border-t border-b border-dashed border-purple-400"></div>
               <span>撮影地点→月</span>
             </div>
-            <div
-              style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}
-            >
-              <div
-                style={{
-                  width: "12px",
-                  height: "12px",
-                  backgroundColor: "#dc2626",
-                  borderRadius: "50%",
-                }}
-              ></div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 bg-red-600 rounded-full"></div>
               <span>〜50km</span>
             </div>
-            <div
-              style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}
-            >
-              <div
-                style={{
-                  width: "12px",
-                  height: "12px",
-                  backgroundColor: "#ea580c",
-                  borderRadius: "50%",
-                }}
-              ></div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 bg-orange-600 rounded-full"></div>
               <span>〜100km</span>
             </div>
-            <div
-              style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}
-            >
-              <div
-                style={{
-                  width: "12px",
-                  height: "12px",
-                  backgroundColor: "#f59e0b",
-                  borderRadius: "50%",
-                }}
-              ></div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
               <span>〜200km</span>
             </div>
-            <div
-              style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}
-            >
-              <div
-                style={{
-                  width: "12px",
-                  height: "12px",
-                  backgroundColor: "#3b82f6",
-                  borderRadius: "50%",
-                }}
-              ></div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
               <span>〜300km</span>
             </div>
-            <div
-              style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}
-            >
-              <div
-                style={{
-                  width: "12px",
-                  height: "12px",
-                  backgroundColor: "#6366f1",
-                  borderRadius: "50%",
-                }}
-              ></div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 bg-indigo-500 rounded-full"></div>
               <span>300km〜</span>
             </div>
-            <div
-              style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}
-            >
-              <div
-                style={{
-                  width: "12px",
-                  height: "12px",
-                  backgroundColor: "#6b7280",
-                  border: "2px solid #fcd34d",
-                  borderRadius: "50%",
-                }}
-              ></div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 bg-gray-500 border-2 border-yellow-300 rounded-full"></div>
               <span>ダイヤモンド富士</span>
             </div>
-            <div
-              style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}
-            >
-              <div
-                style={{
-                  width: "12px",
-                  height: "12px",
-                  backgroundColor: "#6b7280",
-                  border: "2px solid #e5e7eb",
-                  borderRadius: "50%",
-                }}
-              ></div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 bg-gray-500 border-2 border-gray-200 rounded-full"></div>
               <span>パール富士</span>
             </div>
             {cameraSettings.showAngles && (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.25rem",
-                }}
-              >
-                <div
-                  style={{
-                    width: "12px",
-                    height: "12px",
-                    backgroundColor: "#3b82f6",
-                    opacity: 0.3,
-                  }}
-                ></div>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 bg-blue-500 opacity-30"></div>
                 <span>画角範囲 ({cameraSettings.focalLength}mm)</span>
               </div>
             )}
           </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 };

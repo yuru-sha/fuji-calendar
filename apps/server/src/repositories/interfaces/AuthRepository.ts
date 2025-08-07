@@ -27,4 +27,11 @@ export interface AuthRepository {
   ): Promise<void>;
   getFailedLoginAttempts(username: string, since: Date): Promise<number>;
   resetFailedLoginAttempts(username: string): Promise<void>;
+  
+  // アカウントロック機能
+  incrementFailedLoginCount(adminId: number): Promise<void>;
+  resetFailedLoginCount(adminId: number): Promise<void>;
+  lockAccount(adminId: number, lockDuration: number): Promise<void>; // lockDuration は分単位
+  isAccountLocked(adminId: number): Promise<boolean>;
+  updateLastLogin(adminId: number): Promise<void>;
 }

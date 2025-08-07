@@ -67,6 +67,8 @@ const CameraPanel: React.FC<CameraPanelProps> = ({
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flex: 1 }}>
           <button
             onClick={() => setIsExpanded(!isExpanded)}
+            aria-label={isExpanded ? "撮影設定を閉じる" : "撮影設定を開く"}
+            aria-expanded={isExpanded}
             style={{
               display: "flex",
               alignItems: "center",
@@ -82,14 +84,6 @@ const CameraPanel: React.FC<CameraPanelProps> = ({
           >
             <Icon name="camera" size={14} />
             撮影設定
-            <Icon 
-              name="chevronDown" 
-              size={12}
-              style={{
-                transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
-                transition: "transform 0.2s",
-              }}
-            />
           </button>
           
           {/* 設定情報 */}
@@ -122,65 +116,30 @@ const CameraPanel: React.FC<CameraPanelProps> = ({
         
         {/* 右側：ON/OFF トグル */}
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <span
+
+          <button
+            onClick={() => {
+              const newShowAngles = !cameraSettings.showAngles;
+              updateSettings({ showAngles: newShowAngles });
+              setIsExpanded(newShowAngles);
+            }}
+            aria-label="撮影角度表示の切り替え"
+            aria-pressed={cameraSettings.showAngles}
             style={{
+              padding: "0.25rem 0.5rem",
               fontSize: "0.65rem",
-              color: cameraSettings.showAngles ? "#1f2937" : "#9ca3af",
               fontWeight: "500",
+              border: "1px solid",
+              borderColor: cameraSettings.showAngles ? "#3b82f6" : "#d1d5db",
+              borderRadius: "4px",
+              backgroundColor: cameraSettings.showAngles ? "#3b82f6" : "white",
+              color: cameraSettings.showAngles ? "white" : "#374151",
+              cursor: "pointer",
+              transition: "all 0.2s",
             }}
           >
             {cameraSettings.showAngles ? "ON" : "OFF"}
-          </span>
-          <label
-            style={{
-              position: "relative",
-              display: "inline-block",
-              width: "32px",
-              height: "18px",
-              cursor: "pointer",
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={cameraSettings.showAngles}
-              onChange={(e) => updateSettings({ showAngles: e.target.checked })}
-              style={{
-                opacity: 0,
-                width: 0,
-                height: 0,
-              }}
-            />
-            <span
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundColor: cameraSettings.showAngles
-                  ? "#3b82f6"
-                  : "#d1d5db",
-                borderRadius: "9px",
-                transition: "background-color 0.2s",
-                cursor: "pointer",
-              }}
-            >
-              <span
-                style={{
-                  position: "absolute",
-                  content: "",
-                  height: "12px",
-                  width: "12px",
-                  left: cameraSettings.showAngles ? "17px" : "3px",
-                  top: "3px",
-                  backgroundColor: "white",
-                  borderRadius: "50%",
-                  transition: "left 0.2s",
-                  boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
-                }}
-              />
-            </span>
-          </label>
+          </button>
         </div>
       </div>
 
@@ -229,6 +188,7 @@ const CameraPanel: React.FC<CameraPanelProps> = ({
                   <button
                     key={focal}
                     onClick={() => updateSettings({ focalLength: focal })}
+                    aria-label={`焦点距離${focal}mm を選択`}
                     style={{
                       padding: "0.25rem 0.125rem",
                       fontSize: "0.65rem",
@@ -265,6 +225,7 @@ const CameraPanel: React.FC<CameraPanelProps> = ({
                   <button
                     key={focal}
                     onClick={() => updateSettings({ focalLength: focal })}
+                    aria-label={`焦点距離${focal}mm を選択`}
                     style={{
                       padding: "0.25rem 0.125rem",
                       fontSize: "0.65rem",
@@ -297,6 +258,7 @@ const CameraPanel: React.FC<CameraPanelProps> = ({
                   placeholder="50"
                   min="1"
                   max="2000"
+                  aria-label="焦点距離を直接入力"
                   style={{
                     width: "60px",
                     padding: "0.25rem",
@@ -335,6 +297,7 @@ const CameraPanel: React.FC<CameraPanelProps> = ({
               >
                 <button
                   onClick={() => updateSettings({ orientation: "landscape" })}
+                  aria-label="横向き撮影を選択"
                   style={{
                     padding: "0.375rem",
                     fontSize: "0.65rem",
@@ -362,6 +325,7 @@ const CameraPanel: React.FC<CameraPanelProps> = ({
                 </button>
                 <button
                   onClick={() => updateSettings({ orientation: "portrait" })}
+                  aria-label="縦向き撮影を選択"
                   style={{
                     padding: "0.375rem",
                     fontSize: "0.65rem",
@@ -438,6 +402,7 @@ const CameraPanel: React.FC<CameraPanelProps> = ({
                         sensorType: e.target.value as "fullframe" | "apsc" | "micro43",
                       })
                     }
+                    aria-label={`${sensor.label}センサーを選択`}
                     style={{
                       width: "12px",
                       height: "12px",

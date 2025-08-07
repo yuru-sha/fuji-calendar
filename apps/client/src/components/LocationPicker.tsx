@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import styles from "./LocationPicker.module.css";
 import { Icon } from "@fuji-calendar/ui";
 
 interface LocationPickerProps {
@@ -78,22 +77,25 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
   }, [initialLat, initialLng]);
 
   return (
-    <div className={styles.modalOverlay} onClick={onClose}>
-      <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-        <div className={styles.modalHeader}>
-          <h3>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1100]" onClick={onClose}>
+      <div className="bg-white rounded-xl w-[90%] max-w-[800px] h-[600px] flex flex-col shadow-[0_10px_40px_rgba(0,0,0,0.2)] md:w-[95%] md:h-[80vh] md:max-h-[600px]" onClick={(e) => e.stopPropagation()}>
+        <div className="flex justify-between items-center px-6 py-6 border-b border-gray-200 md:px-4 md:py-4">
+          <h3 className="m-0 text-xl text-gray-800 md:text-lg">
             <Icon name="mapPin" size={18} className="inline mr-2" />{" "}
             地図から座標を選択
           </h3>
-          <button className={styles.closeButton} onClick={onClose}>
+          <button 
+            className="bg-transparent border-none text-2xl text-gray-500 cursor-pointer p-0 w-8 h-8 flex items-center justify-center rounded transition-colors hover:bg-gray-100 hover:text-gray-800"
+            onClick={onClose}
+          >
             ✕
           </button>
         </div>
-        <div className={styles.instructions}>
+        <div className="px-6 py-4 bg-sky-50 text-sky-800 text-sm border-b border-gray-200 md:px-4 md:py-3 md:text-[0.8125rem]">
           地図上をクリックするか、マーカーをドラッグして場所を選択してください
         </div>
-        <div ref={mapContainerRef} className={styles.mapContainer} />
-        <div className={styles.coordinates}>
+        <div ref={mapContainerRef} className="flex-1 w-full relative" />
+        <div className="px-6 py-4 border-t border-gray-200 text-sm text-gray-500 text-center bg-gray-50 font-mono md:px-4 md:py-3">
           緯度: {initialLat.toFixed(6)}, 経度: {initialLng.toFixed(6)}
         </div>
       </div>

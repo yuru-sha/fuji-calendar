@@ -4,7 +4,6 @@ services:
     build:
       context: .
       dockerfile: docker/frontend/Dockerfile
-    container_name: fuji_calendar_frontend
     restart: unless-stopped
     ports:
       - "80:80"
@@ -26,7 +25,6 @@ services:
   # PostgreSQL
   postgres:
     image: postgres:15-alpine
-    container_name: fuji_calendar_postgres
     restart: unless-stopped
     ports:
       - "5432:5432"  # メンテナンス用外部アクセス対応
@@ -51,7 +49,6 @@ services:
   # Redis (キューシステム用・内部アクセスのみ)
   redis:
     image: redis:7-alpine
-    container_name: fuji_calendar_redis
     restart: unless-stopped
     expose:
       - "6379"  # 内部アクセスのみ（セキュリティ強化）
@@ -74,7 +71,6 @@ services:
       context: .
       dockerfile: docker/backend/Dockerfile
       target: api
-    container_name: fuji_calendar_backend
     restart: unless-stopped
     expose:
       - "${PORT:-3000}"
@@ -91,7 +87,7 @@ services:
       NODE_ENV: production
       PORT: ${PORT:-3000}
       # PostgreSQL 接続設定（Prisma 対応）
-      DATABASE_URL: postgresql://${DB_USER:-fuji_user}:${DB_PASSWORD:-FujiAdmin2025!}@postgres:5432/${DB_NAME:-fuji_calendar}
+      DATABASE_URL: postgresql://${DB_USER:-fuji_user}:${DB_PASSWORD:-password_change_me}@postgres:5432/${DB_NAME:-fuji_calendar}
       # Redis 設定
       REDIS_HOST: redis
       REDIS_PORT: 6379
@@ -132,7 +128,6 @@ services:
       context: .
       dockerfile: docker/backend/Dockerfile
       target: worker
-    container_name: fuji_calendar_worker
     restart: unless-stopped
     # Dockerfile でワーカー起動コマンドを指定済み
     # ワーカー用リソース制限（より少なく）
@@ -147,7 +142,7 @@ services:
     environment:
       NODE_ENV: production
       # PostgreSQL 接続設定（Prisma 対応）
-      DATABASE_URL: postgresql://${DB_USER:-fuji_user}:${DB_PASSWORD:-FujiAdmin2025!}@postgres:5432/${DB_NAME:-fuji_calendar}
+      DATABASE_URL: postgresql://${DB_USER:-fuji_user}:${DB_PASSWORD:-password_change_me}@postgres:5432/${DB_NAME:-fuji_calendar}
       # Redis 設定
       REDIS_HOST: redis
       REDIS_PORT: 6379

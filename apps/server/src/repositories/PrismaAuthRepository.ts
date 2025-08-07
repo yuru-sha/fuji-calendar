@@ -72,35 +72,104 @@ export class PrismaAuthRepository implements AuthRepository {
 
   async saveRefreshToken(
     adminId: number,
-    _refreshToken: string,
-    _expiresAt: Date,
+    refreshToken: string,
+    expiresAt: Date,
   ): Promise<void> {
-    // Refresh token 機能は未実装（JWT のみ使用）
-    logger.debug("リフレッシュトークン機能は未実装", { adminId });
+    try {
+      await this.prisma.refreshToken.create({
+        data: {
+          token: refreshToken,
+          adminId,
+          expiresAt,
+        },
+      });
+      logger.info("リフレッシュトークン保存完了", { adminId });
+    } catch (error) {
+      logger.error("リフレッシュトークン保存エラー", { adminId, error });
+      throw error;
+    }
   }
 
   async findValidRefreshToken(
-    _token: string,
+    token: string,
   ): Promise<{ adminId: number; expiresAt: Date } | null> {
-    // Refresh token 機能は未実装（JWT のみ使用）
-    logger.debug("リフレッシュトークン機能は未実装");
-    return null;
+    try {
+      const refreshToken = await this.prisma.refreshToken.findUnique({
+        where: { 
+          token,
+        },
+        select: {
+          adminId: true,
+          expiresAt: true,
+          isRevoked: true,
+        },
+      });
+
+      if (!refreshToken || refreshToken.isRevoked || refreshToken.expiresAt < new Date()) {
+        return null;
+      }
+
+      return {
+        adminId: refreshToken.adminId,
+        expiresAt: refreshToken.expiresAt,
+      };
+    } catch (error) {
+      logger.error("リフレッシュトークン検索エラー", { error });
+      throw error;
+    }
   }
 
-  async revokeRefreshToken(_token: string): Promise<void> {
-    // Refresh token 機能は未実装（JWT のみ使用）
-    logger.debug("リフレッシュトークン機能は未実装");
+  async revokeRefreshToken(token: string): Promise<void> {
+    try {
+      await this.prisma.refreshToken.update({
+        where: { token },
+        data: { isRevoked: true },
+      });
+      logger.info("リフレッシュトークン無効化完了");
+    } catch (error) {
+      logger.error("リフレッシュトークン無効化エラー", { error });
+      throw error;
+    }
   }
 
   async revokeAllRefreshTokens(adminId: number): Promise<void> {
-    // Refresh token 機能は未実装（JWT のみ使用）
-    logger.debug("リフレッシュトークン機能は未実装", { adminId });
+    try {
+      await this.prisma.refreshToken.updateMany({
+        where: { 
+          adminId,
+          isRevoked: false,
+        },
+        data: { isRevoked: true },
+      });
+      logger.info("全リフレッシュトークン無効化完了", { adminId });
+    } catch (error) {
+      logger.error("全リフレッシュトークン無効化エラー", { adminId, error });
+      throw error;
+    }
   }
 
   async cleanupExpiredTokens(): Promise<number> {
-    // Refresh token 機能は未実装（JWT のみ使用）
-    logger.debug("リフレッシュトークン機能は未実装");
-    return 0;
+    try {
+      const result = await this.prisma.refreshToken.deleteMany({
+        where: {
+          OR: [
+            { expiresAt: { lt: new Date() } },
+            { isRevoked: true },
+          ],
+        },
+      });
+      
+      if (result.count > 0) {
+        logger.info("期限切れ・無効化済みトークンクリーンアップ完了", { 
+          deletedCount: result.count 
+        });
+      }
+      
+      return result.count;
+    } catch (error) {
+      logger.error("トークンクリーンアップエラー", { error });
+      throw error;
+    }
   }
 
   async recordLoginAttempt(
@@ -143,6 +212,96 @@ export class PrismaAuthRepository implements AuthRepository {
     } catch (error) {
       logger.error("失敗ログイン試行回数リセットエラー", { username, error });
       // この機能は補助的なものなので、エラーでも処理を継続
+    }
+  }
+
+  async incrementFailedLoginCount(adminId: number): Promise<void> {
+    try {
+      await this.prisma.admin.update({
+        where: { id: adminId },
+        data: { 
+          failedLoginCount: { increment: 1 } 
+        },
+      });
+      logger.info("失敗ログイン回数増加", { adminId });
+    } catch (error) {
+      logger.error("失敗ログイン回数増加エラー", { adminId, error });
+      throw error;
+    }
+  }
+
+  async resetFailedLoginCount(adminId: number): Promise<void> {
+    try {
+      await this.prisma.admin.update({
+        where: { id: adminId },
+        data: { 
+          failedLoginCount: 0,
+          lockedUntil: null 
+        },
+      });
+      logger.info("失敗ログイン回数リセット", { adminId });
+    } catch (error) {
+      logger.error("失敗ログイン回数リセットエラー", { adminId, error });
+      throw error;
+    }
+  }
+
+  async lockAccount(adminId: number, lockDurationMinutes: number): Promise<void> {
+    try {
+      const lockedUntil = new Date(Date.now() + lockDurationMinutes * 60 * 1000);
+      await this.prisma.admin.update({
+        where: { id: adminId },
+        data: { lockedUntil },
+      });
+      logger.warn("アカウントロック実行", { 
+        adminId, 
+        lockDurationMinutes,
+        lockedUntil: lockedUntil.toISOString() 
+      });
+    } catch (error) {
+      logger.error("アカウントロックエラー", { adminId, error });
+      throw error;
+    }
+  }
+
+  async isAccountLocked(adminId: number): Promise<boolean> {
+    try {
+      const admin = await this.prisma.admin.findUnique({
+        where: { id: adminId },
+        select: { lockedUntil: true },
+      });
+
+      if (!admin || !admin.lockedUntil) {
+        return false;
+      }
+
+      const isLocked = admin.lockedUntil > new Date();
+      
+      if (!isLocked) {
+        // ロック期間が過ぎていたら自動的にクリア
+        await this.prisma.admin.update({
+          where: { id: adminId },
+          data: { lockedUntil: null },
+        });
+      }
+      
+      return isLocked;
+    } catch (error) {
+      logger.error("アカウントロック状態確認エラー", { adminId, error });
+      return false; // エラー時は安全側に倒してロック状態とみなさない
+    }
+  }
+
+  async updateLastLogin(adminId: number): Promise<void> {
+    try {
+      await this.prisma.admin.update({
+        where: { id: adminId },
+        data: { lastLoginAt: new Date() },
+      });
+      logger.info("最終ログイン時刻更新", { adminId });
+    } catch (error) {
+      logger.error("最終ログイン時刻更新エラー", { adminId, error });
+      throw error;
     }
   }
 }

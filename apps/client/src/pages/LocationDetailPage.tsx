@@ -5,7 +5,6 @@ import { apiClient } from "../services/apiClient";
 import { timeUtils } from "@fuji-calendar/utils";
 import { useFavorites } from "../hooks/useFavorites";
 import SimpleMap from "../components/SimpleMap";
-import styles from "./LocationDetailPage.module.css";
 import { Icon } from "@fuji-calendar/ui";
 
 const LocationDetailPage: React.FC = () => {
@@ -158,8 +157,8 @@ const LocationDetailPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className={styles.loading}>
-        <div className={styles.spinner}></div>
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
         <p>読み込み中...</p>
       </div>
     );
@@ -167,10 +166,10 @@ const LocationDetailPage: React.FC = () => {
 
   if (error || !location) {
     return (
-      <div className={styles.error}>
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center text-red-600">
         <h2>エラー</h2>
         <p>{error || "地点情報が見つかりませんでした"}</p>
-        <Link to="/favorites" className={styles.backButton}>
+        <Link to="/favorites" className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
           お気に入りに戻る
         </Link>
       </div>
@@ -178,33 +177,33 @@ const LocationDetailPage: React.FC = () => {
   }
 
   return (
-    <div className={styles.locationDetailPage}>
+    <div className="min-h-screen bg-gray-50 py-8">
       <div className="content-wide">
         {/* ヘッダー */}
-        <div className={styles.header}>
-          <div className={styles.breadcrumb}>
-            <Link to="/" className={styles.breadcrumbLink}>
+        <div className="mb-8">
+          <div className="flex items-center text-sm text-gray-600 mb-4">
+            <Link to="/" className="hover:text-blue-600 transition-colors">
               ホーム
             </Link>
-            <span className={styles.breadcrumbSeparator}>›</span>
-            <Link to="/favorites" className={styles.breadcrumbLink}>
+            <span className="mx-2 text-gray-400">›</span>
+            <Link to="/favorites" className="hover:text-blue-600 transition-colors">
               お気に入り
             </Link>
-            <span className={styles.breadcrumbSeparator}>›</span>
-            <span className={styles.breadcrumbCurrent}>地点詳細</span>
+            <span className="mx-2 text-gray-400">›</span>
+            <span className="font-medium text-gray-900">地点詳細</span>
           </div>
 
-          <div className={styles.titleSection}>
-            <h1 className={styles.title}>
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center">
               <Icon name="mapPin" size={20} className="inline mr-2" />{" "}
               {location.name}
             </h1>
-            <div className={styles.subtitle}>{location.prefecture}</div>
+            <div className="text-lg text-gray-600">{location.prefecture}</div>
           </div>
 
-          <div className={styles.headerActions}>
+          <div className="flex gap-3 flex-wrap">
             <button
-              className={`${styles.favoriteButton} ${isLocationFavorite(location.id) ? styles.favorited : styles.unfavorited}`}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center ${isLocationFavorite(location.id) ? 'bg-yellow-100 text-yellow-800 border border-yellow-300' : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'}`}
               onClick={() => toggleLocationFavorite(location)}
             >
               {isLocationFavorite(location.id) ? (
@@ -220,61 +219,61 @@ const LocationDetailPage: React.FC = () => {
               )}
             </button>
             <button
-              className={styles.googleMapsButton}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center"
               onClick={handleGoogleMapsClick}
             >
-              <Icon name="route" size={16} className="inline mr-1" /> ルート検索
+              <Icon name="route" size={16} className="inline mr-1" /> 経路案内
             </button>
           </div>
         </div>
 
         {/* 2 カラムレイアウト */}
-        <div className={styles.content}>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* 左カラム: 地点情報 */}
-          <div className={styles.leftColumn}>
+          <div className="lg:col-span-2 space-y-6">
             {/* 基本情報 */}
-            <div className={styles.infoCard}>
-              <h2 className={styles.cardTitle}>
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
                 <Icon name="barChart" size={18} className="inline mr-2" />{" "}
                 基本情報
               </h2>
-              <div className={styles.infoGrid}>
-                <div className={styles.infoItem}>
-                  <span className={styles.infoLabel}>所在地:</span>
-                  <span className={styles.infoValue}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
+                  <span className="text-sm font-medium text-gray-600">所在地:</span>
+                  <span className="text-sm font-semibold text-gray-900">
                     {location.prefecture}
                   </span>
                 </div>
-                <div className={styles.infoItem}>
-                  <span className={styles.infoLabel}>緯度:</span>
-                  <span className={styles.infoValue}>
+                <div className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
+                  <span className="text-sm font-medium text-gray-600">緯度:</span>
+                  <span className="text-sm font-semibold text-gray-900">
                     {location.latitude.toFixed(6)}°
                   </span>
                 </div>
-                <div className={styles.infoItem}>
-                  <span className={styles.infoLabel}>経度:</span>
-                  <span className={styles.infoValue}>
+                <div className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
+                  <span className="text-sm font-medium text-gray-600">経度:</span>
+                  <span className="text-sm font-semibold text-gray-900">
                     {location.longitude.toFixed(6)}°
                   </span>
                 </div>
-                <div className={styles.infoItem}>
-                  <span className={styles.infoLabel}>標高:</span>
-                  <span className={styles.infoValue}>
+                <div className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
+                  <span className="text-sm font-medium text-gray-600">標高:</span>
+                  <span className="text-sm font-semibold text-gray-900">
                     約{location.elevation.toFixed(1)}m
                   </span>
                 </div>
                 {location.fujiDistance && (
-                  <div className={styles.infoItem}>
-                    <span className={styles.infoLabel}>富士山まで:</span>
-                    <span className={styles.infoValue}>
+                  <div className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
+                    <span className="text-sm font-medium text-gray-600">富士山まで:</span>
+                    <span className="text-sm font-semibold text-gray-900">
                       約{(location.fujiDistance / 1000).toFixed(1)}km
                     </span>
                   </div>
                 )}
                 {location.fujiAzimuth !== undefined && (
-                  <div className={styles.infoItem}>
-                    <span className={styles.infoLabel}>富士山の方角:</span>
-                    <span className={styles.infoValue}>
+                  <div className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
+                    <span className="text-sm font-medium text-gray-600">富士山の方角:</span>
+                    <span className="text-sm font-semibold text-gray-900">
                       {location.fujiAzimuth
                         ? `${getCompassDirection(location.fujiAzimuth)}（${Math.round(location.fujiAzimuth)}°）`
                         : "計算中"}
@@ -288,15 +287,15 @@ const LocationDetailPage: React.FC = () => {
             {(location.accessInfo ||
               location.parkingInfo ||
               location.description) && (
-              <div className={styles.infoCard}>
-                <h2 className={styles.cardTitle}>
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
                   <Icon name="info" size={18} className="inline mr-2" />{" "}
                   アクセス・注意事項
                 </h2>
 
                 {location.accessInfo && (
-                  <div className={styles.accessInfo}>
-                    <h3 className={styles.accessTitle}>
+                  <div className="mb-4">
+                    <h3 className="text-base font-medium text-gray-900 mb-2 flex items-center">
                       <Icon
                         name="navigation"
                         size={16}
@@ -309,8 +308,8 @@ const LocationDetailPage: React.FC = () => {
                 )}
 
                 {location.parkingInfo && (
-                  <div className={styles.parkingInfo}>
-                    <h3 className={styles.parkingTitle}>
+                  <div className="mb-4">
+                    <h3 className="text-base font-medium text-gray-900 mb-2 flex items-center">
                       <Icon name="parking" size={16} className="inline mr-1" />{" "}
                       駐車場情報
                     </h3>
@@ -319,8 +318,8 @@ const LocationDetailPage: React.FC = () => {
                 )}
 
                 {location.description && (
-                  <div className={styles.warnings}>
-                    <h3 className={styles.warningsTitle}>
+                  <div className="mb-4">
+                    <h3 className="text-base font-medium text-gray-900 mb-2 flex items-center">
                       <Icon name="warning" size={16} className="inline mr-1" />{" "}
                       注意事項
                     </h3>
@@ -331,24 +330,24 @@ const LocationDetailPage: React.FC = () => {
             )}
 
             {/* 今後のイベント */}
-            <div className={styles.infoCard}>
-              <h2 className={styles.cardTitle}>
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
                 <Icon name="calendar" size={18} className="inline mr-2" />{" "}
                 今後の撮影チャンス
               </h2>
 
               {upcomingEvents.length === 0 ? (
-                <div className={styles.noEvents}>
+                <div className="text-center py-8 text-gray-500">
                   <p>
                     今後 3
                     ヶ月間に撮影可能なダイヤモンド富士・パール富士はありません。
                   </p>
                 </div>
               ) : (
-                <div className={styles.eventsList}>
+                <div className="space-y-4">
                   {upcomingEvents.map((event, index) => (
-                    <div key={event.id || index} className={styles.eventItem}>
-                      <div className={styles.eventIcon}>
+                    <div key={event.id || index} className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg">
+                      <div className="flex items-center justify-center w-12 h-12 rounded-full bg-white shadow-sm">
                         <Icon
                           name={event.type === "diamond" ? "sun" : "moon"}
                           size={32}
@@ -360,8 +359,8 @@ const LocationDetailPage: React.FC = () => {
                         />
                       </div>
 
-                      <div className={styles.eventInfo}>
-                        <div className={styles.eventTitle}>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-lg font-semibold text-gray-900 mb-1">
                           {event.type === "diamond"
                             ? "ダイヤモンド富士"
                             : "パール富士"}
@@ -370,20 +369,20 @@ const LocationDetailPage: React.FC = () => {
                             ? " (日の出)"
                             : " (日の入り)"}
                         </div>
-                        <div className={styles.eventDate}>
+                        <div className="text-sm text-gray-600 mb-1">
                           {formatEventDate(event.time)}{" "}
                           {formatEventTime(event.time)}
                         </div>
                         {event.elevation !== undefined && (
-                          <div className={styles.eventDetail}>
+                          <div className="text-sm text-gray-500">
                             高度: {Math.round(event.elevation)}°
                           </div>
                         )}
                       </div>
 
-                      <div className={styles.eventActions}>
+                      <div className="flex flex-col gap-2 flex-shrink-0">
                         <button
-                          className={`${styles.scheduleButton} ${isEventFavorite(event.id) ? styles.scheduled : styles.unscheduled}`}
+                          className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors flex items-center ${isEventFavorite(event.id) ? 'bg-green-100 text-green-800 border border-green-300' : 'bg-blue-100 text-blue-800 border border-blue-300 hover:bg-blue-200'}`}
                           onClick={() => toggleEventFavorite(event)}
                         >
                           {isEventFavorite(event.id) ? (
@@ -407,7 +406,7 @@ const LocationDetailPage: React.FC = () => {
                           )}
                         </button>
                         <button
-                          className={styles.detailButton}
+                          className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                           onClick={() => handleViewEventDetail(event)}
                         >
                           詳細を見る
@@ -421,12 +420,12 @@ const LocationDetailPage: React.FC = () => {
           </div>
 
           {/* 右カラム: 地図 */}
-          <div className={styles.rightColumn}>
-            <div className={styles.mapCard}>
-              <h2 className={styles.cardTitle}>
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
                 <Icon name="map" size={18} className="inline mr-2" /> 位置情報
               </h2>
-              <div className={styles.mapContainer}>
+              <div className="w-full">
                 <SimpleMap
                   locations={[location]}
                   selectedEvents={upcomingEvents}

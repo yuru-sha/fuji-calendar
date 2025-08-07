@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**バージョン 0.3.0** - モノレポ構成・高性能版
+**バージョン 0.5.0** - デザイン統一・セキュリティ強化版
 
 ダイヤモンド富士・パール富士カレンダーは、ダイヤモンド富士とパール富士の撮影に最適な日時と場所を表示する Web アプリケーションです。Astronomy Engine による高精度天体計算と現代的なモノレポアーキテクチャに基づいた高性能なプラットフォームを提供し、写真愛好家が効率的に撮影計画を立てられる情報を提供します。
 
@@ -28,8 +28,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 #### フロントエンド (@fuji-calendar/client)
 - React 18 + TypeScript (strict mode)
-- Tailwind CSS v3.4.17 (utility-first styling)
-- CSS Modules (component-specific styles)
+- Tailwind CSS v3.4.17 (utility-first styling) - CSS Modules から完全移行
+- Unified Design System (skytree-photo-planner パターン統一)
 - Leaflet (地図表示・ルート描画)
 - Vite (高速ビルドツール)
 - LocalStorage API (お気に入り機能)
@@ -41,7 +41,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Astronomy Engine (高精度天体計算)
 - Pino (構造化ログ・ 5-10 倍パフォーマンス向上)
 - bcrypt (パスワードハッシュ化)
-- JWT (Access + Refresh Token 認証)
+- JWT (Access + Refresh Token 認証) - 7 日間リフレッシュトークン対応
+- Enhanced Security (OWASP 準拠・アカウントロック・ロールベース認証)
 
 #### 共有パッケージ
 - **@fuji-calendar/types**: 共通型定義・インターフェース

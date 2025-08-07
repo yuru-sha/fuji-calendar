@@ -8,14 +8,41 @@ datasource db {
 }
 
 model Admin {
-  id           Int      @id @default(autoincrement())
-  username     String   @unique @db.VarChar(100)
-  email        String   @unique @db.VarChar(255)
-  passwordHash String   @map("password_hash") @db.VarChar(255)
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id               Int            @id @default(autoincrement())
+  username         String         @unique @db.VarChar(50)
+  email            String         @unique @db.VarChar(100)
+  passwordHash     String         @map("password_hash") @db.VarChar(255)
+  role             AdminRole      @default(admin)
+  failedLoginCount Int            @default(0) @map("failed_login_count")
+  lockedUntil      DateTime?      @map("locked_until") @db.Timestamptz(6)
+  lastLoginAt      DateTime?      @map("last_login_at") @db.Timestamptz(6)
+  isActive         Boolean        @default(true) @map("is_active")
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  refreshTokens    RefreshToken[]
 
+  @@index([username])
+  @@index([email])
+  @@index([isActive])
   @@map("admins")
+}
+
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique @db.VarChar(1000)
+  adminId   Int      @map("admin_id")
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  isRevoked Boolean  @default(false) @map("is_revoked")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  admin Admin @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([adminId])
+  @@index([expiresAt])
+  @@index([isRevoked])
+  @@map("refresh_tokens")
 }
 
 model Location {
@@ -65,6 +92,11 @@ model LocationEvent {
   @@index([eventType, eventDate], map: "idx_event_type_date")
   @@index([qualityScore(sort: Desc)], map: "idx_quality_score")
   @@map("location_events")
+}
+
+enum AdminRole {
+  admin
+  super
 }
 
 enum EventType {

@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useFavorites } from "../hooks/useFavorites";
 import { timeUtils } from "@fuji-calendar/utils";
-import styles from "./FavoritesPage.module.css";
 import { Icon } from "@fuji-calendar/ui";
 
 const FavoritesPage: React.FC = () => {
@@ -149,291 +148,355 @@ const FavoritesPage: React.FC = () => {
     navigate(`/location/${location.id}`);
   };
 
+  const handleGoogleMapsClick = (lat: number, lng: number) => {
+    const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+    window.open(googleMapsUrl, "_blank");
+  };
+
   return (
-    <div className={styles.favoritesPage}>
-      <div className="content-wide">
-        {/* ヘッダー */}
-        <div className={styles.header}>
-          <h1 className={styles.title}>お気に入り管理</h1>
-          <div className={styles.stats}>
-            <div className={styles.statItem}>
-              <span className={styles.statNumber}>{stats.totalLocations}</span>
-              <span className={styles.statLabel}>地点</span>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto p-8">
+        {/* ヘッダーカード */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+          <div className="flex justify-between items-start mb-6">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 mb-2 flex items-center">
+                <Icon name="star" size={24} className="mr-3 text-yellow-500" />
+                お気に入り管理
+              </h1>
+              <p className="text-gray-600">保存済みの撮影地点とイベントを管理します</p>
             </div>
-            <div className={styles.statItem}>
-              <span className={styles.statNumber}>{stats.upcomingEvents}</span>
-              <span className={styles.statLabel}>今後のイベント</span>
+            
+            {/* 統計情報 */}
+            <div className="flex gap-6">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600">{stats.totalLocations}</div>
+                <div className="text-sm text-gray-500">保存地点</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600">{stats.upcomingEvents}</div>
+                <div className="text-sm text-gray-500">今後のイベント</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-gray-600">{stats.pastEvents}</div>
+                <div className="text-sm text-gray-500">過去のイベント</div>
+              </div>
             </div>
-            <div className={styles.statItem}>
-              <span className={styles.statNumber}>{stats.pastEvents}</span>
-              <span className={styles.statLabel}>過去のイベント</span>
+          </div>
+
+          {/* タブとアクション */}
+          <div className="flex justify-between items-center border-t border-gray-200 pt-6">
+            <div className="flex gap-1">
+              <button
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  activeTab === "upcoming"
+                    ? "bg-blue-100 text-blue-700 border border-blue-200"
+                    : "text-gray-600 hover:text-gray-800 hover:bg-gray-100"
+                }`}
+                onClick={() => setActiveTab("upcoming")}
+              >
+                今後のイベント ({stats.upcomingEvents})
+              </button>
+              <button
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  activeTab === "past"
+                    ? "bg-blue-100 text-blue-700 border border-blue-200"
+                    : "text-gray-600 hover:text-gray-800 hover:bg-gray-100"
+                }`}
+                onClick={() => setActiveTab("past")}
+              >
+                過去のイベント ({stats.pastEvents})
+              </button>
+              <button
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  activeTab === "locations"
+                    ? "bg-blue-100 text-blue-700 border border-blue-200"
+                    : "text-gray-600 hover:text-gray-800 hover:bg-gray-100"
+                }`}
+                onClick={() => setActiveTab("locations")}
+              >
+                保存地点 ({stats.totalLocations})
+              </button>
+            </div>
+
+            <div className="flex gap-2">
+              <button 
+                className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
+                onClick={handleSelectAll}
+              >
+                全選択
+              </button>
+              <button 
+                className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
+                onClick={handleDeselectAll}
+              >
+                選択解除
+              </button>
+              <button
+                className="px-3 py-1.5 text-sm bg-red-600 text-white hover:bg-red-700 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleDeleteSelected}
+                disabled={selectedItems.size === 0}
+              >
+                <Icon name="trash" size={14} className="mr-1 inline" />
+                選択削除 ({selectedItems.size})
+              </button>
+              <button 
+                className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors border border-gray-200"
+                onClick={handleExport}
+              >
+                <Icon name="download" size={14} className="mr-1 inline" />
+                エクスポート
+              </button>
+              <button
+                className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors border border-gray-200"
+                onClick={() => setShowImportDialog(true)}
+              >
+                <Icon name="upload" size={14} className="mr-1 inline" />
+                インポート
+              </button>
+              <button
+                className="px-3 py-1.5 text-sm bg-red-600 text-white hover:bg-red-700 rounded-md transition-colors"
+                onClick={() => {
+                  if (
+                    confirm(
+                      "全てのお気に入りデータを削除します。この操作は取り消せません。本当に削除しますか？",
+                    )
+                  ) {
+                    clearAllFavorites();
+                  }
+                }}
+              >
+                <Icon name="trash" size={14} className="mr-1 inline" />
+                全削除
+              </button>
             </div>
           </div>
         </div>
 
-        {/* ツールバー */}
-        <div className={styles.toolbar}>
-          <div className={styles.tabContainer}>
-            <button
-              className={`${styles.tab} ${activeTab === "upcoming" ? styles.active : ""}`}
-              onClick={() => setActiveTab("upcoming")}
-            >
-              今後のイベント ({stats.upcomingEvents})
-            </button>
-            <button
-              className={`${styles.tab} ${activeTab === "past" ? styles.active : ""}`}
-              onClick={() => setActiveTab("past")}
-            >
-              過去のイベント ({stats.pastEvents})
-            </button>
-            <button
-              className={`${styles.tab} ${activeTab === "locations" ? styles.active : ""}`}
-              onClick={() => setActiveTab("locations")}
-            >
-              お気に入り地点 ({stats.totalLocations})
-            </button>
-          </div>
-
-          <div className={styles.actions}>
-            <button className={styles.actionButton} onClick={handleSelectAll}>
-              全選択
-            </button>
-            <button className={styles.actionButton} onClick={handleDeselectAll}>
-              選択解除
-            </button>
-            <button
-              className={`${styles.actionButton} ${styles.deleteButton}`}
-              onClick={handleDeleteSelected}
-              disabled={selectedItems.size === 0}
-            >
-              選択削除 ({selectedItems.size})
-            </button>
-            <button className={styles.actionButton} onClick={handleExport}>
-              エクスポート
-            </button>
-            <button
-              className={styles.actionButton}
-              onClick={() => setShowImportDialog(true)}
-            >
-              インポート
-            </button>
-            <button
-              className={`${styles.actionButton} ${styles.dangerButton}`}
-              onClick={() => {
-                if (
-                  confirm(
-                    "全てのお気に入りデータを削除しますか？この操作は取り消せません。",
-                  )
-                ) {
-                  clearAllFavorites();
-                }
-              }}
-            >
-              全削除
-            </button>
-          </div>
-        </div>
-
-        {/* コンテンツエリア */}
-        <div className={styles.content}>
+        {/* コンテンツカード */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
           {activeTab === "upcoming" && (
-            <div className={styles.eventsList}>
+            <div className="p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <Icon name="calendar" size={18} className="mr-2 text-blue-600" />
+                今後のイベント
+              </h2>
               {upcomingFavoriteEvents.length === 0 ? (
-                <div className={styles.emptyState}>
-                  <p>今後のお気に入りイベントはありません</p>
+                <div className="text-center py-12 text-gray-500">
+                  <Icon name="calendar" size={48} className="mx-auto mb-4 text-gray-300" />
+                  <p className="text-lg">今後のお気に入りイベントはありません</p>
+                  <p className="text-sm mt-2">ホームページから撮影イベントをお気に入りに追加してください</p>
                 </div>
               ) : (
-                upcomingFavoriteEvents.map((event) => (
-                  <div key={event.id} className={styles.eventItem}>
-                    <input
-                      type="checkbox"
-                      checked={selectedItems.has(`event-${event.id}`)}
-                      onChange={() => handleSelectItem(`event-${event.id}`)}
-                      className={styles.checkbox}
-                    />
-                    <div className={styles.eventIcon}>
-                      <Icon
-                        name={event.type === "diamond" ? "sun" : "moon"}
-                        size={32}
-                        className={
-                          event.type === "diamond"
-                            ? "text-orange-500"
-                            : "text-blue-500"
-                        }
-                      />
-                    </div>
-                    <div className={styles.eventInfo}>
-                      <div className={styles.eventTitle}>
-                        {event.type === "diamond"
-                          ? "ダイヤモンド富士"
-                          : "パール富士"}
-                        {event.subType === "sunrise" ||
-                        event.subType === "rising"
-                          ? " (日の出)"
-                          : " (日の入り)"}
+                <div className="space-y-4">
+                  {upcomingFavoriteEvents.map((event) => (
+                    <div key={event.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                      <div className="flex items-start gap-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedItems.has(`event-${event.id}`)}
+                          onChange={() => handleSelectItem(`event-${event.id}`)}
+                          className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        
+                        <div className="flex-shrink-0">
+                          <Icon
+                            name={event.type === "diamond" ? "sun" : "moon"}
+                            size={40}
+                            className={`${
+                              event.type === "diamond" ? "text-orange-500" : "text-blue-500"
+                            }`}
+                          />
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <h3 className="text-lg font-medium text-gray-900">
+                                {event.subType === "sunrise" || event.subType === "rising" ? "昇る" : "沈む"}
+                                {event.type === "diamond" ? "ダイヤモンド富士" : "パール富士"}
+                              </h3>
+                              <p className="text-sm text-gray-600 mt-1">
+                                {formatEventDate(event.time)} {formatEventTime(event.time)}
+                              </p>
+                              <p className="text-sm text-gray-600 mt-1 flex items-center">
+                                <Icon name="mapPin" size={14} className="mr-1" />
+                                {event.locationName}
+                              </p>
+                            </div>
+                            
+                            <div className="flex gap-2 ml-4">
+                              <button
+                                className="px-3 py-1.5 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-md transition-colors"
+                                onClick={() => handleViewEventDetail(event)}
+                              >
+                                <Icon name="eye" size={14} className="mr-1 inline" />
+                                詳細
+                              </button>
+                              <button
+                                className="px-3 py-1.5 text-sm bg-red-50 text-red-600 hover:bg-red-100 rounded-md transition-colors border border-red-200"
+                                onClick={() => removeEventFromFavorites(event.id)}
+                              >
+                                <Icon name="trash" size={14} className="mr-1 inline" />
+                                削除
+                              </button>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <div className={styles.eventDate}>
-                        {formatEventDate(event.time)}{" "}
-                        {formatEventTime(event.time)}
-                      </div>
-                      <div className={styles.eventLocation}>
-                        <Icon name="mapPin" size={14} className="inline mr-1" />{" "}
-                        {event.locationName}
-                      </div>
                     </div>
-                    <div className={styles.eventActions}>
-                      <button
-                        className={styles.viewDetailButton}
-                        onClick={() => handleViewEventDetail(event)}
-                        title="詳細を見る"
-                      >
-                        <Icon
-                          name="calendar"
-                          size={14}
-                          className="inline mr-1"
-                        />{" "}
-                        詳細を見る
-                      </button>
-                      <button
-                        className={styles.removeButton}
-                        onClick={() => removeEventFromFavorites(event.id)}
-                        title="削除"
-                      >
-                        削除
-                      </button>
-                    </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </div>
           )}
 
           {activeTab === "past" && (
-            <div className={styles.eventsList}>
+            <div className="p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <Icon name="calendar" size={18} className="mr-2 text-blue-600" />
+                過去のイベント
+              </h2>
               {pastEvents.length === 0 ? (
-                <div className={styles.emptyState}>
-                  <p>過去のお気に入りイベントはありません</p>
+                <div className="text-center py-12 text-gray-500">
+                  <Icon name="history" size={48} className="mx-auto mb-4 text-gray-300" />
+                  <p className="text-lg">過去のお気に入りイベントはありません</p>
                 </div>
               ) : (
-                pastEvents.map((event) => (
-                  <div key={event.id} className={styles.eventItem}>
-                    <input
-                      type="checkbox"
-                      checked={selectedItems.has(`event-${event.id}`)}
-                      onChange={() => handleSelectItem(`event-${event.id}`)}
-                      className={styles.checkbox}
-                    />
-                    <div className={styles.eventIcon}>
-                      <Icon
-                        name={event.type === "diamond" ? "sun" : "moon"}
-                        size={32}
-                        className={
-                          event.type === "diamond"
-                            ? "text-orange-500"
-                            : "text-blue-500"
-                        }
-                      />
-                    </div>
-                    <div className={styles.eventInfo}>
-                      <div className={styles.eventTitle}>
-                        {event.type === "diamond"
-                          ? "ダイヤモンド富士"
-                          : "パール富士"}
-                        {event.subType === "sunrise" ||
-                        event.subType === "rising"
-                          ? " (日の出)"
-                          : " (日の入り)"}
+                <div className="space-y-4">
+                  {pastEvents.map((event) => (
+                    <div key={event.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                      <div className="flex items-start gap-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedItems.has(`event-${event.id}`)}
+                          onChange={() => handleSelectItem(`event-${event.id}`)}
+                          className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        
+                        <div className="flex-shrink-0">
+                          <Icon
+                            name={event.type === "diamond" ? "sun" : "moon"}
+                            size={40}
+                            className={`${
+                              event.type === "diamond" ? "text-orange-500" : "text-blue-500"
+                            }`}
+                          />
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <h3 className="text-lg font-medium text-gray-900">
+                                {event.subType === "sunrise" || event.subType === "rising" ? "昇る" : "沈む"}
+                                {event.type === "diamond" ? "ダイヤモンド富士" : "パール富士"}
+                              </h3>
+                              <p className="text-sm text-gray-600 mt-1">
+                                {formatEventDate(event.time)} {formatEventTime(event.time)}
+                              </p>
+                              <p className="text-sm text-gray-600 mt-1 flex items-center">
+                                <Icon name="mapPin" size={14} className="mr-1" />
+                                {event.locationName}
+                              </p>
+                            </div>
+                            
+                            <div className="flex gap-2 ml-4">
+                              <button
+                                className="px-3 py-1.5 text-sm bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-md transition-colors"
+                                onClick={() => handleViewEventDetail(event)}
+                              >
+                                <Icon name="eye" size={14} className="mr-1 inline" />
+                                詳細
+                              </button>
+                              <button
+                                className="px-3 py-1.5 text-sm bg-red-50 text-red-600 hover:bg-red-100 rounded-md transition-colors border border-red-200"
+                                onClick={() => removeEventFromFavorites(event.id)}
+                              >
+                                <Icon name="trash" size={14} className="mr-1 inline" />
+                                削除
+                              </button>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <div className={styles.eventDate}>
-                        {formatEventDate(event.time)}{" "}
-                        {formatEventTime(event.time)}
-                      </div>
-                      <div className={styles.eventLocation}>
-                        <Icon name="mapPin" size={14} className="inline mr-1" />{" "}
-                        {event.locationName}
-                      </div>
                     </div>
-                    <div className={styles.eventActions}>
-                      <button
-                        className={styles.viewDetailButton}
-                        onClick={() => handleViewEventDetail(event)}
-                        title="詳細を見る"
-                      >
-                        <Icon
-                          name="calendar"
-                          size={14}
-                          className="inline mr-1"
-                        />{" "}
-                        詳細を見る
-                      </button>
-                      <button
-                        className={styles.removeButton}
-                        onClick={() => removeEventFromFavorites(event.id)}
-                        title="削除"
-                      >
-                        削除
-                      </button>
-                    </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </div>
           )}
 
           {activeTab === "locations" && (
-            <div className={styles.locationsList}>
+            <div className="p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <Icon name="mapPin" size={18} className="mr-2 text-green-600" />
+                保存地点
+              </h2>
               {favoriteLocations.length === 0 ? (
-                <div className={styles.emptyState}>
-                  <p>お気に入り地点はありません</p>
+                <div className="text-center py-12 text-gray-500">
+                  <Icon name="mapPin" size={48} className="mx-auto mb-4 text-gray-300" />
+                  <p className="text-lg">お気に入り地点はありません</p>
+                  <p className="text-sm mt-2">地図から地点をお気に入りに追加してください</p>
                 </div>
               ) : (
-                favoriteLocations.map((location) => (
-                  <div key={location.id} className={styles.locationItem}>
-                    <input
-                      type="checkbox"
-                      checked={selectedItems.has(`location-${location.id}`)}
-                      onChange={() =>
-                        handleSelectItem(`location-${location.id}`)
-                      }
-                      className={styles.checkbox}
-                    />
-                    <div className={styles.locationInfo}>
-                      <div className={styles.locationName}>
-                        <Icon name="star" size={16} className="inline mr-1" />{" "}
-                        {location.name}
-                      </div>
-                      <div className={styles.locationPrefecture}>
-                        <Icon name="mapPin" size={14} className="inline mr-1" />{" "}
-                        {location.prefecture}
-                      </div>
-                      <div className={styles.locationCoords}>
-                        座標: {location.latitude.toFixed(4)},{" "}
-                        {location.longitude.toFixed(4)}
-                      </div>
-                      <div className={styles.locationAdded}>
-                        追加日:{" "}
-                        {new Date(location.addedAt).toLocaleDateString("ja-JP")}
+                <div className="space-y-4">
+                  {favoriteLocations.map((location) => (
+                    <div key={location.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                      <div className="flex items-start gap-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedItems.has(`location-${location.id}`)}
+                          onChange={() => handleSelectItem(`location-${location.id}`)}
+                          className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <h3 className="text-lg font-medium text-gray-900 flex items-center">
+                                <Icon name="mapPin" size={16} className="mr-2 text-black" />
+                                {location.name}
+                              </h3>
+                              <p className="text-sm text-gray-600 mt-1 flex items-center">
+                                {location.prefecture}
+                              </p>
+                              <p className="text-xs text-gray-500 font-mono mt-1">
+                                座標: {location.latitude.toFixed(6)}°, {location.longitude.toFixed(6)}°
+                              </p>
+                              <p className="text-xs text-gray-500 mt-1">
+                                追加日: {new Date(location.addedAt).toLocaleDateString("ja-JP")}
+                              </p>
+                            </div>
+                            
+                            <div className="flex gap-2 ml-4">
+                              <button
+                                className="px-3 py-1.5 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-md transition-colors"
+                                onClick={() => handleViewLocationDetail(location)}
+                              >
+                                <Icon name="eye" size={14} className="mr-1 inline" />
+                                詳細
+                              </button>
+                              <button
+                                className="px-3 py-1.5 text-sm bg-green-50 text-green-700 hover:bg-green-100 rounded-md transition-colors border border-green-200"
+                                onClick={() => handleGoogleMapsClick(location.latitude, location.longitude)}
+                              >
+                                <Icon name="route" size={14} className="mr-1 inline" />
+                                経路案内
+                              </button>
+                              <button
+                                className="px-3 py-1.5 text-sm bg-red-50 text-red-600 hover:bg-red-100 rounded-md transition-colors border border-red-200"
+                                onClick={() => removeLocationFromFavorites(location.id)}
+                              >
+                                <Icon name="trash" size={14} className="mr-1 inline" />
+                                削除
+                              </button>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                    <div className={styles.locationActions}>
-                      <button
-                        className={styles.viewDetailButton}
-                        onClick={() => handleViewLocationDetail(location)}
-                        title="詳細を見る"
-                      >
-                        <Icon name="map" size={14} className="inline mr-1" />{" "}
-                        詳細を見る
-                      </button>
-                      <button
-                        className={styles.removeButton}
-                        onClick={() => removeLocationFromFavorites(location.id)}
-                        title="削除"
-                      >
-                        削除
-                      </button>
-                    </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </div>
           )}
@@ -441,55 +504,56 @@ const FavoritesPage: React.FC = () => {
 
         {/* インポートダイアログ */}
         {showImportDialog && (
-          <div className={styles.modal}>
-            <div className={styles.modalContent}>
-              <div className={styles.modalHeader}>
-                <h3>お気に入りデータのインポート</h3>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg w-full max-w-2xl max-h-screen overflow-hidden">
+              <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900">データインポート</h3>
                 <button
-                  className={styles.closeButton}
                   onClick={() => setShowImportDialog(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
                 >
-                  ×
+                  <Icon name="x" size={20} />
                 </button>
               </div>
-              <div className={styles.modalBody}>
-                <div className={styles.importSection}>
-                  <label htmlFor="import-file" className={styles.label}>
-                    ファイルから読み込み:
+              
+              <div className="p-6 max-h-96 overflow-y-auto">
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    ファイルから読み込み
                   </label>
                   <input
-                    id="import-file"
                     type="file"
                     accept=".json"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                     onChange={handleFileImport}
-                    className={styles.fileInput}
                   />
                 </div>
-                <div className={styles.importSection}>
-                  <label htmlFor="import-text" className={styles.label}>
-                    または JSON データを直接入力:
+                
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    または直接貼り付け
                   </label>
                   <textarea
-                    id="import-text"
                     value={importData}
                     onChange={(e) => setImportData(e.target.value)}
-                    placeholder="JSON データをここに貼り付けてください..."
-                    className={styles.importTextarea}
+                    placeholder="JSON 形式のデータを貼り付けてください"
                     rows={10}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm resize-vertical"
                   />
                 </div>
               </div>
-              <div className={styles.modalFooter}>
+              
+              <div className="flex justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
                 <button
-                  className={styles.cancelButton}
                   onClick={() => setShowImportDialog(false)}
+                  className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
                 >
                   キャンセル
                 </button>
                 <button
-                  className={styles.importButton}
                   onClick={handleImport}
                   disabled={!importData.trim()}
+                  className="px-4 py-2 text-sm bg-green-600 text-white hover:bg-green-700 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   インポート
                 </button>

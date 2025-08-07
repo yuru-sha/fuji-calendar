@@ -2,11 +2,16 @@ import React, { useState, useEffect, useMemo } from "react";
 import { flushSync } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { Location } from "@fuji-calendar/types";
-import LocationPicker from "../components/LocationPicker";
 import { Icon } from "@fuji-calendar/ui";
 import { authService } from "../services/authService";
 import QueueManager from "../components/admin/QueueManager";
 import SystemSettingsManager from "../components/admin/SystemSettingsManager";
+import AdminLayout from "../components/admin/AdminLayout";
+import Dashboard from "../components/admin/Dashboard";
+import LocationManager from "../components/admin/LocationManager";
+import LocationFormModal from "../components/admin/LocationFormModal";
+import PasswordChangeModal from "../components/admin/PasswordChangeModal";
+import Placeholder from "../components/admin/Placeholder";
 
 // Types
 interface LocationFormData {
@@ -41,43 +46,6 @@ const initialFormData: LocationFormData = {
   measurementNotes: "",
 };
 
-// Sidebar Item Component
-interface SidebarItemProps {
-  icon: keyof typeof import("@fuji-calendar/ui").iconMap;
-  label: string;
-  subLabel?: string;
-  active?: boolean;
-  onClick?: () => void;
-}
-
-const SidebarItem: React.FC<SidebarItemProps> = ({
-  icon,
-  label,
-  subLabel,
-  active,
-  onClick,
-}) => (
-  <div className="px-2">
-    <button
-      onClick={onClick}
-      className={`w-full px-3 py-3 flex items-center space-x-3 text-left transition-all duration-200 rounded-lg ${
-        active
-          ? "bg-blue-50 text-blue-900 border border-blue-200"
-          : "hover:bg-gray-50 text-gray-700 border border-transparent"
-      }`}
-    >
-      <Icon
-        name={icon}
-        size={20}
-        className={active ? "text-blue-600" : "text-gray-400"}
-      />
-      <div className="flex-1">
-        <p className="text-sm font-medium">{label}</p>
-        {subLabel && <p className="text-xs text-gray-500">{subLabel}</p>}
-      </div>
-    </button>
-  </div>
-);
 
 // Main Admin Page Component
 const AdminPage: React.FC = () => {
@@ -99,9 +67,7 @@ const AdminPage: React.FC = () => {
   >("dashboard");
   const [queueStats, setQueueStats] = useState<any>(null);
 
-  const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [showLocationForm, setShowLocationForm] = useState(false);
-  const [showUserMenu, setShowUserMenu] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
@@ -163,32 +129,6 @@ const AdminPage: React.FC = () => {
     }
   }, [activeView]);
 
-  // Handle click outside of user menu
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        showUserMenu &&
-        !(event.target as HTMLElement).closest(".user-menu-container")
-      ) {
-        setShowUserMenu(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showUserMenu]);
-
-  // Handle logout
-  const handleLogout = async () => {
-    try {
-      await authService.logout();
-      navigate("/admin/login");
-    } catch (error) {
-      console.error("Logout error:", error);
-    }
-  };
 
   // Handle password change
   const handlePasswordChange = async () => {
@@ -395,10 +335,6 @@ const AdminPage: React.FC = () => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleLocationSelect = (lat: number, lng: number) => {
-    setFormData((prev) => ({ ...prev, latitude: lat, longitude: lng }));
-    setShowLocationPicker(false);
-  };
 
   const handleExportLocations = async () => {
     try {
@@ -544,635 +480,47 @@ const AdminPage: React.FC = () => {
     };
   }, [locations]);
 
-  // Filtered locations
-  const filteredLocations = useMemo(() => {
-    if (!Array.isArray(locations)) {
-      return [];
-    }
-    return locations.filter((location) => {
-      const matchesSearch = location.name
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
-      const matchesPrefecture =
-        !filterPrefecture || location.prefecture === filterPrefecture;
-      return matchesSearch && matchesPrefecture;
-    });
-  }, [locations, searchTerm, filterPrefecture]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-start justify-between">
-          <div className="pt-1 ml-52">
-            <h1 className="text-lg font-bold text-gray-900">管理画面</h1>
-          </div>
-          <div className="relative mr-64 user-menu-container">
-            <button
-              onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex items-center space-x-2 hover:bg-gray-50 rounded-lg px-3 py-2 transition-colors"
-            >
-              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                <Icon name="users" size={16} className="text-blue-600" />
-              </div>
-              <div className="text-left">
-                <div className="text-sm font-medium text-gray-900">admin</div>
-                <div className="text-xs text-gray-500">スーパー管理者</div>
-              </div>
-              <Icon
-                name="chevronDown"
-                size={16}
-                className="text-gray-400 ml-1"
-              />
-            </button>
-
-            {/* Dropdown Menu */}
-            {showUserMenu && (
-              <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
-                <div className="py-2">
-                  <div className="px-4 py-2 border-b border-gray-100">
-                    <p className="text-sm font-medium text-gray-900">admin</p>
-                    <p className="text-xs text-gray-500">スーパー管理者</p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setShowUserMenu(false);
-                      setShowPasswordModal(true);
-                    }}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
-                  >
-                    <Icon name="key" size={16} className="text-gray-400" />
-                    <span>パスワード変更</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowUserMenu(false);
-                      handleLogout();
-                    }}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
-                  >
-                    <Icon name="logout" size={16} className="text-gray-400" />
-                    <span>ログアウト</span>
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="flex">
-        {/* Sidebar */}
-        <div className="w-64 bg-white border-r border-gray-200 min-h-screen">
-          {/* Menu Header */}
-          <div className="px-4 py-3">
-            <p className="text-base font-semibold text-gray-600">
-              管理メニュー
-            </p>
-          </div>
-
-          {/* Navigation Items */}
-          <nav className="px-2 py-4 space-y-1">
-            <SidebarItem
-              icon="dashboard"
-              label="ダッシュボード"
-              subLabel="概要とシステム状況"
-              active={activeView === "dashboard"}
-              onClick={() => setActiveView("dashboard")}
-            />
-            <SidebarItem
-              icon="location"
-              label="撮影地点管理"
-              subLabel="地点の登録・編集・削除"
-              active={activeView === "locations"}
-              onClick={() => setActiveView("locations")}
-            />
-            <SidebarItem
-              icon="queue"
-              label="キュー管理"
-              subLabel="計算ジョブの監視"
-              active={activeView === "queue"}
-              onClick={() => setActiveView("queue")}
-            />
-
-            <SidebarItem
-              icon="calendar"
-              label="カレンダー確認"
-              subLabel="撮影候補の確認"
-              active={activeView === "events"}
-              onClick={() => setActiveView("events")}
-            />
-            <SidebarItem
-              icon="data"
-              label="データ管理"
-              subLabel="システムデータの管理"
-              active={activeView === "data"}
-              onClick={() => setActiveView("data")}
-            />
-            <SidebarItem
-              icon="users"
-              label="ユーザー管理"
-              subLabel="管理者アカウント管理"
-              active={activeView === "users"}
-              onClick={() => setActiveView("users")}
-            />
-            <SidebarItem
-              icon="settings"
-              label="システム設定"
-              subLabel="アプリケーション設定"
-              active={activeView === "settings"}
-              onClick={() => setActiveView("settings")}
-            />
-          </nav>
-        </div>
-
-        {/* Main Content */}
-        <div className="flex-1 p-8">
+    <AdminLayout 
+      activeView={activeView} 
+      onViewChange={setActiveView}
+    >
+      {/* Main Content */}
+      <div>
           {/* Dashboard View */}
           {activeView === "dashboard" && (
-            <div className="space-y-6">
-              {/* Header */}
-              <div className="pt-2">
-                <h1 className="text-2xl font-bold text-gray-900">
-                  ダッシュボード
-                </h1>
-                <p className="text-gray-600 mt-1">
-                  システム全体の状況を確認できます
-                </p>
-              </div>
-
-              {/* Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-white rounded-lg p-4 shadow-sm border">
-                  <div className="flex items-center">
-                    <div className="w-12 h-12 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-center mr-3">
-                      <Icon
-                        name="location"
-                        size={24}
-                        className="text-blue-600"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm text-gray-500">総撮影地点数</p>
-                      <p className="text-2xl font-bold text-gray-900">
-                        {stats.totalLocations}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        有効: 0 件, 制限: 0 件
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-lg p-4 shadow-sm border">
-                  <div className="flex items-center">
-                    <div className="w-12 h-12 bg-green-50 border border-green-200 rounded-lg flex items-center justify-center mr-3">
-                      <Icon name="queue" size={24} className="text-green-600" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm text-gray-500">計算キュー</p>
-                      <p className="text-2xl font-bold text-gray-900">
-                        {queueStats?.waiting || 0}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        処理中: {queueStats?.active || 0} 件, 完了:{" "}
-                        {queueStats?.completed || 0} 件
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-lg p-4 shadow-sm border">
-                  <div className="flex items-center">
-                    <div className="w-12 h-12 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center justify-center mr-3">
-                      <Icon
-                        name="clock"
-                        size={24}
-                        className="text-yellow-600"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm text-gray-500">イベントキュー</p>
-                      <p className="text-2xl font-bold text-gray-900">0</p>
-                      <p className="text-xs text-gray-500">
-                        待機: 0 件, 処理中: 0 件
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-lg p-4 shadow-sm border">
-                  <div className="flex items-center">
-                    <div className="w-12 h-12 bg-purple-50 border border-purple-200 rounded-lg flex items-center justify-center mr-3">
-                      <Icon
-                        name="users"
-                        size={24}
-                        className="text-purple-600"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm text-gray-500">管理者数</p>
-                      <p className="text-2xl font-bold text-gray-900">1</p>
-                      <p className="text-xs text-gray-500">
-                        スーパー管理者: 1 人
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* System Status Section */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Left Side - Queue System */}
-                <div>
-                  <div className="bg-white rounded-lg p-6 shadow-sm border">
-                    {/* タイトル */}
-                    <div className="flex items-center mb-6">
-                      <div className="w-8 h-8 flex items-center justify-center mr-3">
-                        <Icon
-                          name="server"
-                          size={20}
-                          className="text-blue-600"
-                        />
-                      </div>
-                      <h2 className="text-lg font-semibold text-gray-900">
-                        キューシステム状況
-                      </h2>
-                    </div>
-                    {/* 撮影計算キュー */}
-                    <div className="mb-6">
-                      <div className="flex justify-between items-center mb-3">
-                        <h3 className="text-sm font-medium text-gray-900">
-                          撮影計算キュー
-                        </h3>
-                        <div className="text-sm text-gray-500">
-                          {(queueStats?.waiting || 0) +
-                            (queueStats?.active || 0)}{" "}
-                          件 処理予定
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-4 gap-6">
-                        <div className="text-center">
-                          <div className="text-sm text-orange-600">
-                            {queueStats?.waiting || 0}
-                          </div>
-                          <div className="text-xs text-gray-500">待機</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-sm text-blue-600">
-                            {queueStats?.active || 0}
-                          </div>
-                          <div className="text-xs text-gray-500">処理中</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-sm text-green-600">
-                            {queueStats?.completed || 0}
-                          </div>
-                          <div className="text-xs text-gray-500">完了</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-sm text-red-600">
-                            {queueStats?.failed || 0}
-                          </div>
-                          <div className="text-xs text-gray-500">失敗</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* キュー詳細情報 */}
-                    <div>
-                      <div className="bg-gray-50 rounded-lg p-4">
-                        <h3 className="text-sm font-medium text-gray-900 mb-2">
-                          処理の種類
-                        </h3>
-                        <div className="space-y-1 text-xs text-gray-600">
-                          <p>
-                            • <strong>地点計算</strong>:
-                            各地点の年間ダイヤモンド富士・パール富士データ生成
-                          </p>
-                          <p>
-                            • <strong>月間計算</strong>:
-                            複数地点の月間イベント一括計算
-                          </p>
-                        </div>
-                        {queueStats?.enabled && (
-                          <div className="mt-3 pt-3 border-t border-gray-200">
-                            <div className="text-xs text-gray-500">
-                              Redis:{" "}
-                              <span className="text-green-600">接続中</span>
-                              {queueStats.failed > 0 && (
-                                <span className="ml-2 text-red-600">
-                                  失敗ジョブ {queueStats.failed} 件
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right Side - System Info */}
-                <div>
-                  <div className="bg-white rounded-lg shadow-sm border">
-                    <div className="p-6 space-y-4">
-                      {/* タイトル */}
-                      <div className="flex items-center mb-6">
-                        <div className="w-8 h-8 flex items-center justify-center mr-3">
-                          <Icon
-                            name="data"
-                            size={20}
-                            className="text-green-600"
-                          />
-                        </div>
-                        <h2 className="text-lg font-semibold text-gray-900">
-                          システム情報
-                        </h2>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">
-                          アプリケーション
-                        </span>
-                        <span className="text-sm text-gray-900 font-medium">
-                          Fuji Calendar v{import.meta.env.APP_VERSION}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">環境</span>
-                        <span className="text-sm text-gray-900">開発環境</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">
-                          認証システム
-                        </span>
-                        <div className="flex items-center space-x-1">
-                          <Icon
-                            name="checkCircle"
-                            size={14}
-                            className="text-green-600"
-                          />
-                          <span className="text-xs text-green-600">
-                            正常稼働
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">
-                          キューシステム
-                        </span>
-                        <div className="flex items-center space-x-1">
-                          <Icon
-                            name="checkCircle"
-                            size={14}
-                            className="text-green-600"
-                          />
-                          <span className="text-xs text-green-600">
-                            正常稼働
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="text-center pt-8">
-                <p className="text-xs text-gray-500">
-                  最終更新:{" "}
-                  {new Date()
-                    .toLocaleString("ja-JP", {
-                      year: "numeric",
-                      month: "2-digit",
-                      day: "2-digit",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      second: "2-digit",
-                      hour12: false,
-                    })
-                    .replace(
-                      /(\d{4})\/(\d{2})\/(\d{2}) (\d{2}):(\d{2}):(\d{2})/,
-                      "$1/$2/$3 $4:$5:$6",
-                    )}
-                </p>
-              </div>
-            </div>
+            <Dashboard stats={stats} queueStats={queueStats} />
           )}
 
           {/* Locations View */}
           {activeView === "locations" && (
-            <div className="space-y-6">
-              {/* Header with Add Button */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">
-                    撮影地点管理
-                  </h1>
-                  <p className="text-gray-600 mt-1">
-                    撮影地点の追加・編集・削除を行います。エクスポート/インポート機能では、ID がある地点は更新、ない地点は新規登録されます。
-                  </p>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <button
-                    onClick={handleExportLocations}
-                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center space-x-2"
-                  >
-                    <Icon name="download" size={16} color="white" />
-                    <span>エクスポート</span>
-                  </button>
-                  <button
-                    onClick={() =>
-                      document.getElementById("import-file")?.click()
-                    }
-                    className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors flex items-center space-x-2"
-                  >
-                    <Icon name="upload" size={16} color="white" />
-                    <span>インポート</span>
-                  </button>
-                  <input
-                    id="import-file"
-                    type="file"
-                    accept=".json"
-                    onChange={handleImportLocations}
-                    className="hidden"
-                  />
-                  <button
-                    onClick={() => {
-                      resetForm();
-                      setShowLocationForm(true);
-                    }}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center space-x-2"
-                  >
-                    <Icon name="add" size={16} color="white" />
-                    <span>新規地点追加</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Search and Filter */}
-              <div className="bg-white rounded-lg shadow-sm p-6 border">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      地点を検索
-                    </label>
-                    <input
-                      type="text"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="地点名で検索..."
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      都道府県で絞り込み
-                    </label>
-                    <select
-                      value={filterPrefecture}
-                      onChange={(e) => setFilterPrefecture(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option value="">すべて</option>
-                      <option value="静岡県">静岡県</option>
-                      <option value="山梨県">山梨県</option>
-                      <option value="神奈川県">神奈川県</option>
-                      <option value="東京都">東京都</option>
-                      <option value="千葉県">千葉県</option>
-                      <option value="埼玉県">埼玉県</option>
-                      <option value="長野県">長野県</option>
-                      <option value="茨城県">茨城県</option>
-                      <option value="奈良県">奈良県</option>
-                      <option value="三重県">三重県</option>
-                      <option value="和歌山県">和歌山県</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Location List */}
-              {filteredLocations.length === 0 ? (
-                <div className="bg-white rounded-lg shadow-sm p-12 text-center border">
-                  <div className="mb-4 opacity-20">
-                    <Icon name="location" size={96} className="mx-auto" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    地点が見つかりません
-                  </h3>
-                  <p className="text-gray-500">
-                    検索条件を変更するか、新しい地点を追加してください。
-                  </p>
-                </div>
-              ) : (
-                <div className="bg-white rounded-lg shadow-sm overflow-hidden border">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          地点名
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          都道府県
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          座標
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          標高
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          富士山距離
-                        </th>
-                        <th className="relative px-6 py-3">
-                          <span className="sr-only">操作</span>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredLocations.map((location) => (
-                        <tr key={location.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">
-                              {location.name}
-                            </div>
-                            {location.description && (
-                              <div className="text-sm text-gray-500 truncate max-w-xs">
-                                {location.description}
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                              {location.prefecture}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {location.latitude.toFixed(6)},{" "}
-                            {location.longitude.toFixed(6)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {location.elevation}m
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {((location.fujiDistance || 0) / 1000).toFixed(1)}km
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <button
-                              onClick={() => handleRecalculate(location)}
-                              disabled={loading}
-                              className="text-green-600 hover:text-green-900 mr-3 disabled:opacity-50"
-                              title="2025 年データを再計算"
-                            >
-                              <Icon
-                                name="refresh"
-                                size={16}
-                                className="inline mr-1"
-                              />
-                              再計算
-                            </button>
-                            <button
-                              onClick={() => handleEdit(location)}
-                              className="text-blue-600 hover:text-blue-900 mr-3"
-                            >
-                              編集
-                            </button>
-                            <button
-                              onClick={() => handleDelete(location)}
-                              className="text-red-600 hover:text-red-900"
-                            >
-                              削除
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
+            <LocationManager
+              locations={locations}
+              searchTerm={searchTerm}
+              filterPrefecture={filterPrefecture}
+              loading={loading}
+              onSearchChange={setSearchTerm}
+              onFilterChange={setFilterPrefecture}
+              onAddLocation={() => {
+                resetForm();
+                setShowLocationForm(true);
+              }}
+              onEditLocation={handleEdit}
+              onDeleteLocation={handleDelete}
+              onRecalculateLocation={handleRecalculate}
+              onExportLocations={handleExportLocations}
+              onImportLocations={handleImportLocations}
+            />
           )}
 
           {/* Data Management View */}
           {activeView === "data" && (
-            <div className="space-y-6">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">データ管理</h1>
-                <p className="text-gray-600 mt-1">
-                  システムデータの管理を行います
-                </p>
-              </div>
-              <div className="bg-white rounded-lg shadow-sm p-12 text-center border">
-                <div className="mb-4 opacity-20">
-                  <Icon name="data" size={96} className="mx-auto" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  準備中
-                </h3>
-                <p className="text-gray-500">この機能は近日公開予定です</p>
-              </div>
-            </div>
+            <Placeholder 
+              title="データ管理" 
+              description="システムデータの管理を行います"
+              iconName="data"
+            />
           )}
 
           {/* Settings View */}
@@ -1236,433 +584,34 @@ const AdminPage: React.FC = () => {
             activeView !== "data" &&
             activeView !== "settings" &&
             activeView !== "queue" && (
-              <div className="space-y-6">
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900 capitalize">
-                    {activeView}
-                  </h1>
-                  <p className="text-gray-600 mt-1">この機能は現在開発中です</p>
-                </div>
-                <div className="bg-white rounded-lg shadow-sm p-12 text-center border">
-                  <div className="mb-4 opacity-20">
-                    <Icon name="settings" size={96} className="mx-auto" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    準備中
-                  </h3>
-                  <p className="text-gray-500">この機能は近日公開予定です</p>
-                </div>
-              </div>
+              <Placeholder title={activeView} />
             )}
-        </div>
       </div>
 
       {/* Location Form Modal */}
-      {showLocationForm && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
-            <div className="border-b border-gray-200 px-6 py-4 -m-5 mb-6">
-              <h2 className="text-xl font-bold text-gray-900">
-                {editingLocation ? "地点編集" : "新規地点追加"}
-              </h2>
-            </div>
-            <div className="px-6">
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      地点名 <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.name}
-                      onChange={(e) =>
-                        handleFormDataChange("name", e.target.value)
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="例: 竜ヶ岳"
-                      required
-                    />
-                  </div>
+      <LocationFormModal
+        isOpen={showLocationForm}
+        editingLocation={editingLocation}
+        formData={formData}
+        loading={loading}
+        onClose={() => {
+          resetForm();
+          setShowLocationForm(false);
+        }}
+        onSubmit={handleSubmit}
+        onFormDataChange={handleFormDataChange}
+      />
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      都道府県 <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={formData.prefecture}
-                      onChange={(e) =>
-                        handleFormDataChange("prefecture", e.target.value)
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      required
-                    >
-                      <option value="">選択してください</option>
-                      <option value="静岡県">静岡県</option>
-                      <option value="山梨県">山梨県</option>
-                      <option value="神奈川県">神奈川県</option>
-                      <option value="東京都">東京都</option>
-                      <option value="千葉県">千葉県</option>
-                      <option value="埼玉県">埼玉県</option>
-                      <option value="長野県">長野県</option>
-                      <option value="茨城県">茨城県</option>
-                      <option value="奈良県">奈良県</option>
-                      <option value="三重県">三重県</option>
-                      <option value="和歌山県">和歌山県</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      緯度 <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      step="0.000001"
-                      value={formData.latitude === "" ? "" : formData.latitude}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        handleFormDataChange(
-                          "latitude",
-                          value === "" ? "" : parseFloat(value),
-                        );
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="35.123456"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      経度 <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      step="0.000001"
-                      value={
-                        formData.longitude === "" ? "" : formData.longitude
-                      }
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        handleFormDataChange(
-                          "longitude",
-                          value === "" ? "" : parseFloat(value),
-                        );
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="138.123456"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      標高 (m) <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      value={
-                        formData.elevation === "" ? "" : formData.elevation
-                      }
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        handleFormDataChange(
-                          "elevation",
-                          value === "" ? "" : parseFloat(value),
-                        );
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="1000.5"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="text-center">
-                  <button
-                    type="button"
-                    onClick={() => setShowLocationPicker(true)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center space-x-2 mx-auto"
-                  >
-                    <Icon name="map" size={16} color="white" />
-                    <span>地図から座標を選択</span>
-                  </button>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    説明
-                  </label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) =>
-                      handleFormDataChange("description", e.target.value)
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                    rows={3}
-                    placeholder="地点の特徴や撮影時の注意点など"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      アクセス情報
-                    </label>
-                    <textarea
-                      value={formData.accessInfo}
-                      onChange={(e) =>
-                        handleFormDataChange("accessInfo", e.target.value)
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                      rows={2}
-                      placeholder="最寄り駅、バス停、道路からのアクセス方法など"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      駐車場情報
-                    </label>
-                    <textarea
-                      value={formData.parkingInfo}
-                      onChange={(e) =>
-                        handleFormDataChange("parkingInfo", e.target.value)
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                      rows={2}
-                      placeholder="駐車場の有無、台数、料金など"
-                    />
-                  </div>
-                </div>
-
-                {/* 富士山視線情報（詳細設定） */}
-                <div className="border-t border-gray-200 pt-6">
-                  <div className="mb-4">
-                    <h3 className="text-sm font-medium text-gray-900 mb-2">
-                      富士山視線情報（任意）
-                    </h3>
-                    <p className="text-xs text-gray-500">
-                      現地で実測された値があれば入力してください。未入力の場合は理論値を自動計算します。
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        方位角（度）
-                      </label>
-                      <input
-                        type="number"
-                        step="0.001"
-                        value={
-                          formData.fujiAzimuth === ""
-                            ? ""
-                            : formData.fujiAzimuth
-                        }
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          handleFormDataChange(
-                            "fujiAzimuth",
-                            value === "" ? "" : parseFloat(value),
-                          );
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="例: 78.728（自動計算）"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        仰角（度）
-                      </label>
-                      <input
-                        type="number"
-                        step="0.001"
-                        value={
-                          formData.fujiElevation === ""
-                            ? ""
-                            : formData.fujiElevation
-                        }
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          handleFormDataChange(
-                            "fujiElevation",
-                            value === "" ? "" : parseFloat(value),
-                          );
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="例: 3.61（実測推奨）"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        距離（m）
-                      </label>
-                      <input
-                        type="number"
-                        step="1"
-                        value={
-                          formData.fujiDistance === ""
-                            ? ""
-                            : formData.fujiDistance
-                        }
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          handleFormDataChange(
-                            "fujiDistance",
-                            value === "" ? "" : parseFloat(value),
-                          );
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="例: 17700（自動計算）"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="mt-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      測定方法・備考
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.measurementNotes}
-                      onChange={(e) =>
-                        handleFormDataChange("measurementNotes", e.target.value)
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="例: スーパー地形で確認"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      resetForm();
-                      setShowLocationForm(false);
-                    }}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
-                  >
-                    キャンセル
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {loading ? "保存中..." : editingLocation ? "更新" : "追加"}
-                  </button>
-                </div>
-              </form>
-
-              {showLocationPicker && (
-                <LocationPicker
-                  onLocationSelect={handleLocationSelect}
-                  initialLat={(formData.latitude as number) || 35.3606}
-                  initialLng={(formData.longitude as number) || 138.7274}
-                  onClose={() => setShowLocationPicker(false)}
-                />
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* パスワード変更モーダル */}
-      {showPasswordModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96">
-            <h2 className="text-lg font-semibold mb-4">パスワード変更</h2>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  現在のパスワード
-                </label>
-                <input
-                  type="password"
-                  value={passwordForm.currentPassword}
-                  onChange={(e) =>
-                    setPasswordForm({
-                      ...passwordForm,
-                      currentPassword: e.target.value,
-                    })
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="現在のパスワードを入力"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  新しいパスワード
-                </label>
-                <input
-                  type="password"
-                  value={passwordForm.newPassword}
-                  onChange={(e) =>
-                    setPasswordForm({
-                      ...passwordForm,
-                      newPassword: e.target.value,
-                    })
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="6 文字以上で入力"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  新しいパスワード（確認）
-                </label>
-                <input
-                  type="password"
-                  value={passwordForm.confirmPassword}
-                  onChange={(e) =>
-                    setPasswordForm({
-                      ...passwordForm,
-                      confirmPassword: e.target.value,
-                    })
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="もう一度入力してください"
-                />
-              </div>
-            </div>
-
-            <div className="mt-6 flex space-x-3">
-              <button
-                onClick={handlePasswordChange}
-                disabled={loading}
-                className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-              >
-                {loading ? "変更中..." : "変更する"}
-              </button>
-              <button
-                onClick={() => {
-                  setShowPasswordModal(false);
-                  setPasswordForm({
-                    currentPassword: "",
-                    newPassword: "",
-                    confirmPassword: "",
-                  });
-                }}
-                className="flex-1 bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
-              >
-                キャンセル
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+      {/* Password Change Modal */}
+      <PasswordChangeModal
+        isOpen={showPasswordModal}
+        passwordForm={passwordForm}
+        loading={loading}
+        onClose={() => setShowPasswordModal(false)}
+        onPasswordFormChange={setPasswordForm}
+        onSubmit={handlePasswordChange}
+      />
+    </AdminLayout>
   );
 };
 

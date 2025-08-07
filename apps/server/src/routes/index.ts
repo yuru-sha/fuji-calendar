@@ -294,6 +294,11 @@ export function setupRoutes(app: Express, container: DIContainer): void {
     authRateLimit,
     authController.logout.bind(authController),
   );
+  app.post(
+    "/api/auth/refresh",
+    authRateLimit,
+    authController.refreshToken.bind(authController),
+  );
   app.get(
     "/api/auth/verify",
     authRateLimit,

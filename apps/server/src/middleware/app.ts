@@ -20,8 +20,8 @@ export function setupMiddleware(app: Express): void {
           defaultSrc: ["'self'"],
           styleSrc: [
             "'self'", 
-            "'unsafe-inline'", // Tailwind CSS の動的スタイル用
             "https://fonts.googleapis.com",
+            "https://unpkg.com", // Leaflet CSS 用
           ],
           scriptSrc: [
             "'self'",

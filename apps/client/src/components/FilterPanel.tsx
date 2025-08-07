@@ -28,6 +28,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
   uniqueLocationCount = 0,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [savedFilters, setSavedFilters] = useState<FilterOptions | null>(null);
+  
   const updateFilter = (updates: Partial<FilterOptions>) => {
     onFilterChange({ ...filters, ...updates });
   };
@@ -43,6 +45,25 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
         [key]: value,
       },
     });
+  };
+
+  // デフォルトフィルター設定
+  const getDefaultFilters = (): FilterOptions => ({
+    distance: "all",
+    diamondSunrise: false,
+    diamondSunset: false,
+    pearlMoonrise: false,
+    pearlMoonset: false,
+    specialEvents: {
+      solarEclipse: false,
+      lunarEclipse: false,
+      supermoon: false,
+    },
+  });
+
+  // パネルが開いている場合に ON とする
+  const isFilterOn = () => {
+    return isExpanded;
   };
 
   const hasActiveFilters = () => {
@@ -93,7 +114,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
           marginBottom: "0.5rem",
         }}
       >
-        {/* 左側：アイコン + タイトル + 折りたたみアイコン + 統計情報 */}
+        {/* 左側：アイコン + タイトル + 統計情報 */}
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flex: 1 }}>
           <button
             onClick={() => setIsExpanded(!isExpanded)}
@@ -112,14 +133,6 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
           >
             <Icon name="search" size={14} />
             撮影地点フィルター
-            <Icon 
-              name="chevronDown" 
-              size={12}
-              style={{
-                transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
-                transition: "transform 0.2s",
-              }}
-            />
           </button>
           
           {/* 統計情報 */}
@@ -159,20 +172,38 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
           </div>
         </div>
         
-        {/* 右側：フィルター中表示 */}
-        {hasActiveFilters() && (
-          <span
-            style={{
-              fontSize: "0.65rem",
-              color: "#dc2626",
-              backgroundColor: "#fee2e2",
-              padding: "0.125rem 0.375rem",
-              borderRadius: "8px",
-            }}
-          >
-            フィルター中
-          </span>
-        )}
+        {/* 右側：ON/OFF トグル */}
+        <button
+          style={{
+            padding: "0.25rem 0.5rem",
+            fontSize: "0.65rem",
+            fontWeight: "500",
+            border: "1px solid",
+            borderColor: isFilterOn() ? "#3b82f6" : "#d1d5db",
+            borderRadius: "4px",
+            backgroundColor: isFilterOn() ? "#3b82f6" : "white",
+            color: isFilterOn() ? "white" : "#374151",
+            cursor: "pointer",
+            transition: "all 0.2s",
+          }}
+          onClick={() => {
+            if (isExpanded) {
+              // ON の場合：パネルを閉じてフィルターを無効化
+              setIsExpanded(false);
+              setSavedFilters(filters);
+              onFilterChange(getDefaultFilters());
+            } else {
+              // OFF の場合：パネルを開いてフィルターを有効化
+              setIsExpanded(true);
+              if (savedFilters) {
+                onFilterChange(savedFilters);
+              }
+            }
+          }}
+          title={isExpanded ? "フィルターを無効にしてパネルを閉じる" : "フィルターを有効にしてパネルを開く"}
+        >
+          {isFilterOn() ? "ON" : "OFF"}
+        </button>
       </div>
 
       {isExpanded && (

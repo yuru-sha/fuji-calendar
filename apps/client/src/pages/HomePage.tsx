@@ -70,6 +70,12 @@ const HomePage: React.FC = () => {
         selectedEventId: stateEventId,
       } = location.state;
 
+      console.log('お気に入りから遷移 - 状態復元:', {
+        date: stateDate,
+        locationId: stateLocationId,
+        eventId: stateEventId
+      });
+
       if (stateDate) {
         setSelectedDate(new Date(stateDate));
         setCurrentYear(new Date(stateDate).getFullYear());
@@ -162,9 +168,17 @@ const HomePage: React.FC = () => {
   // URL パラメータで指定された日付のイベントを自動読み込み
   useEffect(() => {
     if (selectedDate && calendarData) {
-      handleDateClick(selectedDate);
+      // お気に入りからの遷移時は選択状態を保持
+      const preserveSelection = location.state && (location.state.selectedLocationId || location.state.selectedEventId);
+      console.log('handleDateClick 実行:', {
+        selectedDate,
+        preserveSelection,
+        selectedLocationId,
+        selectedEventId
+      });
+      handleDateClick(selectedDate, preserveSelection);
     }
-  }, [selectedDate, calendarData]);
+  }, [selectedDate, calendarData, location.state]);
 
   // 月変更ハンドラー
   const handleMonthChange = (year: number, month: number) => {
@@ -173,27 +187,32 @@ const HomePage: React.FC = () => {
   };
 
   // 日付選択ハンドラー
-  const handleDateClick = async (date: Date) => {
+  const handleDateClick = async (date: Date, preserveSelection = false) => {
     setSelectedDate(date);
     setLoading(true);
 
-    // 日付が変わったら地点選択をリセット
-    setSelectedLocationId(undefined);
+    // 選択保持が指定されていない場合のみ地点選択をリセット
+    if (!preserveSelection) {
+      setSelectedLocationId(undefined);
+      setSelectedEventId(undefined);
+    }
 
     try {
       const dateString = timeUtils.formatDateString(date);
       const response = await apiClient.getDayEvents(dateString);
       setDayEvents(response.events || []);
 
-      // 最初の地点を自動選択（イベントがある場合）
-      if (response.events && response.events.length > 0) {
-        setSelectedLocationId(response.events[0].location.id);
-      } else {
-        // イベントが存在しない場合は地点選択をクリア
-        setSelectedLocationId(undefined);
-        console.warn(
-          `選択された日付 ${timeUtils.formatDateString(date)} にはイベントが存在しません`,
-        );
+      // 選択保持が指定されていない場合のみ最初の地点を自動選択
+      if (!preserveSelection) {
+        if (response.events && response.events.length > 0) {
+          setSelectedLocationId(response.events[0].location.id);
+        } else {
+          // イベントが存在しない場合は地点選択をクリア
+          setSelectedLocationId(undefined);
+          console.warn(
+            `選択された日付 ${timeUtils.formatDateString(date)} にはイベントが存在しません`,
+          );
+        }
       }
 
       // 天気情報を取得（7 日間以内の未来日付のみ）

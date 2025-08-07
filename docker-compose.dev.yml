@@ -2,7 +2,6 @@ services:
   # PostgreSQL (開発用)
   postgres:
     image: postgres:15-alpine
-    container_name: fuji_calendar_postgres
     restart: unless-stopped
     ports:
       - "5432:5432"
@@ -26,7 +25,6 @@ services:
   # Redis (開発用)
   redis:
     image: redis:7-alpine
-    container_name: fuji_calendar_redis
     restart: unless-stopped
     ports:
       - "6379:6379"
@@ -48,7 +46,6 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.dev
-    container_name: fuji_calendar_app
     restart: unless-stopped
     ports:
       - "3000:3000"  # バックエンド API

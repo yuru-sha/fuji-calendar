@@ -114,16 +114,16 @@ const LocationManager: React.FC<LocationManagerProps> = ({
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="">すべて</option>
-              <option value="静岡県">静岡県</option>
-              <option value="山梨県">山梨県</option>
-              <option value="神奈川県">神奈川県</option>
-              <option value="東京都">東京都</option>
-              <option value="千葉県">千葉県</option>
-              <option value="埼玉県">埼玉県</option>
-              <option value="長野県">長野県</option>
               <option value="茨城県">茨城県</option>
-              <option value="奈良県">奈良県</option>
+              <option value="埼玉県">埼玉県</option>
+              <option value="千葉県">千葉県</option>
+              <option value="東京都">東京都</option>
+              <option value="神奈川県">神奈川県</option>
+              <option value="山梨県">山梨県</option>
+              <option value="長野県">長野県</option>
+              <option value="静岡県">静岡県</option>
               <option value="三重県">三重県</option>
+              <option value="奈良県">奈良県</option>
               <option value="和歌山県">和歌山県</option>
             </select>
           </div>

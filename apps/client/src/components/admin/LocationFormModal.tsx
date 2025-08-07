@@ -88,16 +88,16 @@ const LocationFormModal: React.FC<LocationFormModalProps> = ({
                   required
                 >
                   <option value="">選択してください</option>
-                  <option value="静岡県">静岡県</option>
-                  <option value="山梨県">山梨県</option>
-                  <option value="神奈川県">神奈川県</option>
-                  <option value="東京都">東京都</option>
-                  <option value="千葉県">千葉県</option>
-                  <option value="埼玉県">埼玉県</option>
-                  <option value="長野県">長野県</option>
                   <option value="茨城県">茨城県</option>
-                  <option value="奈良県">奈良県</option>
+                  <option value="埼玉県">埼玉県</option>
+                  <option value="千葉県">千葉県</option>
+                  <option value="東京都">東京都</option>
+                  <option value="神奈川県">神奈川県</option>
+                  <option value="山梨県">山梨県</option>
+                  <option value="長野県">長野県</option>
+                  <option value="静岡県">静岡県</option>
                   <option value="三重県">三重県</option>
+                  <option value="奈良県">奈良県</option>
                   <option value="和歌山県">和歌山県</option>
                 </select>
               </div>

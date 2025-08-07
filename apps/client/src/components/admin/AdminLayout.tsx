@@ -5,10 +5,9 @@ import { getComponentLogger } from '@fuji-calendar/utils';
 import AdminHeader from './AdminHeader';
 import AdminSidebar from './AdminSidebar';
 import { Icon } from "@fuji-calendar/ui";
+import { AdminView } from '../../types/admin';
 
 const logger = getComponentLogger('AdminLayout');
-
-export type AdminView = 'dashboard' | 'locations' | 'queue' | 'events' | 'data' | 'users' | 'settings';
 
 interface AdminLayoutProps {
   children: React.ReactNode;

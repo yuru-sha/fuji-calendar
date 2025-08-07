@@ -1,6 +1,6 @@
 import React from 'react';
 import { Icon } from '@fuji-calendar/ui';
-import { AdminView } from './AdminLayout';
+import { AdminView } from '../../types/admin';
 
 // Types
 interface SidebarItemProps {

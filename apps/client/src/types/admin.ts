@@ -1,0 +1,1 @@
+export type AdminView = 'dashboard' | 'locations' | 'queue' | 'events' | 'data' | 'users' | 'settings';

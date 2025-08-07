@@ -1,6 +1,6 @@
 {
   "name": "@fuji-calendar/server",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Fuji Calendar Express Backend",
   "main": "dist/server.js",
   "scripts": {
@@ -18,8 +18,8 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@fuji-calendar/types": "^0.4.0",
-    "@fuji-calendar/utils": "^0.4.0",
+    "@fuji-calendar/types": "^0.5.0",
+    "@fuji-calendar/utils": "^0.5.0",
     "@prisma/client": "^6.12.0",
     "@types/bcrypt": "^5.0.2",
     "@types/cors": "^2.8.16",

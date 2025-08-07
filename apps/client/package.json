@@ -1,6 +1,6 @@
 {
   "name": "@fuji-calendar/client",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Fuji Calendar React Frontend",
   "type": "module",
   "scripts": {
@@ -13,9 +13,9 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@fuji-calendar/types": "^0.4.0",
-    "@fuji-calendar/ui": "^0.4.0",
-    "@fuji-calendar/utils": "^0.4.0",
+    "@fuji-calendar/types": "^0.5.0",
+    "@fuji-calendar/ui": "^0.5.0",
+    "@fuji-calendar/utils": "^0.5.0",
     "@headlessui/react": "^2.2.6",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.525.0",

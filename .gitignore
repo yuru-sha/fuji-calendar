@@ -79,8 +79,8 @@ temp/
 *.sln
 *.sw?
 
-# Claude Code settings
-.claude/settings.local.json
+# Claude Code
+.claude/
 
 # Fuji Calendar data (except structure)
 data/*

@@ -3,16 +3,20 @@ import jwt from "jsonwebtoken";
 import { AuthService } from "./interfaces/AuthService";
 import { AuthRepository } from "../repositories/interfaces/AuthRepository";
 import { getComponentLogger } from "@fuji-calendar/utils";
+import { singleton, inject } from "tsyringe";
 
 const logger = getComponentLogger("auth-service");
 
+@singleton()
 export class AuthServiceImpl implements AuthService {
   private readonly jwtSecret: string;
   private readonly refreshSecret: string;
   private readonly accessTokenExpiry = "24h"; // 24 時間
   private readonly refreshTokenExpiry = "7d"; // 7 日
 
-  constructor(private authRepository: AuthRepository) {
+  constructor(
+    @inject("AuthRepository") private authRepository: AuthRepository,
+  ) {
     this.jwtSecret = process.env.JWT_SECRET || "fallback-secret";
     this.refreshSecret =
       process.env.REFRESH_SECRET || "fallback-refresh-secret";

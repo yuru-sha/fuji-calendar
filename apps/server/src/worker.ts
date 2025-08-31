@@ -1,26 +1,13 @@
 #!/usr/bin/env node
-
-/**
- * 富士カレンダー キューワーカープロセス
- *
- * このファイルは独立したワーカープロセスとして実行され、
- * BullMQ キューから天体計算ジョブを取得して処理します。
- *
- * 使用方法:
- * npm run worker
- * または
- * node dist/server/worker.js
- */
-
-import { DIContainer } from "./di/DIContainer";
-import { ServiceRegistry } from "./di/ServiceRegistry";
+import "reflect-metadata";
+import { container } from "tsyringe";
+import { configureContainer } from "./di/tsyringe.config";
 import { QueueService } from "./services/interfaces/QueueService";
 import { getComponentLogger } from "@fuji-calendar/utils";
 
 const logger = getComponentLogger("queue-worker");
 
 // DIContainer インスタンス
-let diContainer: DIContainer;
 let queueService: QueueService;
 
 // プロセス終了時のクリーンアップ
@@ -83,23 +70,10 @@ async function main() {
     });
 
     // DIContainer を初期化
-    diContainer = new DIContainer();
+    configureContainer(container);
 
-    // サービスを登録
-    ServiceRegistry.configure(diContainer);
-
-    // EventService を先に解決して依存関係注入を確実に実行
-    const eventService = diContainer.resolve("EventService");
-    logger.info("EventService 解決完了", { hasEventService: !!eventService });
-
-    // QueueService を取得（この時点で EventService が注入済み）
-    queueService = diContainer.resolve<QueueService>("QueueService");
-
-    // 依存関係が正しく注入されたことを確認
-    logger.info("依存関係注入確認", {
-      hasQueueService: !!queueService,
-      hasEventService: !!eventService,
-    });
+    // QueueService を取得
+    queueService = container.resolve<QueueService>("QueueService");
 
     logger.info("キューワーカーが正常に開始されました");
 

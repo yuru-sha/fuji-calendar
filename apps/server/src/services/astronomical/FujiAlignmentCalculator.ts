@@ -4,22 +4,18 @@ import { CoordinateCalculator } from "./CoordinateCalculator";
 import { CelestialPositionCalculator } from "./CelestialPositionCalculator";
 import { SeasonCalculator } from "./SeasonCalculator";
 import { SystemSettingsService } from "../SystemSettingsService";
+import { injectable, inject } from "tsyringe";
 
-/**
- * 富士山との整列計算を担当するクラス
- * ダイアモンド富士・パール富士の検出
- * システム設定を DB から動的に取得して計算精度を調整可能
- */
+@injectable()
 export class FujiAlignmentCalculator {
   private logger = getComponentLogger("FujiAlignmentCalculator");
-  private coordinateCalc = new CoordinateCalculator();
-  private celestialCalc = new CelestialPositionCalculator();
-  private seasonCalc = new SeasonCalculator();
-  private settingsService: SystemSettingsService;
 
-  constructor(settingsService: SystemSettingsService) {
-    this.settingsService = settingsService;
-  }
+  constructor(
+    @inject(SystemSettingsService) private settingsService: SystemSettingsService,
+    @inject(CoordinateCalculator) private coordinateCalc: CoordinateCalculator,
+    @inject(CelestialPositionCalculator) private celestialCalc: CelestialPositionCalculator,
+    @inject(SeasonCalculator) private seasonCalc: SeasonCalculator
+  ) {}
 
   /**
    * ダイアモンド富士イベントを検索

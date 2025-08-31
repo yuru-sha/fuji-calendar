@@ -13,7 +13,7 @@ const testLocation = {
 };
 
 // 共通定数をインポート
-const { FUJI_COORDINATES } = require('../../src/shared/types');
+const { FUJI_COORDINATES } = require('@fuji-calendar/types');
 
 /**
  * 修正されたダイヤモンド富士シーズン判定
@@ -224,5 +224,8 @@ async function simulateDiamondFujiCalculation() {
   });
 }
 
-// 実行
-simulateDiamondFujiCalculation();
+describe('Diamond Fuji Calculation (March)', () => {
+    it('should simulate diamond fuji calculation for a given date and location', async () => {
+        await simulateDiamondFujiCalculation();
+    });
+});

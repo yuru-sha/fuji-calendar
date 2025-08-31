@@ -3,18 +3,18 @@ import { getComponentLogger } from "@fuji-calendar/utils";
 import { LocationRepository } from "../repositories/interfaces/LocationRepository";
 import { AstronomicalCalculator } from "./interfaces/AstronomicalCalculator";
 import { QueueService } from "./interfaces/QueueService";
+import { singleton, inject } from "tsyringe";
 
 const logger = getComponentLogger("LocationService");
 
-/**
- * Location ビジネスロジック層
- * Repository パターンでデータアクセス層と Controller 層を分離
- */
+@singleton()
 export class LocationService {
   constructor(
+    @inject("LocationRepository")
     private locationRepository: LocationRepository,
+    @inject("AstronomicalCalculator")
     private astronomicalCalculator: AstronomicalCalculator,
-    private queueService: QueueService,
+    @inject("QueueService") private queueService: QueueService,
   ) {}
 
   /**

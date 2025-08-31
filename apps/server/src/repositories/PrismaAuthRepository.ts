@@ -1,12 +1,14 @@
 import { Admin } from "@fuji-calendar/types";
 import { getComponentLogger } from "@fuji-calendar/utils";
 import { AuthRepository } from "./interfaces/AuthRepository";
-import { PrismaClientManager } from "../database/prisma";
+import { PrismaClient } from "@prisma/client";
+import { singleton, inject } from "tsyringe";
 
 const logger = getComponentLogger("prisma-auth-repository");
 
+@singleton()
 export class PrismaAuthRepository implements AuthRepository {
-  private prisma = PrismaClientManager.getInstance();
+  constructor(@inject("PrismaClient") private prisma: PrismaClient) {}
 
   async findAdminByUsername(username: string): Promise<Admin | null> {
     try {

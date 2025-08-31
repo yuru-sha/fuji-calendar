@@ -1,15 +1,18 @@
 import { SystemSetting } from "@fuji-calendar/types";
 import { getComponentLogger } from "@fuji-calendar/utils";
 import { SystemSettingsRepository } from "./interfaces/SystemSettingsRepository";
-import { PrismaClientManager } from "../database/prisma";
+import { PrismaClient } from "@prisma/client";
+import { singleton, inject } from "tsyringe";
 
+@singleton()
 export class PrismaSystemSettingsRepository
   implements SystemSettingsRepository
 {
   private readonly logger = getComponentLogger(
     "PrismaSystemSettingsRepository",
   );
-  private readonly prisma = PrismaClientManager.getInstance();
+
+  constructor(@inject("PrismaClient") private prisma: PrismaClient) {}
 
   async getByKey(settingKey: string): Promise<SystemSetting | null> {
     try {

@@ -1,17 +1,17 @@
+import "reflect-metadata";
 import express from "express";
+import { container } from "tsyringe";
 import { Bootstrap } from "./bootstrap";
 import { setupMiddleware } from "./middleware/app";
 import { setupRoutes } from "./routes";
-import { DIContainer } from "./di/DIContainer";
-import { ServiceRegistry } from "./di/ServiceRegistry";
+import { configureContainer } from "./di/tsyringe.config";
 import { getComponentLogger } from "@fuji-calendar/utils";
 
 const logger = getComponentLogger("server");
 
-// DI コンテナの初期化
-const container = new DIContainer();
-ServiceRegistry.configure(container);
-logger.info("DI コンテナ初期化完了");
+// DIコンテナの初期化
+configureContainer(container);
+logger.info("DIコンテナ初期化完了");
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;

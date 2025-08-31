@@ -1,15 +1,16 @@
-// import { LocationEvent, Location as PrismaLocation } from '@prisma/client';
 import { Location, FujiEvent, CalendarStats } from "@fuji-calendar/types";
 import { getComponentLogger } from "@fuji-calendar/utils";
 import { CalendarRepository } from "./interfaces/CalendarRepository";
-import { PrismaClientManager } from "../database/prisma";
+import { PrismaClient } from "@prisma/client";
+import { singleton, inject } from "tsyringe";
 
 const logger = getComponentLogger("prisma-calendar-repository");
 
 type LocationEventWithLocation = any;
 
+@singleton()
 export class PrismaCalendarRepository implements CalendarRepository {
-  private prisma = PrismaClientManager.getInstance();
+  constructor(@inject("PrismaClient") private prisma: PrismaClient) {}
 
   async getMonthlyEvents(year: number, month: number): Promise<FujiEvent[]> {
     // 月の範囲を計算

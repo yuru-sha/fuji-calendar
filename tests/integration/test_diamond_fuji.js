@@ -12,7 +12,7 @@ const maihamaLocation = {
 };
 
 // 共通定数をインポート
-const { FUJI_COORDINATES } = require('../../src/shared/types');
+const { FUJI_COORDINATES } = require('@fuji-calendar/types');
 
 // 度をラジアンに変換
 function toRadians(degrees) {
@@ -190,4 +190,8 @@ async function testDiamondFuji() {
   console.log('5. 大気屈折補正: 実装済み ✅');
 }
 
-testDiamondFuji().catch(console.error);
+describe('Diamond Fuji Calculation (JS)', () => {
+    it('should calculate diamond fuji for a given date and location', async () => {
+        await testDiamondFuji();
+    });
+});

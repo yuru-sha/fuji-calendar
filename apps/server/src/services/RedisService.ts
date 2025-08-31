@@ -1,11 +1,9 @@
 import Redis from "ioredis";
 import { getComponentLogger } from "@fuji-calendar/utils";
 import { FujiEvent } from "@fuji-calendar/types";
+import { singleton } from "tsyringe";
 
-/**
- * Redis 活用拡大サービス
- * 月間イベントキャッシュとセッション管理を統合
- */
+@singleton()
 export class RedisService {
   private redis: Redis;
   private logger = getComponentLogger("RedisService");
@@ -354,6 +352,3 @@ export class RedisService {
     }
   }
 }
-
-// シングルトンインスタンス
-export const redisService = new RedisService();

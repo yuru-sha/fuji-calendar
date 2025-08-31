@@ -1,15 +1,15 @@
 import { Request, Response } from "express";
 import { LocationService } from "../services/LocationService";
 import { getComponentLogger } from "@fuji-calendar/utils";
+import { injectable, inject } from "tsyringe";
 
 const logger = getComponentLogger("LocationController");
 
-/**
- * リファクタリング後の LocationController
- * DI パターンを使用して依存関係を注入
- */
+@injectable()
 export class LocationController {
-  constructor(private locationService: LocationService) {}
+  constructor(
+    @inject(LocationService) private locationService: LocationService,
+  ) {}
 
   /**
    * 全ての撮影地点を取得
@@ -469,5 +469,3 @@ export class LocationController {
     }
   }
 }
-
-export default LocationController;

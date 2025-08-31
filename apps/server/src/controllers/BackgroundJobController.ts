@@ -1,24 +1,27 @@
 import { Request, Response } from "express";
 import { getComponentLogger } from "@fuji-calendar/utils";
-import type { DIContainer } from "../di/DIContainer";
-import type { PrismaClient } from "@prisma/client";
-// 型のみのインポート - 実際の使用は動的解決
-// import type { QueueService } from '../services/interfaces/QueueService';
-// import type { BackgroundJobScheduler } from '../services/BackgroundJobScheduler';
+import { PrismaClient } from "@prisma/client";
+import { QueueService } from "../services/interfaces/QueueService";
+import { BackgroundJobScheduler } from "../services/BackgroundJobScheduler";
+import { injectable, inject } from "tsyringe";
 
 const logger = getComponentLogger("BackgroundJobController");
 
+@injectable()
 export class BackgroundJobController {
-  constructor(private container: DIContainer) {}
+  constructor(
+    @inject("PrismaClient") private prisma: PrismaClient,
+    @inject("QueueService") private queueService: QueueService,
+    @inject(BackgroundJobScheduler)
+    private backgroundJobScheduler: BackgroundJobScheduler,
+  ) {}
 
   /**
    * バックグラウンドジョブ一覧を取得
    */
   async getBackgroundJobs(req: Request, res: Response): Promise<void> {
     try {
-      const prisma = this.container.resolve("PrismaClient") as PrismaClient;
-
-      const jobs = await prisma.backgroundJobConfig.findMany({
+      const jobs = await this.prisma.backgroundJobConfig.findMany({
         orderBy: { id: "asc" },
       });
 
@@ -68,9 +71,7 @@ export class BackgroundJobController {
         return;
       }
 
-      const prisma = this.container.resolve("PrismaClient") as PrismaClient;
-
-      const job = await prisma.backgroundJobConfig.findUnique({
+      const job = await this.prisma.backgroundJobConfig.findUnique({
         where: { id: jobId },
       });
 
@@ -79,7 +80,7 @@ export class BackgroundJobController {
         return;
       }
 
-      await prisma.backgroundJobConfig.update({
+      await this.prisma.backgroundJobConfig.update({
         where: { id: jobId },
         data: {
           enabled,
@@ -110,9 +111,7 @@ export class BackgroundJobController {
     try {
       const { jobId } = req.params;
 
-      const prisma = this.container.resolve("PrismaClient") as PrismaClient;
-
-      const job = await prisma.backgroundJobConfig.findUnique({
+      const job = await this.prisma.backgroundJobConfig.findUnique({
         where: { id: jobId },
       });
 
@@ -126,17 +125,12 @@ export class BackgroundJobController {
         return;
       }
 
-      // BackgroundJobScheduler から該当ジョブを実行
-      const backgroundJobScheduler = this.container.resolve(
-        "BackgroundJobScheduler",
-      ) as any;
-
       let success = false;
       let message = "";
 
       switch (jobId) {
         case "yearly-data-generation":
-          await backgroundJobScheduler.triggerYearlyDataGeneration();
+          await this.backgroundJobScheduler.triggerYearlyDataGeneration();
           success = true;
           message = "年次データ生成ジョブを実行しました。";
           break;
@@ -166,7 +160,7 @@ export class BackgroundJobController {
 
       if (success) {
         // ジョブ実行記録を更新
-        await prisma.backgroundJobConfig.update({
+        await this.prisma.backgroundJobConfig.update({
           where: { id: jobId },
           data: {
             lastRun: new Date(),
@@ -187,8 +181,7 @@ export class BackgroundJobController {
 
       // エラー記録を更新
       try {
-        const prisma = this.container.resolve("PrismaClient") as PrismaClient;
-        await prisma.backgroundJobConfig.update({
+        await this.prisma.backgroundJobConfig.update({
           where: { id: req.params.jobId },
           data: {
             errorCount: { increment: 1 },
@@ -229,11 +222,10 @@ export class BackgroundJobController {
    * 日次メンテナンスを手動実行
    */
   private async triggerDailyMaintenance(): Promise<void> {
-    const queueService = this.container.resolve("QueueService") as any;
-    const queueStats = await queueService.getQueueStats();
+    const queueStats = await this.queueService.getQueueStats();
     logger.info("手動日次メンテナンス - キュー統計", queueStats);
 
-    const cleanedJobs = await queueService.cleanFailedJobs(7);
+    const cleanedJobs = await this.queueService.cleanFailedJobs(7);
     logger.info("手動日次メンテナンス完了", { cleanedFailedJobs: cleanedJobs });
   }
 
@@ -256,8 +248,7 @@ export class BackgroundJobController {
     const currentDate = new Date();
     const threeYearsAgo = new Date(currentDate.getFullYear() - 3, 0, 1);
 
-    const queueService = this.container.resolve("QueueService") as any;
-    const cleanupJobId = await queueService.scheduleDataCleanup?.(
+    const cleanupJobId = await (this.queueService as any).scheduleDataCleanup?.(
       threeYearsAgo,
       "low",
     );

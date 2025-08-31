@@ -1,6 +1,13 @@
-import { AstronomicalCalculatorImpl } from '../src/server/services/AstronomicalCalculator';
-import { timeUtils } from '../src/shared/utils/timeUtils';
-import { FUJI_COORDINATES, Location } from '../src/shared/types';
+import "reflect-metadata";
+import { AstronomicalCalculatorImpl } from '@fuji-calendar/server/services/AstronomicalCalculator';
+import { timeUtils } from '@fuji-calendar/utils';
+import { FUJI_COORDINATES, Location } from '@fuji-calendar/types';
+import { SystemSettingsService } from '@fuji-calendar/server/services/SystemSettingsService';
+import { CelestialPositionCalculator } from '@fuji-calendar/server/services/astronomical/CelestialPositionCalculator';
+import { CoordinateCalculator } from '@fuji-calendar/server/services/astronomical/CoordinateCalculator';
+import { FujiAlignmentCalculator } from '@fuji-calendar/server/services/astronomical/FujiAlignmentCalculator';
+import { SeasonCalculator } from '@fuji-calendar/server/services/astronomical/SeasonCalculator';
+import { PrismaClient } from '@prisma/client';
 
 // 舞浜海岸の座標（データベースから取得した実際の値）
 const MAIHAMA_COAST: Location = {
@@ -90,7 +97,13 @@ async function testDiamondFuji() {
   console.log(`舞浜海岸から富士山頂への視線角度（仰角）: ${elevationAngle.toFixed(2)}°\n`);
   
   // AstronomicalCalculatorを使用して計算
-  const calculator = new AstronomicalCalculatorImpl();
+  const prisma = new PrismaClient();
+  const settingsService = new SystemSettingsService(prisma);
+  const coordinateCalc = new CoordinateCalculator();
+  const celestialCalc = new CelestialPositionCalculator();
+  const seasonCalc = new SeasonCalculator();
+  const alignmentCalc = new FujiAlignmentCalculator(settingsService, coordinateCalc, celestialCalc, seasonCalc);
+  const calculator = new AstronomicalCalculatorImpl(coordinateCalc, celestialCalc, alignmentCalc, seasonCalc);
   
   // 2025年2月18日を設定（JST）
   const targetDate = new Date('2025-02-18T00:00:00+09:00');
@@ -99,7 +112,7 @@ async function testDiamondFuji() {
   // ダイヤモンド富士の計算
   console.log('=== ダイヤモンド富士の計算結果 ===');
   
-  const events = calculator.calculateDiamondFuji(targetDate, [MAIHAMA_COAST]);
+  const events = await calculator.calculateDiamondFuji(targetDate, [MAIHAMA_COAST]);
   
   // 結果を表示
   const sunsetEvents = events.filter(e => e.subType === 'setting');
@@ -151,5 +164,8 @@ async function testDiamondFuji() {
   }
 }
 
-// 実行
-testDiamondFuji().catch(console.error);
+describe('Diamond Fuji Calculation', () => {
+  it('should calculate diamond fuji for a given date and location', async () => {
+    await testDiamondFuji();
+  });
+});

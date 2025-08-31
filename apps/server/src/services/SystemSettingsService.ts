@@ -1,21 +1,16 @@
 import { PrismaClient } from "@prisma/client";
 import { getComponentLogger } from "@fuji-calendar/utils";
+import { singleton, inject } from "tsyringe";
 
 const logger = getComponentLogger("SystemSettingsService");
 
-/**
- * システム設定管理サービス
- * 天体計算の定数値などを DB で管理し、運用中に調整可能にする
- */
+@singleton()
 export class SystemSettingsService {
-  private prisma: PrismaClient;
   private settingsCache: Map<string, any> = new Map();
   private lastCacheUpdate: Date = new Date(0);
   private readonly CACHE_DURATION = 60 * 1000; // 1 分間キャッシュ
 
-  constructor(prisma: PrismaClient) {
-    this.prisma = prisma;
-  }
+  constructor(@inject("PrismaClient") private prisma: PrismaClient) {}
 
   /**
    * 設定値を取得（キャッシュ付き）

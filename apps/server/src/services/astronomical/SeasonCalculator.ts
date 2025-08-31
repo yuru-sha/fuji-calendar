@@ -1,9 +1,11 @@
 import { getComponentLogger } from "@fuji-calendar/utils";
+import { injectable } from "tsyringe";
 
 /**
  * 季節・可視性判定を担当するクラス
  * ダイアモンド富士の撮影シーズン判定
  */
+@injectable()
 export class SeasonCalculator {
   private logger = getComponentLogger("SeasonCalculator");
 

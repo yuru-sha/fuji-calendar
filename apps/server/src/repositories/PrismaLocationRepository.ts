@@ -1,16 +1,14 @@
 import { Location, CreateLocationRequest } from "@fuji-calendar/types";
 import { getComponentLogger } from "@fuji-calendar/utils";
-import { PrismaClientManager } from "../database/prisma";
+import { PrismaClient } from "@prisma/client";
 import { LocationRepository } from "./interfaces/LocationRepository";
+import { singleton, inject } from "tsyringe";
 
 const logger = getComponentLogger("PrismaLocationRepository");
 
-/**
- * Prisma を使用した LocationRepository の実装
- * データアクセス層を抽象化し、具体的な実装を分離
- */
+@singleton()
 export class PrismaLocationRepository implements LocationRepository {
-  private prisma = PrismaClientManager.getInstance();
+  constructor(@inject("PrismaClient") private prisma: PrismaClient) {}
 
   async findAll(): Promise<Location[]> {
     logger.debug("全撮影地点取得開始");

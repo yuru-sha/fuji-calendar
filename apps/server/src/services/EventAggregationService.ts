@@ -1,10 +1,12 @@
 import { CalendarEvent, FujiEvent, Location } from "@fuji-calendar/types";
 import { getComponentLogger, StructuredLogger, timeUtils } from "@fuji-calendar/utils";
+import { injectable } from "tsyringe";
 
 /**
  * イベント集計・グルーピングサービス
  * カレンダー表示用のデータ変換とイベントの統計処理を担当
  */
+@injectable()
 export class EventAggregationService {
   private logger: StructuredLogger;
 

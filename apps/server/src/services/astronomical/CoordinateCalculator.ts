@@ -1,10 +1,12 @@
 import { FUJI_COORDINATES } from "@fuji-calendar/types";
 import { getComponentLogger } from "@fuji-calendar/utils";
+import { injectable } from "tsyringe";
 
 /**
  * 座標・方位角・距離計算を担当するクラス
  * 地理的計算と幾何学的計算を集約
  */
+@injectable()
 export class CoordinateCalculator {
   private static readonly EARTH_RADIUS = 6371000; // メートル
   private logger = getComponentLogger("CoordinateCalculator");

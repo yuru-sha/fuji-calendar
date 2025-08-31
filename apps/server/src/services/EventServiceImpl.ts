@@ -6,28 +6,21 @@ import {
   CacheValidationResult,
 } from "./interfaces/EventService";
 import { EventCacheService } from "./EventCacheService";
-import { AstronomicalCalculator } from "./AstronomicalCalculator";
-import { PrismaClientManager } from "../database/prisma";
+import { AstronomicalCalculator } from "./interfaces/AstronomicalCalculator";
+import { PrismaClient } from "@prisma/client";
 import { getComponentLogger } from "@fuji-calendar/utils";
+import { singleton, inject } from "tsyringe";
 
 const logger = getComponentLogger("EventServiceImpl");
 
-/**
- * EventService の実装クラス
- * BatchCalculationService の依存関係を整理し、循環依存を解消
- */
+@singleton()
 export class EventServiceImpl implements EventService {
-  private eventCacheService: EventCacheService;
-  private astronomicalCalculator: AstronomicalCalculator;
-  private prisma = PrismaClientManager.getInstance();
-
   constructor(
-    astronomicalCalculator: AstronomicalCalculator,
-    eventCacheService: EventCacheService,
-  ) {
-    this.astronomicalCalculator = astronomicalCalculator;
-    this.eventCacheService = eventCacheService;
-  }
+    @inject("AstronomicalCalculator")
+    private astronomicalCalculator: AstronomicalCalculator,
+    @inject(EventCacheService) private eventCacheService: EventCacheService,
+    @inject("PrismaClient") private prisma: PrismaClient,
+  ) {}
 
   async generateLocationCache(
     locationId: number,

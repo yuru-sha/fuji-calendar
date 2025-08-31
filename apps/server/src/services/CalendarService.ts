@@ -2,11 +2,16 @@ import { FujiEvent, CalendarStats } from "@fuji-calendar/types";
 import { getComponentLogger, timeUtils } from "@fuji-calendar/utils";
 import { CalendarService } from "./interfaces/CalendarService";
 import { CalendarRepository } from "../repositories/interfaces/CalendarRepository";
+import { singleton, inject } from "tsyringe";
 
 const logger = getComponentLogger("calendar-service");
 
+@singleton()
 export class CalendarServiceImpl implements CalendarService {
-  constructor(private calendarRepository: CalendarRepository) {}
+  constructor(
+    @inject("CalendarRepository")
+    private calendarRepository: CalendarRepository,
+  ) {}
 
   async getMonthlyCalendar(
     year: number,

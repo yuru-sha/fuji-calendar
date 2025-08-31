@@ -1,19 +1,15 @@
 import * as cron from "node-cron";
 import { getComponentLogger } from "@fuji-calendar/utils";
-import type { DIContainer } from "../di/DIContainer";
+import { container as globalContainer, singleton, inject } from "tsyringe";
+import { QueueService } from "./interfaces/QueueService";
+import { LocationRepository } from "../repositories/interfaces/LocationRepository";
 
-/**
- * バックグラウンドジョブスケジューラー
- * 年次データ更新などの定期実行を管理
- */
+@singleton()
 export class BackgroundJobScheduler {
   private logger = getComponentLogger("BackgroundJobScheduler");
-  private container: DIContainer;
   private scheduledJobs: cron.ScheduledTask[] = [];
 
-  constructor(container: DIContainer) {
-    this.container = container;
-  }
+  constructor() {}
 
   /**
    * スケジューラーを開始
@@ -61,10 +57,8 @@ export class BackgroundJobScheduler {
 
       this.logger.info("年次データ生成開始", { targetYear: nextYear });
 
-      const queueService = this.container.resolve("QueueService") as any;
-      const locationRepository = this.container.resolve(
-        "LocationRepository",
-      ) as any;
+      const queueService = globalContainer.resolve<QueueService>("QueueService");
+      const locationRepository = globalContainer.resolve<LocationRepository>("LocationRepository");
 
       // 全地点を取得
       const locations = await locationRepository.findAll();
@@ -160,7 +154,7 @@ export class BackgroundJobScheduler {
       this.logger.info("日次メンテナンス開始");
 
       // キューの統計情報をログ出力
-      const queueService = this.container.resolve("QueueService") as any;
+      const queueService = globalContainer.resolve<QueueService>("QueueService");
       const queueStats = await queueService.getQueueStats();
 
       this.logger.info("キュー統計情報", queueStats);
@@ -205,7 +199,7 @@ export class BackgroundJobScheduler {
       const threeYearsAgo = new Date(currentDate.getFullYear() - 3, 0, 1);
 
       // 古いデータの削除処理をキューに登録
-      const queueService = this.container.resolve("QueueService") as any;
+      const queueService = globalContainer.resolve<QueueService>("QueueService");
 
       // 低優先度でデータクリーンアップジョブを登録
       const cleanupJobId = await queueService.scheduleDataCleanup(

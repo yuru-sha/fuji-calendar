@@ -1,7 +1,7 @@
 const Astronomy = require('astronomy-engine');
 
 // 共通定数をインポート
-const { FUJI_COORDINATES } = require('../../src/shared/types');
+const { FUJI_COORDINATES } = require('@fuji-calendar/types');
 
 // 実際にダイヤモンド富士が見える可能性の高い地点
 const testLocations = [
@@ -189,5 +189,8 @@ function checkDiamondFujiPossibility() {
   }
 }
 
-// 実行
-checkDiamondFujiPossibility();
+describe('Diamond Fuji Locations', () => {
+    it('should check diamond fuji possibility for various locations', () => {
+        checkDiamondFujiPossibility();
+    });
+});

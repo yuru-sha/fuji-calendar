@@ -1,18 +1,18 @@
-import { prisma } from "../database/prisma";
-import { AstronomicalCalculator } from "./AstronomicalCalculator";
+import { AstronomicalCalculator } from "./interfaces/AstronomicalCalculator";
 import { Location, FujiEvent } from "@fuji-calendar/types";
 import { getComponentLogger, StructuredLogger } from "@fuji-calendar/utils";
+import { PrismaClient } from "@prisma/client";
+import { singleton, inject } from "tsyringe";
 
-/**
- * イベントキャッシュサービス
- * 事前計算されたダイヤモンド・パール富士データの管理
- */
+@singleton()
 export class EventCacheService {
-  private astronomicalCalculator: AstronomicalCalculator;
   private logger: StructuredLogger;
 
-  constructor(astronomicalCalculator: AstronomicalCalculator) {
-    this.astronomicalCalculator = astronomicalCalculator;
+  constructor(
+    @inject("AstronomicalCalculator")
+    private astronomicalCalculator: AstronomicalCalculator,
+    @inject("PrismaClient") private prisma: PrismaClient,
+  ) {
     this.logger = getComponentLogger("event-cache-service");
   }
 
@@ -31,7 +31,7 @@ export class EventCacheService {
       this.logger.info("年間キャッシュ生成開始", { year });
 
       // 既存データを削除
-      const deletedCount = await prisma.locationEvent.deleteMany({
+      const deletedCount = await this.prisma.locationEvent.deleteMany({
         where: { calculationYear: year },
       });
       this.logger.info("既存データ削除完了", {
@@ -40,7 +40,7 @@ export class EventCacheService {
       });
 
       // 全地点を取得
-      const locations = await prisma.location.findMany();
+      const locations = await this.prisma.location.findMany();
       const locationTyped: Location[] = locations.map((loc: any) => ({
         ...loc,
         // 数値型フィールドの安全な変換
@@ -128,7 +128,7 @@ export class EventCacheService {
 
         const batchSaved = await Promise.all(
           batch.map((event) =>
-            prisma.locationEvent.create({
+            this.prisma.locationEvent.create({
               data: {
                 locationId: event.location.id,
                 eventDate: this.createJstDateOnly(event.time),
@@ -199,7 +199,7 @@ export class EventCacheService {
       });
 
       // 地点情報を取得
-      const location = await prisma.location.findUnique({
+      const location = await this.prisma.location.findUnique({
         where: { id: locationId },
       });
 
@@ -230,7 +230,7 @@ export class EventCacheService {
       const monthStart = new Date(year, month - 1, 1);
       const monthEnd = new Date(year, month, 0, 23, 59, 59, 999);
 
-      await prisma.locationEvent.deleteMany({
+      await this.prisma.locationEvent.deleteMany({
         where: {
           locationId: locationId,
           calculationYear: year,
@@ -251,7 +251,7 @@ export class EventCacheService {
       // データベースに保存
       const savedEvents = await Promise.all(
         events.map((event) =>
-          prisma.locationEvent.create({
+          this.prisma.locationEvent.create({
             data: {
               locationId: event.location.id,
               eventDate: this.createJstDateOnly(event.time),
@@ -322,7 +322,7 @@ export class EventCacheService {
       });
 
       // 地点情報を取得
-      const location = await prisma.location.findUnique({
+      const location = await this.prisma.location.findUnique({
         where: { id: locationId },
       });
 
@@ -353,7 +353,7 @@ export class EventCacheService {
       const dayStart = new Date(year, month - 1, day, 0, 0, 0, 0);
       const dayEnd = new Date(year, month - 1, day, 23, 59, 59, 999);
 
-      await prisma.locationEvent.deleteMany({
+      await this.prisma.locationEvent.deleteMany({
         where: {
           locationId: locationId,
           calculationYear: year,
@@ -379,7 +379,7 @@ export class EventCacheService {
       // データベースに保存
       const savedEvents = await Promise.all(
         events.map((event) =>
-          prisma.locationEvent.create({
+          this.prisma.locationEvent.create({
             data: {
               locationId: event.location.id,
               eventDate: this.createJstDateOnly(event.time),
@@ -445,7 +445,7 @@ export class EventCacheService {
       this.logger.info("地点キャッシュ生成開始", { locationId, year });
 
       // 地点情報を取得
-      const location = await prisma.location.findUnique({
+      const location = await this.prisma.location.findUnique({
         where: { id: locationId },
       });
 
@@ -475,7 +475,7 @@ export class EventCacheService {
       };
 
       // 既存データを削除
-      await prisma.locationEvent.deleteMany({
+      await this.prisma.locationEvent.deleteMany({
         where: {
           locationId: locationId,
           calculationYear: year,
@@ -492,7 +492,7 @@ export class EventCacheService {
       // データベースに保存
       const savedEvents = await Promise.all(
         events.map((event: any) =>
-          prisma.locationEvent.create({
+          this.prisma.locationEvent.create({
             data: {
               locationId: event.location.id,
               eventDate: this.createJstDateOnly(event.time),
@@ -607,5 +607,3 @@ export class EventCacheService {
     return new Date(Date.UTC(year, month - 1, day, 9, 0, 0, 0)); // UTC 09:00 = JST 18:00（同日）
   }
 }
-
-// DI コンテナから注入されるため、シングルトンインスタンスは削除

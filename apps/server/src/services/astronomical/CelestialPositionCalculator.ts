@@ -1,11 +1,13 @@
 import * as Astronomy from "astronomy-engine";
 import { SunPosition, MoonPosition } from "@fuji-calendar/types";
 import { getComponentLogger } from "@fuji-calendar/utils";
+import { injectable } from "tsyringe";
 
 /**
  * 天体位置計算を担当するクラス
  * 太陽・月の位置計算を集約
  */
+@injectable()
 export class CelestialPositionCalculator {
   private logger = getComponentLogger("CelestialPositionCalculator");
 

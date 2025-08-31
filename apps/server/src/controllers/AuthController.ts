@@ -1,11 +1,13 @@
 import { Request, Response } from "express";
 import { AuthService } from "../services/interfaces/AuthService";
 import { getComponentLogger } from "@fuji-calendar/utils";
+import { injectable, inject } from "tsyringe";
 
+@injectable()
 export class AuthController {
   private logger = getComponentLogger("auth-controller");
 
-  constructor(private authService: AuthService) {}
+  constructor(@inject("AuthService") private authService: AuthService) {}
 
   // ログイン
   // POST /api/auth/login

@@ -10,6 +10,7 @@ import { CelestialPositionCalculator } from "./astronomical/CelestialPositionCal
 import { FujiAlignmentCalculator } from "./astronomical/FujiAlignmentCalculator";
 import { SeasonCalculator } from "./astronomical/SeasonCalculator";
 import { SystemSettingsService } from "./SystemSettingsService";
+import { singleton, inject, injectable } from "tsyringe";
 
 // 既存のインターフェースをインポート
 export interface AstronomicalCalculator {
@@ -46,34 +47,17 @@ export interface AstronomicalCalculator {
   isVisibleMoonPhase(date: Date): boolean;
 }
 
-/**
- * 新しいダイヤモンド富士・パール富士検出アルゴリズム
- *
- * 基本原理：
- * 1. 撮影地点から富士山への方位角を計算
- * 2. その日の太陽・月の軌道を追跡
- * 3. 方位角が一致し、かつ適切な高度にある時刻を特定
- * 4. 視覚的にわかりやすいシンプルなロジック
- */
+@singleton()
 export class AstronomicalCalculatorImpl implements AstronomicalCalculator {
   private logger = getComponentLogger("AstronomicalCalculator");
 
-  // 分離されたクラス群を組み合わせ
-  private coordinateCalc = new CoordinateCalculator();
-  private celestialCalc = new CelestialPositionCalculator();
-  private alignmentCalc: FujiAlignmentCalculator;
-  private seasonCalc = new SeasonCalculator();
-
-  constructor(settingsService: SystemSettingsService) {
-    this.alignmentCalc = new FujiAlignmentCalculator(settingsService);
-    this.logger.info("AstronomicalCalculator 初期化完了", {
-      components: [
-        "CoordinateCalculator",
-        "CelestialPositionCalculator",
-        "FujiAlignmentCalculator",
-        "SeasonCalculator",
-      ],
-    });
+  constructor(
+    @inject(CoordinateCalculator) private coordinateCalc: CoordinateCalculator,
+    @inject(CelestialPositionCalculator) private celestialCalc: CelestialPositionCalculator,
+    @inject(FujiAlignmentCalculator) private alignmentCalc: FujiAlignmentCalculator,
+    @inject(SeasonCalculator) private seasonCalc: SeasonCalculator,
+  ) {
+    this.logger.info("AstronomicalCalculator 初期化完了");
   }
 
   /**

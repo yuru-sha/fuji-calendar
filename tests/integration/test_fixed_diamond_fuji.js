@@ -1,6 +1,13 @@
 // 修正後のダイヤモンド富士計算をテスト
+require("reflect-metadata");
+const { AstronomicalCalculatorImpl } = require('@fuji-calendar/server/services/AstronomicalCalculator');
+const { SystemSettingsService } = require('@fuji-calendar/server/services/SystemSettingsService');
+const { CelestialPositionCalculator } = require('@fuji-calendar/server/services/astronomical/CelestialPositionCalculator');
+const { CoordinateCalculator } = require('@fuji-calendar/server/services/astronomical/CoordinateCalculator');
+const { FujiAlignmentCalculator } = require('@fuji-calendar/server/services/astronomical/FujiAlignmentCalculator');
+const { SeasonCalculator } = require('@fuji-calendar/server/services/astronomical/SeasonCalculator');
+const { PrismaClient } = require('@prisma/client');
 
-const { AstronomicalCalculatorAstronomyEngine } = require('./src/server/services/AstronomicalCalculatorAstronomyEngine.ts');
 
 // 海ほたるPA
 const testLocation = {
@@ -17,7 +24,13 @@ const testLocation = {
 async function testFixedDiamondFuji() {
   console.log('=== 修正後のダイヤモンド富士計算テスト ===\n');
   
-  const calculator = new AstronomicalCalculatorAstronomyEngine();
+  const prisma = new PrismaClient();
+  const settingsService = new SystemSettingsService(prisma);
+  const coordinateCalc = new CoordinateCalculator();
+  const celestialCalc = new CelestialPositionCalculator();
+  const seasonCalc = new SeasonCalculator();
+  const alignmentCalc = new FujiAlignmentCalculator(settingsService, coordinateCalc, celestialCalc, seasonCalc);
+  const calculator = new AstronomicalCalculatorImpl(coordinateCalc, celestialCalc, alignmentCalc, seasonCalc);
   
   // 2025年3月10日をテスト
   const testDate = new Date(2025, 2, 10); // 3月10日
@@ -26,7 +39,7 @@ async function testFixedDiamondFuji() {
   console.log('撮影地点:', testLocation.name);
   
   try {
-    const events = await calculator.calculateDiamondFuji(testDate, testLocation);
+    const events = await calculator.calculateDiamondFuji(testDate, [testLocation]);
     
     console.log(`\n発見されたダイヤモンド富士イベント: ${events.length}個`);
     
@@ -63,5 +76,8 @@ async function testFixedDiamondFuji() {
   }
 }
 
-// 実行
-testFixedDiamondFuji();
+describe('Fixed Diamond Fuji Calculation', () => {
+    it('should test the fixed diamond fuji calculation', async () => {
+        await testFixedDiamondFuji();
+    });
+});

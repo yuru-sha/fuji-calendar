@@ -1,11 +1,15 @@
 import { Request, Response } from "express";
 import { CalendarService } from "../services/interfaces/CalendarService";
 import { getComponentLogger } from "@fuji-calendar/utils";
+import { injectable, inject } from "tsyringe";
 
+@injectable()
 export class CalendarController {
   private logger = getComponentLogger("calendar-controller");
 
-  constructor(private calendarService: CalendarService) {}
+  constructor(
+    @inject("CalendarService") private calendarService: CalendarService,
+  ) {}
 
   // 月間カレンダーデータを取得（キャッシュ対応）
   // GET /api/calendar/:year/:month

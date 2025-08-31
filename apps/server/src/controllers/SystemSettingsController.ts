@@ -1,18 +1,16 @@
 import { Request, Response } from "express";
 import { SystemSettingsService } from "../services/SystemSettingsService";
 import { getComponentLogger } from "@fuji-calendar/utils";
+import { injectable, inject } from "tsyringe";
 
-/**
- * システム設定管理コントローラー
- * 管理画面でのシステム設定の取得・更新を提供
- */
+@injectable()
 export class SystemSettingsController {
-  private systemSettingsService: SystemSettingsService;
   private logger = getComponentLogger("SystemSettingsController");
 
-  constructor(systemSettingsService: SystemSettingsService) {
-    this.systemSettingsService = systemSettingsService;
-  }
+  constructor(
+    @inject(SystemSettingsService)
+    private systemSettingsService: SystemSettingsService,
+  ) {}
 
   /**
    * 全システム設定を取得

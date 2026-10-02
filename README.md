@@ -362,3 +362,7 @@ MIT License
 - Astronomy Engine for precise astronomical calculations
 - Contributors to the shooting location database
 - Photography community for valuable feedback and suggestions
+
+## GitHub workflow
+
+Repository guidance for Codex is in [AGENTS.md](AGENTS.md). Shared Issue Forms and the default Pull Request template are inherited from `yuru-sha/.github`. Shared labels, including `orca:*`, are synchronized from `yuru-sha/project-template`.

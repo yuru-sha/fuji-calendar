@@ -1,0 +1,41 @@
+changelog:
+  exclude:
+    labels:
+      - skip-changelog
+      - duplicate
+      - invalid
+      - question
+  categories:
+    - title: Breaking Changes
+      labels:
+        - breaking-change
+        - semver-major
+    - title: Features
+      labels:
+        - enhancement
+        - feature
+        - semver-minor
+    - title: Fixes
+      labels:
+        - bug
+        - fix
+        - regression
+    - title: Performance
+      labels:
+        - performance
+    - title: Operations / Infrastructure
+      labels:
+        - ops
+        - ci
+        - deployment
+        - infrastructure
+        - docker
+    - title: Documentation
+      labels:
+        - documentation
+    - title: Dependencies
+      labels:
+        - dependencies
+    - title: Other Changes
+      labels:
+        - "*"

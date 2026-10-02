@@ -79,8 +79,6 @@ temp/
 *.sln
 *.sw?
 
-# Claude Code
-.claude/
 
 # Fuji Calendar data (except structure)
 data/*
@@ -88,8 +86,4 @@ data/*
 
 /generated/prisma
 
-# Serena directories and files
-.serena/
 
-# Kiro directories and files
-.kiro/

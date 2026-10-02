@@ -83,7 +83,7 @@
 
 ## 🚀 クイックスタート
 
-**5 分で動かす**: [QUICKSTART.md](QUICKSTART.md)
+**5 分で動かす**: [docs/quickstart.md](docs/quickstart.md)
 
 ### 必要な環境
 - Docker & Docker Compose v2 **推奨**
@@ -389,3 +389,7 @@ MIT License
 - 精密な天体計算を提供する Astronomy Engine
 - 撮影地点データベースへの貢献者
 - 貴重なフィードバックと提案をいただいた写真コミュニティ
+
+## GitHub運用
+
+Codex向けのリポジトリ作業規約は [AGENTS.md](AGENTS.md) にあります。Issue Form と既定の Pull Request テンプレートは `yuru-sha/.github` を利用し、`orca:*` を含む共通ラベルは `yuru-sha/project-template` から同期します。

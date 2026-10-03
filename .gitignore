@@ -86,4 +86,7 @@ data/*
 
 /generated/prisma
 
+# Verification artifacts (skills place proof under artifacts/verify-<skill>/<RUN_ID>)
+artifacts/
+
 

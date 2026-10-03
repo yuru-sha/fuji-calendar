@@ -1,0 +1,7 @@
+task:
+  agentModelOverrides:
+    scout: opencode-go/deepseek-v4-flash
+    reviewer: openai-codex/gpt-6.1-sol
+    security-reviewer: openai-codex/gpt-6.1-sol
+    task: openai-codex/gpt-6-luna
+    sonic: opencode-go/deepseek-v4-flash

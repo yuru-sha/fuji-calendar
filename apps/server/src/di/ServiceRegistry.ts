@@ -1,5 +1,6 @@
 import { DIContainer } from "./DIContainer";
 import { PrismaClient } from "@prisma/client";
+import { PrismaClientManager } from "../database/prisma";
 
 // Repository インターフェースと実装
 import { LocationRepository } from "../repositories/interfaces/LocationRepository";
@@ -48,7 +49,7 @@ export class ServiceRegistry {
     // PrismaClient の登録
     container.registerSingleton("PrismaClient", () => {
       logger.debug("PrismaClient インスタンス作成");
-      return new PrismaClient();
+      return PrismaClientManager.getInstance();
     });
 
     // SystemSettingsService の登録

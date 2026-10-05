@@ -3,6 +3,7 @@ import path from "path";
 import { getComponentLogger } from "@fuji-calendar/utils";
 import { DIContainer } from "./di/DIContainer";
 import { QueueService } from "./services/interfaces/QueueService";
+import { PrismaClientManager } from "./database/prisma";
 const logger = getComponentLogger("bootstrap");
 
 export interface BootstrapConfig {
@@ -123,6 +124,13 @@ export class Bootstrap {
       }
     } catch (error) {
       logger.error("BackgroundJobScheduler シャットダウンエラー", error);
+    }
+
+    try {
+      await PrismaClientManager.disconnect();
+      logger.info("PrismaClient シャットダウン完了");
+    } catch (error) {
+      logger.error("PrismaClient シャットダウンエラー", error);
     }
 
     logger.info("グレースフルシャットダウン完了");

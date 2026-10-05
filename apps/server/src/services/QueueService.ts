@@ -237,7 +237,6 @@ export class QueueService implements IQueueService {
         },
         {
           priority: priority === "high" ? 10 : priority === "normal" ? 3 : 1,
-          jobId: `monthly-${year}-${month}`,
           delay: priority === "high" ? 0 : priority === "normal" ? jobDelay / 2 : jobDelay,
           attempts: 3,
           backoff: {

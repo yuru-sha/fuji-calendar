@@ -1,7 +1,26 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../database/prisma";
 import { AstronomicalCalculator } from "./AstronomicalCalculator";
 import { Location, FujiEvent } from "@fuji-calendar/types";
 import { getComponentLogger, StructuredLogger } from "@fuji-calendar/utils";
+
+type LocationEventData = Prisma.LocationEventCreateManyInput;
+
+type EventCacheReplacement =
+  | {
+      kind: "location";
+      locationId: number;
+      year: number;
+      where: Prisma.LocationEventWhereInput;
+      events: LocationEventData[];
+    }
+  | {
+      kind: "year";
+      year: number;
+      locationIds: number[];
+      where: Prisma.LocationEventWhereInput;
+      events: LocationEventData[];
+    };
 
 /**
  * イベントキャッシュサービス
@@ -30,149 +49,84 @@ export class EventCacheService {
     try {
       this.logger.info("年間キャッシュ生成開始", { year });
 
-      // 既存データを削除
-      const deletedCount = await prisma.locationEvent.deleteMany({
-        where: { calculationYear: year },
-      });
-      this.logger.info("既存データ削除完了", {
-        year,
-        deletedCount: deletedCount.count,
-      });
-
-      // 全地点を取得
       const locations = await prisma.location.findMany();
-      const locationTyped: Location[] = locations.map((loc: any) => ({
-        ...loc,
-        // 数値型フィールドの安全な変換
-        latitude: Number(loc.latitude) || 0,
-        longitude: Number(loc.longitude) || 0,
-        elevation: Number(loc.elevation) || 0,
-        // オプショナルフィールドの変換
-        description: loc.description || undefined,
-        accessInfo: loc.accessInfo || undefined,
-        parkingInfo: loc.parkingInfo || undefined,
-        fujiAzimuth: loc.fujiAzimuth ? Number(loc.fujiAzimuth) : undefined,
-        fujiElevation: loc.fujiElevation
-          ? Number(loc.fujiElevation)
+      const locationTyped: Location[] = locations.map((location) => ({
+        ...location,
+        latitude: Number(location.latitude) || 0,
+        longitude: Number(location.longitude) || 0,
+        elevation: Number(location.elevation) || 0,
+        description: location.description || undefined,
+        accessInfo: location.accessInfo || undefined,
+        parkingInfo: location.parkingInfo || undefined,
+        fujiAzimuth: location.fujiAzimuth
+          ? Number(location.fujiAzimuth)
           : undefined,
-        fujiDistance: loc.fujiDistance ? Number(loc.fujiDistance) : undefined,
+        fujiElevation: location.fujiElevation
+          ? Number(location.fujiElevation)
+          : undefined,
+        fujiDistance: location.fujiDistance
+          ? Number(location.fujiDistance)
+          : undefined,
       }));
-
-      this.logger.info("地点データ取得完了", {
-        year,
-        locationCount: locationTyped.length,
-      });
-
-      // 年間イベントを計算（バッチ処理で進捗報告）
-      const allEvents: Array<{ location: Location; events: FujiEvent[] }> = [];
-      const batchSize = 5; // 一度に処理する地点数を制限
+      const locationIds = locationTyped.map(({ id }) => id).sort((a, b) => a - b);
+      const allEvents: FujiEvent[] = [];
+      const batchSize = 5;
 
       for (let i = 0; i < locationTyped.length; i += batchSize) {
         const batch = locationTyped.slice(i, i + batchSize);
         const progress = Math.round((i / locationTyped.length) * 100);
-
         this.logger.info("バッチ処理進行中", {
           year,
           progress: `${progress}%`,
           currentBatch: `${i + 1}-${Math.min(i + batchSize, locationTyped.length)}`,
           totalLocations: locationTyped.length,
         });
-
-        // バッチ内の地点を並列処理
-        const batchResults = await Promise.all(
-          batch.map(async (location) => {
-            try {
-              const events =
-                await this.astronomicalCalculator.calculateLocationYearlyEvents(
-                  location,
-                  year,
-                );
-              return { location, events };
-            } catch (error) {
-              this.logger.error("地点別計算エラー", error, {
-                year,
-                locationId: location.id,
-                locationName: location.name,
-              });
-              return { location, events: [] }; // エラー時は空配列を返す
-            }
-          }),
-        );
-
-        allEvents.push(...batchResults);
-      }
-
-      const events = allEvents.flatMap((item) =>
-        item.events.map((event) => ({ ...event, location: item.location })),
-      );
-
-      this.logger.info("全イベント計算完了", {
-        year,
-        totalEvents: events.length,
-      });
-
-      // データベースに保存（バッチ保存）
-      const savedEvents = [];
-      const saveBatchSize = 100; // データベース保存のバッチサイズ
-
-      for (let i = 0; i < events.length; i += saveBatchSize) {
-        const batch = events.slice(i, i + saveBatchSize);
-        const progress = Math.round((i / events.length) * 100);
-
-        this.logger.debug("データベース保存進行中", {
-          year,
-          progress: `${progress}%`,
-          currentBatch: `${i + 1}-${Math.min(i + saveBatchSize, events.length)}`,
-          totalEvents: events.length,
-        });
-
-        const batchSaved = await Promise.all(
-          batch.map((event) =>
-            prisma.locationEvent.create({
-              data: {
-                locationId: event.location.id,
-                eventDate: this.createJstDateOnly(event.time),
-                eventTime: event.time,
-                azimuth: event.azimuth || 0,
-                altitude: event.elevation || 0,
-                qualityScore: this.getQualityScore(event.accuracy),
-                moonPhase: event.moonPhase,
-                moonIllumination: event.moonIllumination,
-                calculationYear: year,
-                eventType: this.getEventType(event),
-                accuracy: this.mapAccuracy(event.accuracy),
-              },
-            }),
+        const batchEvents = await Promise.all(
+          batch.map((location) =>
+            this.astronomicalCalculator.calculateLocationYearlyEvents(
+              location,
+              year,
+            ),
           ),
         );
-
-        savedEvents.push(...batchSaved);
+        for (const locationEvents of batchEvents) {
+          allEvents.push(...locationEvents);
+        }
       }
 
-      const endTime = Date.now();
+      const events = allEvents.map((event) =>
+        this.toLocationEvent(event, year),
+      );
+      const savedEventCount = await this.replaceLocationEvents({
+        kind: "year",
+        year,
+        locationIds,
+        where: {
+          calculationYear: year,
+          locationId: { in: locationIds },
+        },
+        events,
+      });
+      const timeMs = Date.now() - startTime;
 
       this.logger.info("年間キャッシュ生成完了", {
         year,
-        totalEvents: savedEvents.length,
-        timeMs: endTime - startTime,
+        totalEvents: savedEventCount,
+        timeMs,
         locations: locationTyped.length,
-        avgEventsPerLocation: Math.round(
-          savedEvents.length / locationTyped.length,
-        ),
+        avgEventsPerLocation: locationTyped.length
+          ? Math.round(savedEventCount / locationTyped.length)
+          : 0,
       });
 
-      return {
-        success: true,
-        totalEvents: savedEvents.length,
-        timeMs: endTime - startTime,
-      };
+      return { success: true, totalEvents: savedEventCount, timeMs };
     } catch (error) {
       this.logger.error("年間キャッシュ生成エラー", error, { year });
       return {
         success: false,
         totalEvents: 0,
         timeMs: Date.now() - startTime,
-        error: error as Error,
+        error: error instanceof Error ? error : new Error(String(error)),
       };
     }
   }
@@ -226,48 +180,28 @@ export class EventCacheService {
           : undefined,
       };
 
-      // 該当月の既存データを削除
       const monthStart = new Date(year, month - 1, 1);
       const monthEnd = new Date(year, month, 0, 23, 59, 59, 999);
 
-      await prisma.locationEvent.deleteMany({
-        where: {
-          locationId: locationId,
-          calculationYear: year,
-          eventTime: {
-            gte: monthStart,
-            lte: monthEnd,
-          },
-        },
-      });
-
-      // 月間イベントを計算
       const events = await this.astronomicalCalculator.calculateMonthlyEvents(
         year,
         month,
         [locationTyped],
       );
-
-      // データベースに保存
-      const savedEvents = await Promise.all(
-        events.map((event) =>
-          prisma.locationEvent.create({
-            data: {
-              locationId: event.location.id,
-              eventDate: this.createJstDateOnly(event.time),
-              eventTime: event.time,
-              azimuth: event.azimuth || 0,
-              altitude: event.elevation || 0,
-              qualityScore: this.getQualityScore(event.accuracy),
-              moonPhase: event.moonPhase,
-              moonIllumination: event.moonIllumination,
-              calculationYear: year,
-              eventType: this.getEventType(event),
-              accuracy: this.mapAccuracy(event.accuracy),
-            },
-          }),
-        ),
+      const eventData = events.map((event) =>
+        this.toLocationEvent(event, year),
       );
+      const savedEvents = await this.replaceLocationEvents({
+        kind: "location",
+        locationId,
+        year,
+        where: {
+          locationId,
+          calculationYear: year,
+          eventTime: { gte: monthStart, lte: monthEnd },
+        },
+        events: eventData,
+      });
 
       const endTime = Date.now();
 
@@ -275,13 +209,13 @@ export class EventCacheService {
         locationId,
         year,
         month,
-        totalEvents: savedEvents.length,
+        totalEvents: savedEvents,
         timeMs: endTime - startTime,
       });
 
       return {
         success: true,
-        totalEvents: savedEvents.length,
+        totalEvents: savedEvents,
         timeMs: endTime - startTime,
       };
     } catch (error) {
@@ -349,23 +283,10 @@ export class EventCacheService {
           : undefined,
       };
 
-      // 該当日の既存データを削除
       const dayStart = new Date(year, month - 1, day, 0, 0, 0, 0);
       const dayEnd = new Date(year, month - 1, day, 23, 59, 59, 999);
 
-      await prisma.locationEvent.deleteMany({
-        where: {
-          locationId: locationId,
-          calculationYear: year,
-          eventTime: {
-            gte: dayStart,
-            lte: dayEnd,
-          },
-        },
-      });
-
-      // その日のイベントを計算
-      const date = new Date(year, month - 1, day, 12, 0, 0, 0); // JST 正午基準
+      const date = new Date(year, month - 1, day, 12, 0, 0, 0);
       const diamondEvents =
         await this.astronomicalCalculator.calculateDiamondFuji(date, [
           locationTyped,
@@ -374,28 +295,20 @@ export class EventCacheService {
         date,
         [locationTyped],
       );
-      const events = [...diamondEvents, ...pearlEvents];
-
-      // データベースに保存
-      const savedEvents = await Promise.all(
-        events.map((event) =>
-          prisma.locationEvent.create({
-            data: {
-              locationId: event.location.id,
-              eventDate: this.createJstDateOnly(event.time),
-              eventTime: event.time,
-              azimuth: event.azimuth || 0,
-              altitude: event.elevation || 0,
-              qualityScore: this.getQualityScore(event.accuracy),
-              moonPhase: event.moonPhase,
-              moonIllumination: event.moonIllumination,
-              calculationYear: year,
-              eventType: this.getEventType(event),
-              accuracy: this.mapAccuracy(event.accuracy),
-            },
-          }),
-        ),
+      const eventData = [...diamondEvents, ...pearlEvents].map((event) =>
+        this.toLocationEvent(event, year),
       );
+      const savedEvents = await this.replaceLocationEvents({
+        kind: "location",
+        locationId,
+        year,
+        where: {
+          locationId,
+          calculationYear: year,
+          eventTime: { gte: dayStart, lte: dayEnd },
+        },
+        events: eventData,
+      });
 
       const endTime = Date.now();
 
@@ -404,13 +317,13 @@ export class EventCacheService {
         year,
         month,
         day,
-        totalEvents: savedEvents.length,
+        totalEvents: savedEvents,
         timeMs: endTime - startTime,
       });
 
       return {
         success: true,
-        totalEvents: savedEvents.length,
+        totalEvents: savedEvents,
         timeMs: endTime - startTime,
       };
     } catch (error) {
@@ -455,11 +368,9 @@ export class EventCacheService {
 
       const locationTyped: Location = {
         ...location,
-        // 数値型フィールドの安全な変換
         latitude: Number(location.latitude) || 0,
         longitude: Number(location.longitude) || 0,
         elevation: Number(location.elevation) || 0,
-        // オプショナルフィールドの変換
         description: location.description || undefined,
         accessInfo: location.accessInfo || undefined,
         parkingInfo: location.parkingInfo || undefined,
@@ -474,54 +385,34 @@ export class EventCacheService {
           : undefined,
       };
 
-      // 既存データを削除
-      await prisma.locationEvent.deleteMany({
-        where: {
-          locationId: locationId,
-          calculationYear: year,
-        },
-      });
-
-      // 年間イベントを計算
       const events =
         await this.astronomicalCalculator.calculateLocationYearlyEvents(
           locationTyped,
           year,
         );
-
-      // データベースに保存
-      const savedEvents = await Promise.all(
-        events.map((event: any) =>
-          prisma.locationEvent.create({
-            data: {
-              locationId: event.location.id,
-              eventDate: this.createJstDateOnly(event.time),
-              eventTime: event.time,
-              azimuth: event.azimuth || 0,
-              altitude: event.elevation || 0,
-              qualityScore: this.getQualityScore(event.accuracy),
-              moonPhase: event.moonPhase,
-              moonIllumination: event.moonIllumination,
-              calculationYear: year,
-              eventType: this.getEventType(event),
-              accuracy: this.mapAccuracy(event.accuracy),
-            },
-          }),
-        ),
+      const eventData = events.map((event) =>
+        this.toLocationEvent(event, year),
       );
+      const savedEvents = await this.replaceLocationEvents({
+        kind: "location",
+        locationId,
+        year,
+        where: { locationId, calculationYear: year },
+        events: eventData,
+      });
 
       const endTime = Date.now();
 
       this.logger.info("地点キャッシュ生成完了", {
         locationId,
         year,
-        totalEvents: savedEvents.length,
+        totalEvents: savedEvents,
         timeMs: endTime - startTime,
       });
 
       return {
         success: true,
-        totalEvents: savedEvents.length,
+        totalEvents: savedEvents,
         timeMs: endTime - startTime,
       };
     } catch (error) {
@@ -531,6 +422,73 @@ export class EventCacheService {
       });
       throw error;
     }
+  }
+
+  private toLocationEvent(event: FujiEvent, year: number) {
+    return {
+      locationId: event.location.id,
+      eventDate: this.createJstDateOnly(event.time),
+      eventTime: event.time,
+      azimuth: event.azimuth || 0,
+      altitude: event.elevation || 0,
+      qualityScore: this.getQualityScore(event.accuracy),
+      moonPhase: event.moonPhase,
+      moonIllumination: event.moonIllumination,
+      calculationYear: year,
+      eventType: this.getEventType(event),
+      accuracy: this.mapAccuracy(event.accuracy),
+    };
+  }
+
+  private async replaceLocationEvents(
+    replacement: EventCacheReplacement,
+  ): Promise<number> {
+    if (replacement.kind === "year" && replacement.locationIds.length === 0) {
+      return 0;
+    }
+
+    return prisma.$transaction(async (transaction) => {
+      if (replacement.kind === "year") {
+        await transaction.$queryRaw`
+          WITH lock_result AS MATERIALIZED (
+            SELECT pg_advisory_xact_lock(
+              ${0}::integer,
+              ${replacement.year}::integer
+            )
+          )
+          SELECT 1 FROM lock_result
+        `;
+      } else {
+        await transaction.$queryRaw`
+          WITH lock_result AS MATERIALIZED (
+            SELECT pg_advisory_xact_lock_shared(
+              ${0}::integer,
+              ${replacement.year}::integer
+            )
+          )
+          SELECT 1 FROM lock_result
+        `;
+        await transaction.$queryRaw`
+          WITH lock_result AS MATERIALIZED (
+            SELECT pg_advisory_xact_lock(
+              ${replacement.locationId}::integer,
+              ${replacement.year}::integer
+            )
+          )
+          SELECT 1 FROM lock_result
+        `;
+      }
+
+      await transaction.locationEvent.deleteMany({
+        where: replacement.where,
+      });
+      if (replacement.events.length === 0) return 0;
+
+      const result = await transaction.locationEvent.createMany({
+        data: replacement.events,
+      });
+      return result.count;
+    });
   }
 
   /**

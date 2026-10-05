@@ -108,6 +108,11 @@ export class QueueService implements IQueueService {
       return;
     }
 
+    if (this.eventCalculationQueue) {
+      logger.debug("キューシステムは初期化済みです");
+      return;
+    }
+
     try {
       // イベント計算キューを作成（常に作成）
       this.eventCalculationQueue = new Queue("event-calculation", {

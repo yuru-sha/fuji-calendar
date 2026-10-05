@@ -84,45 +84,27 @@ export class AstronomicalCalculatorImpl implements AstronomicalCalculator {
     locations: Location[],
   ): Promise<FujiEvent[]> {
     const startTime = Date.now();
-    const allEvents: FujiEvent[] = [];
-
-    try {
-      // 複数の地点に対して並列処理
-      const eventPromises = locations.map(async (location) => {
+    const locationResults = await Promise.all(
+      locations.map(async (location) => {
         try {
-          const events = await this.alignmentCalc.findDiamondFuji(
-            date,
-            location,
-          );
-          return events;
+          return await this.alignmentCalc.findDiamondFuji(date, location);
         } catch (error) {
           this.logger.error("ダイヤモンド富士計算エラー（個別地点）", error, {
             date: timeUtils.formatDateString(date),
             locationId: location.id,
           });
-          return [];
+          throw error;
         }
-      });
-
-      const locationResults = await Promise.all(eventPromises);
-      locationResults.forEach((events) => allEvents.push(...events));
-
-      const responseTime = Date.now() - startTime;
-      this.logger.debug("ダイヤモンド富士計算完了（複数地点）", {
-        date: timeUtils.formatDateString(date),
-        locationCount: locations.length,
-        eventsFound: allEvents.length,
-        responseTimeMs: responseTime,
-      });
-
-      return allEvents;
-    } catch (error) {
-      this.logger.error("ダイヤモンド富士計算エラー（全体）", error, {
-        date: timeUtils.formatDateString(date),
-        locationCount: locations.length,
-      });
-      return [];
-    }
+      }),
+    );
+    const allEvents = locationResults.flat();
+    this.logger.debug("ダイヤモンド富士計算完了（複数地点）", {
+      date: timeUtils.formatDateString(date),
+      locationCount: locations.length,
+      eventsFound: allEvents.length,
+      responseTimeMs: Date.now() - startTime,
+    });
+    return allEvents;
   }
 
   /**
@@ -133,42 +115,27 @@ export class AstronomicalCalculatorImpl implements AstronomicalCalculator {
     locations: Location[],
   ): Promise<FujiEvent[]> {
     const startTime = Date.now();
-    const allEvents: FujiEvent[] = [];
-
-    try {
-      // 複数の地点に対して並列処理
-      const eventPromises = locations.map(async (location) => {
+    const locationResults = await Promise.all(
+      locations.map(async (location) => {
         try {
-          const events = await this.alignmentCalc.findPearlFuji(date, location);
-          return events;
+          return await this.alignmentCalc.findPearlFuji(date, location);
         } catch (error) {
           this.logger.error("パール富士計算エラー（個別地点）", error, {
             date: timeUtils.formatDateString(date),
             locationId: location.id,
           });
-          return [];
+          throw error;
         }
-      });
-
-      const locationResults = await Promise.all(eventPromises);
-      locationResults.forEach((events) => allEvents.push(...events));
-
-      const responseTime = Date.now() - startTime;
-      this.logger.debug("パール富士計算完了（複数地点）", {
-        date: timeUtils.formatDateString(date),
-        locationCount: locations.length,
-        eventsFound: allEvents.length,
-        responseTimeMs: responseTime,
-      });
-
-      return allEvents;
-    } catch (error) {
-      this.logger.error("パール富士計算エラー（全体）", error, {
-        date: timeUtils.formatDateString(date),
-        locationCount: locations.length,
-      });
-      return [];
-    }
+      }),
+    );
+    const allEvents = locationResults.flat();
+    this.logger.debug("パール富士計算完了（複数地点）", {
+      date: timeUtils.formatDateString(date),
+      locationCount: locations.length,
+      eventsFound: allEvents.length,
+      responseTimeMs: Date.now() - startTime,
+    });
+    return allEvents;
   }
 
   /**
@@ -182,7 +149,6 @@ export class AstronomicalCalculatorImpl implements AstronomicalCalculator {
     const allEvents: FujiEvent[] = [];
     const daysInMonth = new Date(year, month, 0).getDate();
 
-    // 複数の地点に対して並列処理
     for (const location of locations) {
       for (let day = 1; day <= daysInMonth; day++) {
         const date = new Date(year, month - 1, day);

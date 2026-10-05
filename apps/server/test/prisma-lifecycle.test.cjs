@@ -1,3 +1,6 @@
+const { spawn } = require("node:child_process");
+const path = require("node:path");
+const { once } = require("node:events");
 const assert = require("node:assert/strict");
 const { test } = require("node:test");
 
@@ -65,5 +68,68 @@ test("DI and graceful shutdown use and disconnect the shared Prisma client", asy
   } finally {
     await PrismaClientManager.disconnect();
     sharedClient.$disconnect = originalDisconnect;
+  }
+});
+
+test("worker graceful shutdown disconnects the shared Prisma client", async () => {
+  const worker = spawn(
+    process.execPath,
+    [
+      "-r",
+      "ts-node/register",
+      "-r",
+      "tsconfig-paths/register",
+      "src/worker.ts",
+    ],
+    {
+      cwd: path.resolve(__dirname, ".."),
+      env: {
+        ...process.env,
+        DATABASE_URL: "postgresql://test:test@127.0.0.1:1/test?connect_timeout=1",
+        DISABLE_REDIS: "true",
+        TS_NODE_PROJECT: "tsconfig.json",
+      },
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
+  let output = "";
+  worker.stdout.on("data", (chunk) => {
+    output += chunk;
+  });
+  worker.stderr.on("data", (chunk) => {
+    output += chunk;
+  });
+
+  try {
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(
+        () => reject(new Error(`Worker did not start: ${output}`)),
+        10000,
+      );
+      worker.once("error", reject);
+      worker.once("exit", (code) => {
+        clearTimeout(timeout);
+        reject(new Error(`Worker exited before startup with ${code}: ${output}`));
+      });
+      worker.stdout.on("data", () => {
+        if (output.includes("キューワーカーが正常に開始されました")) {
+          clearTimeout(timeout);
+          resolve();
+        }
+      });
+    });
+
+    worker.kill("SIGTERM");
+    const [exitCode] = await once(worker, "exit");
+    assert.equal(exitCode, 0, output);
+    assert.ok(
+      output.includes("Prisma Client disconnected"),
+      "worker shutdown did not disconnect Prisma",
+    );
+  } finally {
+    if (worker.exitCode === null) {
+      worker.kill("SIGKILL");
+      await once(worker, "exit");
+    }
   }
 });

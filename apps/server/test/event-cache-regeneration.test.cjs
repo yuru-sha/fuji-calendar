@@ -271,6 +271,122 @@ test(
     }
   },
 );
+test(
+  "all-location annual and month replacements serialize overlapping writes",
+  {
+    skip:
+      !databaseUrl &&
+      "set CACHE_REGENERATION_TEST_DATABASE_URL to a dedicated PostgreSQL test database",
+  },
+  async () => {
+    const { prisma, EventCacheService } = getDependencies();
+    const location = await createLocation(prisma);
+    const year = 2034;
+    const month = 5;
+    const annualMonthEventTime = new Date(year, month - 1, 12, 8);
+    const annualOtherMonthEventTime = new Date(year, month, 12, 8);
+    const monthlyEventTime = new Date(year, month - 1, 12, 17);
+    let calculationCount = 0;
+    let releaseCalculations;
+    const bothCalculationsStarted = new Promise((resolve) => {
+      releaseCalculations = resolve;
+    });
+    const waitForBothCalculations = async () => {
+      if (calculationCount++ === 1) releaseCalculations();
+      await bothCalculationsStarted;
+    };
+
+    try {
+      const service = new EventCacheService({
+        calculateLocationYearlyEvents: async (targetLocation) => {
+          await waitForBothCalculations();
+          return [
+            event(targetLocation, "annual-month", annualMonthEventTime),
+            event(
+              targetLocation,
+              "annual-other-month",
+              annualOtherMonthEventTime,
+              "pearl",
+            ),
+          ];
+        },
+        calculateMonthlyEvents: async (_year, _month, [targetLocation]) => {
+          await waitForBothCalculations();
+          return [event(targetLocation, "monthly", monthlyEventTime)];
+        },
+      });
+
+      const results = await Promise.all([
+        service.generateYearlyCache(year),
+        service.generateLocationMonthCache(location.id, year, month),
+      ]);
+      assert.deepEqual(
+        results.map(({ success }) => success),
+        [true, true],
+      );
+
+      const rows = await prisma.locationEvent.findMany({
+        where: { locationId: location.id, calculationYear: year },
+      });
+      const actual = summarize(rows);
+      const annualLast = summarize([
+        { eventTime: annualMonthEventTime, eventType: "diamond_sunrise" },
+        { eventTime: annualOtherMonthEventTime, eventType: "pearl_moonrise" },
+      ]);
+      const monthlyLast = summarize([
+        { eventTime: monthlyEventTime, eventType: "diamond_sunrise" },
+        { eventTime: annualOtherMonthEventTime, eventType: "pearl_moonrise" },
+      ]);
+      assert.ok(
+        JSON.stringify(actual) === JSON.stringify(annualLast) ||
+          JSON.stringify(actual) === JSON.stringify(monthlyLast),
+        `expected either complete transaction ordering, received ${JSON.stringify(actual)}`,
+      );
+    } finally {
+      await prisma.location.delete({ where: { id: location.id } });
+    }
+  },
+);
+
+test(
+  "failed annual location calculations preserve previous cache rows",
+  {
+    skip:
+      !databaseUrl &&
+      "set CACHE_REGENERATION_TEST_DATABASE_URL to a dedicated PostgreSQL test database",
+  },
+  async () => {
+    const { prisma, EventCacheService } = getDependencies();
+    const location = await createLocation(prisma);
+    const year = 2035;
+    const oldEventTime = new Date(year, 4, 12, 8);
+    const service = new EventCacheService({
+      calculateLocationYearlyEvents: async () => {
+        throw new Error("annual calculation failed");
+      },
+    });
+
+    try {
+      await prisma.locationEvent.create({
+        data: storedEvent(location.id, year, oldEventTime, "diamond_sunrise"),
+      });
+      await assert.rejects(
+        service.generateLocationCache(location.id, year),
+        /annual calculation failed/,
+      );
+
+      const rows = await prisma.locationEvent.findMany({
+        where: { locationId: location.id, calculationYear: year },
+      });
+      assert.deepEqual(summarize(rows), [
+        `${oldEventTime.toISOString()} diamond_sunrise`,
+      ]);
+    } finally {
+      await prisma.location.delete({ where: { id: location.id } });
+    }
+  },
+);
+
 
 
 

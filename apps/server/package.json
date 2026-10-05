@@ -12,6 +12,7 @@
     "start:worker": "ts-node --project tsconfig.json src/worker.ts",
     "start:worker:dev": "ts-node src/worker.ts",
     "worker": "ts-node src/worker.ts",
+    "test": "node -r ts-node/register --test test/*.test.cjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",

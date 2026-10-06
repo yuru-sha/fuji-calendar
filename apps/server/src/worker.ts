@@ -16,6 +16,7 @@ import { DIContainer } from "./di/DIContainer";
 import { ServiceRegistry } from "./di/ServiceRegistry";
 import { QueueService } from "./services/interfaces/QueueService";
 import { getComponentLogger } from "@fuji-calendar/utils";
+import { PrismaClientManager } from "./database/prisma";
 
 const logger = getComponentLogger("queue-worker");
 
@@ -27,16 +28,26 @@ let queueService: QueueService;
 const cleanup = async (signal: string) => {
   logger.info(`${signal} シグナル受信 - ワーカーを安全に終了中...`);
 
+  let exitCode = 0;
   try {
     if (queueService) {
       await queueService.shutdown();
     }
     logger.info("キューサービス終了完了");
-    process.exit(0);
   } catch (error) {
     logger.error("キューサービス終了エラー", error);
-    process.exit(1);
+    exitCode = 1;
   }
+
+  try {
+    await PrismaClientManager.disconnect();
+    logger.info("PrismaClient シャットダウン完了");
+  } catch (error) {
+    logger.error("PrismaClient シャットダウンエラー", error);
+    exitCode = 1;
+  }
+
+  process.exit(exitCode);
 };
 
 // シグナルハンドラーの登録

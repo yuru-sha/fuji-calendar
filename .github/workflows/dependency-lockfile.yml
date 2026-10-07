@@ -1,0 +1,60 @@
+name: Refresh dependency lockfile
+
+on:
+  push:
+    branches:
+      - 'chore/**'
+    paths:
+      - 'package.json'
+      - 'apps/**/package.json'
+      - 'packages/**/package.json'
+  workflow_dispatch:
+    inputs:
+      target_branch:
+        description: Branch to refresh
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: dependency-lockfile-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  refresh-lockfile:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.target_branch || github.ref_name }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26.10.0
+          cache: npm
+      - name: Refresh lockfile
+        run: npm install --package-lock-only || (rm package-lock.json && npm install --package-lock-only)
+      - name: Verify clean install
+        run: npm ci
+      - name: Commit lockfile
+        id: commit-lockfile
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            git commit -m "chore: refresh package lockfile"
+            git push
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Dispatch dependency analysis
+        if: steps.commit-lockfile.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_BRANCH: ${{ github.event_name == 'workflow_dispatch' && inputs.target_branch || github.ref_name }}
+        run: gh workflow run dependency-check.yml --ref "$TARGET_BRANCH"

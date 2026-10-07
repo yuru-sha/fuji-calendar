@@ -1,7 +1,5 @@
-/* Tailwind CSS ディレクティブ */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Tailwind CSS v4 theme reference */
+@reference "./index.css";
 
 /* アプリケーション固有のスタイル */
 @layer components {

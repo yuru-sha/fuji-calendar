@@ -1,7 +1,6 @@
-/* Tailwind CSS ディレクティブ */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Tailwind CSS v4 */
+@import "tailwindcss";
+@config "../tailwind.config.js";
 
 /* ベーススタイル - 富士山デザインシステム */
 @layer base {
@@ -110,7 +109,7 @@
   /* フォーム入力 */
   .form-input {
     @apply border border-gray-300 hover:border-gray-400 
-           focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 
+           focus:border-blue-500 focus:ring-2 focus:ring-blue-500/50 
            rounded-md px-3 py-2 text-base w-full 
            bg-white
            transition-all duration-200 

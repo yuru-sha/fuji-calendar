@@ -134,7 +134,7 @@ fuji-calendar/
 
 ### Prerequisites
 - Docker & Docker Compose v2 **Recommended**
-- Node.js 18+ (for initial setup only)
+- Node.js 26.10.0+ and npm 11.19.1+ (for local development and setup)
 
 ### Environment Configuration
 

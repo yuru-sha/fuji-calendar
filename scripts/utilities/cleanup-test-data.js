@@ -2,12 +2,12 @@
  * 間違ったテストデータをクリーンアップ
  */
 
-const { PrismaClient } = require('@prisma/client');
+const { createPrismaClient } = require('../lib/prisma-client');
 
 async function cleanupTestData() {
   console.log('🧹 テストデータクリーンアップ開始...\n');
 
-  const prisma = new PrismaClient();
+  const prisma = await createPrismaClient();
 
   try {
     await prisma.$connect();

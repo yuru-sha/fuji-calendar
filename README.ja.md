@@ -49,7 +49,7 @@
 - **型安全な開発**: TypeScript strict mode でフロント・バック・共有パッケージ全体
 
 ### フロントエンド (@fuji-calendar/client)
-- React 19 + TypeScript (strict mode)
+- React 19 + TypeScript 7 (strict mode)
 - Tailwind CSS v3.4.17 (utility-first styling)
 - CSS Modules (component-specific styles)
 - Leaflet (地図表示・ルート描画)
@@ -57,7 +57,7 @@
 - LocalStorage API (お気に入り機能)
 
 ### バックエンド (@fuji-calendar/server)
-- Node.js + Express + TypeScript (strict mode)
+- Node.js + Express + TypeScript 7 (strict mode)
 - PostgreSQL 15 + Prisma ORM (データベース)
 - Redis + BullMQ (キャッシュ・非同期キューシステム)
 - Astronomy Engine (高精度天体計算)

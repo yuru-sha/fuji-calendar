@@ -48,7 +48,7 @@ A web application for calculating and displaying optimal shooting times and loca
 - **Type-safe Development**: TypeScript strict mode across frontend, backend, and shared packages
 
 ### Frontend (@fuji-calendar/client)
-- React 19 + TypeScript (strict mode)
+- React 19 + TypeScript 7 (strict mode)
 - Tailwind CSS v3.4.17 (utility-first styling)
 - CSS Modules (component-specific styles)
 - Leaflet (map display & route drawing)
@@ -56,7 +56,7 @@ A web application for calculating and displaying optimal shooting times and loca
 - LocalStorage API (favorites functionality)
 
 ### Backend (@fuji-calendar/server)
-- Node.js + Express + TypeScript (strict mode)
+- Node.js + Express + TypeScript 7 (strict mode)
 - PostgreSQL 15 + Prisma ORM (database)
 - Redis + BullMQ (cache & async queue system)
 - Astronomy Engine (high-precision astronomical calculations)

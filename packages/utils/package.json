@@ -15,7 +15,7 @@
     "pino": "^9.7.0"
   },
   "devDependencies": {
-    "typescript": "^5.2.2"
+    "typescript": "^7.0.2"
   },
   "files": [
     "dist"

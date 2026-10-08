@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - 'chore/**'
+      - 'test/**'
     paths:
       - 'package.json'
       - 'apps/**/package.json'

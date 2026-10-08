@@ -4,9 +4,9 @@
  * バックグラウンドジョブ設定の初期データ作成スクリプト
  */
 
-const { PrismaClient } = require('@prisma/client');
+const { createPrismaClient } = require('../lib/prisma-client');
 
-const prisma = new PrismaClient();
+let prisma;
 
 const defaultJobs = [
   {
@@ -74,6 +74,8 @@ async function seedBackgroundJobs() {
 }
 
 async function main() {
+  prisma = await createPrismaClient();
+
   try {
     await seedBackgroundJobs();
   } catch (error) {

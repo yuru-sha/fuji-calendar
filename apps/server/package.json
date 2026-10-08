@@ -17,12 +17,17 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "prisma:generate": "prisma generate --config ../../prisma.config.ts",
+    "prebuild": "npm run prisma:generate",
+    "pretypecheck": "npm run prisma:generate",
+    "pretest": "npm run prisma:generate"
   },
   "dependencies": {
     "@fuji-calendar/types": "^0.5.0",
     "@fuji-calendar/utils": "^0.5.0",
-    "@prisma/client": "^6.12.0",
+    "@prisma/adapter-pg": "7.10.0",
+    "@prisma/client": "7.10.0",
     "@types/bcrypt": "^5.0.2",
     "@types/cors": "^2.8.16",
     "@types/express": "^5.0.6",
@@ -44,10 +49,11 @@
     "pino": "^10.4.0",
     "pino-http": "^11.0.0",
     "pino-pretty": "^13.1.3",
-    "prisma": "^6.12.0",
+    "prisma": "7.10.0",
     "ts-node": "^10.9.1",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^7.0.2",
+    "dotenv": "^17.2.3",
     "uuid": "^9.0.1"
   },
   "devDependencies": {

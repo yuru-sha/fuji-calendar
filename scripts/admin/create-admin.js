@@ -1,8 +1,8 @@
-const { PrismaClient } = require('@prisma/client');
+const { createPrismaClient } = require('../lib/prisma-client');
 const bcrypt = require('bcrypt');
 
 async function createAdmin() {
-  const prisma = new PrismaClient();
+  const prisma = await createPrismaClient();
   
   try {
     console.log('管理者アカウント作成開始...');

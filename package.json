@@ -45,14 +45,14 @@
   "author": "yuru-sha",
   "license": "MIT",
   "devDependencies": {
-    "@types/node": "^20.9.0",
+    "@types/node": "^26.0.0",
     "@typescript-eslint/eslint-plugin": "^6.10.0",
     "@typescript-eslint/parser": "^6.10.0",
     "concurrently": "^8.2.2",
     "eslint": "^8.53.0",
     "js-yaml": "^4.1.0",
     "madge": "^7.0.0",
-    "typescript": "^5.9.2"
+    "typescript": "^7.0.2"
   },
   "engines": {
     "node": ">=26.10.0",

@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { getComponentLogger } from "@fuji-calendar/utils";
 import type { DIContainer } from "../di/DIContainer";
-import type { PrismaClient } from "@prisma/client";
+import type { PrismaClient } from "../generated/prisma/client.js";
 // 型のみのインポート - 実際の使用は動的解決
 // import type { QueueService } from '../services/interfaces/QueueService';
 // import type { BackgroundJobScheduler } from '../services/BackgroundJobScheduler';

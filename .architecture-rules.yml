@@ -33,7 +33,7 @@ rules:
   - name: "Controller-Service Boundary"
     source: "apps/server/src/controllers/**"
     allowed: ["apps/server/src/services/**", "apps/server/src/middleware/**", "@fuji-calendar/**"]
-    forbidden: ["apps/server/src/repositories/**", "@prisma/client"]
+    forbidden: ["apps/server/src/repositories/**", "apps/server/src/generated/prisma/**"]
     severity: "error"
     message: "コントローラーは直接リポジトリや Prisma にアクセスしてはいけません"
 
@@ -46,7 +46,7 @@ rules:
 
   - name: "Repository Implementation"
     source: "apps/server/src/repositories/**"
-    allowed: ["@prisma/client", "@fuji-calendar/types"]
+    allowed: ["apps/server/src/generated/prisma/**", "@fuji-calendar/types"]
     forbidden: ["apps/server/src/services/**", "apps/server/src/controllers/**"]
     severity: "error"
     message: "リポジトリはサービスやコントローラーに依存してはいけません"

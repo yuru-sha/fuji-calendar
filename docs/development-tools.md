@@ -8,7 +8,6 @@
 
 ### ダイヤモンド富士関連
 
-#### `scripts/debug/debug-diamond-fuji.js`
 ダイヤモンド富士の詳細な計算過程をデバッグするスクリプト（モノレポ構成）
 
 **機能:**
@@ -19,7 +18,6 @@
 
 **使用例:**
 ```bash
-node scripts/debug/debug-diamond-fuji.js
 ```
 
 #### `scripts/debug/debug-tenjogatake.js`

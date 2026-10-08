@@ -2,7 +2,7 @@
 
 // スーパー地形の仰角 3.61 度に合わせて天子ヶ岳データを修正
 
-const { PrismaClient } = require('@prisma/client');
+const { createPrismaClient } = require('../lib/prisma-client');
 
 const FUJI_COORDINATES = {
   latitude: 35.3606,
@@ -112,7 +112,7 @@ async function fixTenjogatakeData() {
   // 方法 2: より正確な計算で再計算
   console.log('方法 2: 距離と標高を再測定して正確なデータに修正');
   
-  const prisma = new PrismaClient();
+  const prisma = await createPrismaClient();
   
   try {
     // 現在のデータを表示

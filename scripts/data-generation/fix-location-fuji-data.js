@@ -1,5 +1,5 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const { createPrismaClient } = require('../lib/prisma-client');
+const prisma = await createPrismaClient();
 
 // 富士山座標（FUJI_COORDINATES）
 const FUJI_COORDINATES = {

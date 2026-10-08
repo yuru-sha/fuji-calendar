@@ -2,7 +2,7 @@
 
 // 天子ヶ岳（location_id=6）の 2025-01-16 パール富士イベントを手動生成
 
-const { PrismaClient } = require('@prisma/client');
+const { createPrismaClient } = require('../lib/prisma-client');
 const Astronomy = require('astronomy-engine');
 
 const tenjogatakeLocation = {
@@ -46,7 +46,7 @@ function calculateQualityScore(azimuthDiff, elevation) {
 async function generateTenjogatakeEvents() {
   console.log('=== 天子ヶ岳 2025-01-16 パール富士イベント生成 ===');
   
-  const prisma = new PrismaClient();
+  const prisma = await createPrismaClient();
   const date = new Date('2025-01-16T00:00:00+09:00');
   const observer = new Astronomy.Observer(
     tenjogatakeLocation.latitude,

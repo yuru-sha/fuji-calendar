@@ -300,7 +300,6 @@ bash scripts/config/docker-prod.sh logs
 tail -f logs/app.log
 
 # データベース状態チェック
-node scripts/testing/check_db_status.js
 ```
 
 ### 再インストール
@@ -335,7 +334,6 @@ npm run dev
 bash scripts/config/docker-prod.sh health
 
 # データベース進捗チェック
-node scripts/testing/check-progress.js
 
 # パフォーマンス分析
 node scripts/utilities/performance-analysis.js

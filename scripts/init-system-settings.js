@@ -5,9 +5,9 @@
  * 天体計算の定数を DB に登録し、運用中に調整可能にする
  */
 
-const { PrismaClient } = require('@prisma/client');
+const { createPrismaClient } = require('./lib/prisma-client');
 
-const prisma = new PrismaClient();
+let prisma;
 
 // システム設定の初期データ
 const initialSettings = [
@@ -159,6 +159,7 @@ const initialSettings = [
 ];
 
 async function main() {
+  prisma = await createPrismaClient();
   console.log('システム設定の初期データを投入しています...');
   
   try {

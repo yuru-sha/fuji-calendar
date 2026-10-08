@@ -27,10 +27,7 @@
 デバッグ・検証用スクリプト（天体計算の詳細確認）
 - `debug-astronomy.js` - 基本天体計算デバッグ
 - `debug-diamond-fuji.js` - ダイヤモンド富士計算デバッグ
-- `debug-event-date.js` - イベント日付問題デバッグ
-- `debug-matching-details.js` - マッチング詳細デバッグ
 - `debug-moon-phase.js` - 月相計算デバッグ
-- `debug-october-diamond.js` - 10月ダイヤモンド富士デバッグ
 - `debug_futtsu_elevation_detailed.js` - 富津岬仰角詳細デバッグ（最新版）
 - `test_refraction_fix.js` - 大気屈折補正テスト
 

@@ -2,10 +2,10 @@
 
 // 天子ヶ岳の正確な座標をデータベースから取得するスクリプト
 
-const { PrismaClient } = require('@prisma/client');
+const { createPrismaClient } = require('../lib/prisma-client');
 
 async function getTenjogatakeData() {
-  const prisma = new PrismaClient();
+  const prisma = await createPrismaClient();
   
   try {
     const location = await prisma.location.findUnique({

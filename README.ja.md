@@ -49,7 +49,7 @@
 - **型安全な開発**: TypeScript strict mode でフロント・バック・共有パッケージ全体
 
 ### フロントエンド (@fuji-calendar/client)
-- React 18 + TypeScript (strict mode)
+- React 19 + TypeScript (strict mode)
 - Tailwind CSS v3.4.17 (utility-first styling)
 - CSS Modules (component-specific styles)
 - Leaflet (地図表示・ルート描画)

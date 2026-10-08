@@ -26,7 +26,6 @@
 ### `debug/`
 デバッグ・検証用スクリプト（天体計算の詳細確認）
 - `debug-astronomy.js` - 基本天体計算デバッグ
-- `debug-diamond-fuji.js` - ダイヤモンド富士計算デバッグ
 - `debug-moon-phase.js` - 月相計算デバッグ
 - `debug_futtsu_elevation_detailed.js` - 富津岬仰角詳細デバッグ（最新版）
 - `test_refraction_fix.js` - 大気屈折補正テスト
@@ -78,7 +77,6 @@ node scripts/generate-celestial-data.js
 ### デバッグコマンド
 ```bash
 # ダイヤモンド富士計算の詳細確認
-node scripts/debug/debug-diamond-fuji.js
 
 # 富津岬の仰角計算検証
 node scripts/debug/debug_futtsu_elevation_detailed.js

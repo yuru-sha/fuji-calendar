@@ -51,7 +51,7 @@
     "concurrently": "^8.2.2",
     "eslint": "^8.53.0",
     "js-yaml": "^4.1.0",
-    "madge": "^7.0.0",
+    "madge": "^8.0.0",
     "typescript": "^7.0.2"
   },
   "engines": {

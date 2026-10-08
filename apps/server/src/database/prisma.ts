@@ -1,4 +1,5 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "../generated/prisma/client.js";
 import { getComponentLogger } from "@fuji-calendar/utils";
 
 const logger = getComponentLogger("prisma");
@@ -8,7 +9,14 @@ export class PrismaClientManager {
 
   static getInstance(): PrismaClient {
     if (!this.instance) {
+      const databaseUrl = process.env.DATABASE_URL;
+      if (!databaseUrl) {
+        throw new Error("DATABASE_URL is required to initialize PrismaClient");
+      }
+
+      const adapter = new PrismaPg({ connectionString: databaseUrl });
       this.instance = new PrismaClient({
+        adapter,
         log: [
           { level: "query", emit: "stdout" },
           { level: "error", emit: "stdout" },

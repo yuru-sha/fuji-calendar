@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import type { Prisma } from "../generated/prisma/client.js";
 import { prisma } from "../database/prisma";
 import { AstronomicalCalculator } from "./AstronomicalCalculator";
 import { Location, FujiEvent } from "@fuji-calendar/types";

@@ -1,5 +1,5 @@
 import { DIContainer } from "./DIContainer";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../generated/prisma/client.js";
 import { PrismaClientManager } from "../database/prisma";
 
 // Repository インターフェースと実装

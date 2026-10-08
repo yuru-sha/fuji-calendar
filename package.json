@@ -32,7 +32,10 @@
     "analyze-deps-json": "npm exec --yes --package=typescript@5.9.3 --package=madge@8.0.0 -- madge --extensions ts,tsx --exclude 'node_modules' --json apps/ packages/",
     "validate-architecture": "node scripts/architecture/validate.js",
     "analyze-bundle": "node scripts/performance/analyze-bundle.js",
-    "performance-check": "npm run analyze-bundle && npm run analyze-deps"
+    "performance-check": "npm run analyze-bundle && npm run analyze-deps",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "PWDEBUG=1 playwright test"
   },
   "keywords": [
     "fuji",
@@ -51,6 +54,7 @@
     "concurrently": "^10.0.5",
     "eslint": "^8.53.0",
     "js-yaml": "^5.4.3",
+    "@playwright/test": "1.64.0",
     "typescript": "^7.0.2"
   },
   "engines": {

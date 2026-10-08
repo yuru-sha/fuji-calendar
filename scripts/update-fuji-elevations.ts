@@ -4,14 +4,22 @@
  * 既存の全地点の fuji_elevation を一括更新するスクリプト
  * 
  * 使用方法:
- * npx ts-node --compiler-options '{"module":"commonjs"}' scripts/update-fuji-elevations.ts
+ * npx ts-node-esm scripts/update-fuji-elevations.ts
  */
 
-import { PrismaClient } from '@prisma/client';
-import { AstronomicalCalculatorImpl } from '../apps/server/src/services/AstronomicalCalculator';
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "../apps/server/src/generated/prisma/client.js";
+import { CoordinateCalculator } from "../apps/server/src/services/astronomical/CoordinateCalculator.js";
 
-const prisma = new PrismaClient();
-const astronomicalCalculator = new AstronomicalCalculatorImpl();
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) {
+  throw new Error("DATABASE_URL is required");
+}
+
+const prisma = new PrismaClient({
+  adapter: new PrismaPg({ connectionString: databaseUrl }),
+});
+const coordinateCalculator = new CoordinateCalculator();
 
 async function updateFujiElevations() {
   try {
@@ -27,7 +35,7 @@ async function updateFujiElevations() {
     for (const location of locations) {
       try {
         // 富士山への仰角を計算
-        const fujiElevation = astronomicalCalculator.calculateElevationToFuji(location);
+        const fujiElevation = coordinateCalculator.calculateElevationToFujiSummit(location);
         
         // データベースを更新
         await prisma.location.update({

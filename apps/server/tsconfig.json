@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
-    "module": "commonjs",
+    "target": "ES2023",
+    "module": "ESNext",
     "outDir": "./dist",
     "rootDir": "./src",
     "strict": false,
@@ -9,6 +9,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": false,
     "resolveJsonModule": true,
+    "moduleResolution": "bundler",
     "declaration": true,
     "sourceMap": true,
     "baseUrl": ".",
@@ -21,7 +22,7 @@
     "strictNullChecks": false
   },
   "ts-node": {
-    "esm": false,
+    "esm": true,
     "transpileOnly": true,
     "files": true
   },

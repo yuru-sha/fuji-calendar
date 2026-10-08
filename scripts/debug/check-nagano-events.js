@@ -1,7 +1,7 @@
-const { PrismaClient } = require('@prisma/client');
+const { createPrismaClient } = require('../lib/prisma-client');
 
 async function checkNaganoEvents() {
-  const prisma = new PrismaClient();
+  const prisma = await createPrismaClient();
   
   try {
     // 長野県の地点を取得

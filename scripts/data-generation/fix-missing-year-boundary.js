@@ -2,10 +2,10 @@
 
 // 2024 年末〜2025 年始の欠損データを修正
 
-const { PrismaClient } = require('@prisma/client');
+const { createPrismaClient } = require('../lib/prisma-client');
 
 async function fixMissingYearBoundary() {
-  const prisma = new PrismaClient();
+  const prisma = await createPrismaClient();
   
   try {
     console.log('=== 年境界データ修正開始 ===');

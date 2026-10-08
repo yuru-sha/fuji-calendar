@@ -2,10 +2,10 @@
 
 // 2024 年末～2025 年始の詳細調査
 
-const { PrismaClient } = require('@prisma/client');
+const { createPrismaClient } = require('../lib/prisma-client');
 
 async function debugYearEndDetail() {
-  const prisma = new PrismaClient();
+  const prisma = await createPrismaClient();
   
   try {
     console.log('=== 年末年始の詳細調査 ===');

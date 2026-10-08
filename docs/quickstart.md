@@ -136,7 +136,6 @@ npx prisma db push # スキーマ同期
 ### デバッグ
 ```bash
 # 天体計算デバッグ
-node scripts/debug/debug-diamond-fuji.js
 
 # パフォーマンス分析
 node scripts/utilities/performance-analysis.js

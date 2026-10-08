@@ -255,7 +255,6 @@ CREATE TABLE location_fuji_events (
 ```
 
 ### 検証ツール
-- **scripts/debug-diamond-fuji.js**: ダイヤモンド富士の詳細計算確認
 - **scripts/debug-pearl-fuji.js**: パール富士の計算プロセス確認
 - **scripts/verify-accuracy.js**: 実測値との精度比較
 

@@ -48,13 +48,8 @@
 
 ### `testing/`
 テスト・チェック関連スクリプト
-- `check-current-year-data.js` - 今年のデータチェック
-- `check-db-data.js` - データベースデータチェック
 - `check-locations.js` - 地点データチェック
-- `check-progress.js` - 進捗チェック
-- `check_db_status.js` - データベース状態チェック
 - `test-postgres-connection.js` - PostgreSQL接続テスト
-- `test-prisma-system.js` - Prismaシステムテスト
 
 ### `utilities/`
 ユーティリティスクリプト
@@ -81,7 +76,6 @@ node scripts/setup-initial-data.js
 node scripts/generate-celestial-data.js
 
 # データベース状態チェック
-node scripts/testing/check_db_status.js
 ```
 
 ### デバッグコマンド
@@ -105,7 +99,6 @@ bash scripts/config/docker-dev.sh
 node scripts/testing/test-postgres-connection.js
 
 # Prismaシステムテスト
-node scripts/testing/test-prisma-system.js
 ```
 
 ## 注意事項
@@ -119,5 +112,4 @@ node scripts/testing/test-prisma-system.js
 
 問題が発生した場合は以下の順序で確認：
 1. `scripts/testing/test-postgres-connection.js` でDB接続確認
-2. `scripts/testing/check_db_status.js` でデータ状態確認
 3. 該当するdebugスクリプトで詳細確認

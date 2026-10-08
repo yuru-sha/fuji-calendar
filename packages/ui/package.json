@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@fuji-calendar/types": "^0.5.0",
-    "lucide-react": "^0.525.0",
+    "lucide-react": "^1.52.0",
     "react": "^19.3.0",
     "@types/react": "^19.3.0"
   },

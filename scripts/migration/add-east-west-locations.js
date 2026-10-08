@@ -1,6 +1,6 @@
-import { PrismaClient } from '@prisma/client';
+const { createPrismaClient } = require('../lib/prisma-client');
 
-const prisma = new PrismaClient();
+const prisma = await createPrismaClient();
 
 const newLocations = [
   // 富士山東側地点（夕方のダイヤモンド富士）

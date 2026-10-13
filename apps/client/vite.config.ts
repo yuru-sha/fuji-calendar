@@ -13,6 +13,7 @@ export default defineConfig({
   publicDir: "public",
   plugins: [react()],
   resolve: {
+    dedupe: ["react", "react-dom"],
     alias: {
       "@": path.resolve(__dirname, "./src"),
       "@fuji-calendar/types": path.resolve(

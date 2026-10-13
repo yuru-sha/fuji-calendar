@@ -223,10 +223,13 @@ npm install <package> --workspace=packages/utils
 ### Testing
 
 ```bash
-# Run tests
+# Run unit and integration tests
 npm test
 
-# Watch mode
+# Run browser E2E tests in Chromium
+npm run test:e2e
+
+# Open unit tests in watch mode
 npm run test:watch
 ```
 

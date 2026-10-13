@@ -15,7 +15,6 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": false,
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
       "@fuji-calendar/types": ["../../packages/types/dist"],

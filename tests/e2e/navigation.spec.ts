@@ -1,45 +1,5 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
-test.beforeEach(async ({ page }) => {
-  await page.route("**/api/**", async (route) => {
-    const url = new URL(route.request().url());
-
-    if (url.pathname === "/api/locations") {
-      await route.fulfill({ json: { locations: [] } });
-      return;
-    }
-
-    if (/^\/api\/calendar\/\d+\/\d+$/.test(url.pathname)) {
-      const [, , , year, month] = url.pathname.split("/");
-      await route.fulfill({
-        json: {
-          year: Number(year),
-          month: Number(month),
-          events: [],
-        },
-      });
-      return;
-    }
-
-    if (url.pathname.startsWith("/api/events/")) {
-      await route.fulfill({ json: { events: [] } });
-      return;
-    }
-
-    if (url.pathname === "/api/auth/verify") {
-      await route.fulfill({
-        status: 401,
-        json: { success: false, message: "Unauthorized" },
-      });
-      return;
-    }
-
-    await route.fulfill({
-      status: 404,
-      json: { error: "Unmocked API endpoint" },
-    });
-  });
-});
 
 test("public navigation reaches home and favorites", async ({ page }) => {
   await page.goto("/");

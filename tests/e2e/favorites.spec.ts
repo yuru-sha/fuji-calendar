@@ -60,7 +60,10 @@ test("Home → Favorites → Location detail → Home navigation works", async (
 
   await expect(page).toHaveURL(/\/location\/101$/);
   await expect(page.getByRole("heading", { name: testLocation.name })).toBeVisible();
-  await page.getByRole("link", { name: "ホーム", exact: true }).click();
+  await page
+    .getByRole("main")
+    .getByRole("link", { name: "ホーム", exact: true })
+    .click();
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole("heading", { name: "富士山カレンダー" })).toBeVisible();
 });

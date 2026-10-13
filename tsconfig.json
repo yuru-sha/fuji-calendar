@@ -18,9 +18,9 @@
     "declarationMap": true,
     "sourceMap": true,
     "paths": {
-      "@fuji-calendar/types": ["packages/types/dist"],
-      "@fuji-calendar/utils": ["packages/utils/dist"],
-      "@fuji-calendar/ui": ["packages/ui/dist"]
+      "@fuji-calendar/types": ["./packages/types/dist"],
+      "@fuji-calendar/utils": ["./packages/utils/dist"],
+      "@fuji-calendar/ui": ["./packages/ui/dist"]
     }
   },
   "include": [

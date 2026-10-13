@@ -17,11 +17,11 @@
     "outDir": "dist",
     "rootDir": "src",
     "paths": {
-      "@/*": ["src/*"],
-      "@/shared/*": ["src/shared/*"],
-      "@/server/*": ["src/server/*"],
-      "@/api": ["src/shared/api"],
-      "@/lib": ["src/server/lib"]
+      "@/*": ["./src/*"],
+      "@/shared/*": ["./src/shared/*"],
+      "@/server/*": ["./src/server/*"],
+      "@/api": ["./src/shared/api"],
+      "@/lib": ["./src/server/lib"]
     },
     "declaration": false,
     "sourceMap": false

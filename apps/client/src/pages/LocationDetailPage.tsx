@@ -30,7 +30,6 @@ const LocationDetailPage: React.FC = () => {
       setError(null);
 
       try {
-        // 地点情報を取得
         const locationsResponse = await apiClient.getLocations();
         const foundLocation = locationsResponse.locations.find(
           (loc) => loc.id === parseInt(locationId),
@@ -43,9 +42,8 @@ const LocationDetailPage: React.FC = () => {
 
         setLocation(foundLocation);
 
-        // 今後 3 ヶ月間のイベントを取得
         const today = new Date();
-        const events: FujiEvent[] = [];
+        const eventsById = new Map<string, FujiEvent>();
 
         for (let i = 0; i < 3; i++) {
           const targetDate = new Date(
@@ -59,14 +57,14 @@ const LocationDetailPage: React.FC = () => {
               targetDate.getMonth() + 1,
             );
 
-            // この地点のイベントのみフィルタリング（FujiEvent の型のみ）
-            const locationEvents = calendarResponse.events.filter(
-              (event) =>
-                "location" in event &&
-                (event as any).location.id === foundLocation.id,
-            ) as unknown as FujiEvent[];
-
-            events.push(...locationEvents);
+            const locationEvents = calendarResponse.events.flatMap((calendarEvent) =>
+              calendarEvent.events.filter(
+                (event) => event.location.id === foundLocation.id,
+              ),
+            );
+            for (const event of locationEvents) {
+              eventsById.set(event.id, event);
+            }
           } catch (error) {
             console.warn(
               `Failed to load events for ${targetDate.getFullYear()}-${targetDate.getMonth() + 1}:`,
@@ -75,8 +73,7 @@ const LocationDetailPage: React.FC = () => {
           }
         }
 
-        // 今日以降のイベントのみ、時刻順にソート
-        const futureEvents = events
+        const futureEvents = [...eventsById.values()]
           .filter((event) => new Date(event.time) >= today)
           .sort(
             (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime(),
@@ -179,7 +176,6 @@ const LocationDetailPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="content-wide">
-        {/* ヘッダー */}
         <div className="mb-8">
           <div className="flex items-center text-sm text-gray-600 mb-4">
             <Link to="/" className="hover:text-blue-600 transition-colors">
@@ -227,11 +223,8 @@ const LocationDetailPage: React.FC = () => {
           </div>
         </div>
 
-        {/* 2 カラムレイアウト */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* 左カラム: 地点情報 */}
           <div className="lg:col-span-2 space-y-6">
-            {/* 基本情報 */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
                 <Icon name="barChart" size={18} className="inline mr-2" />{" "}
@@ -283,7 +276,6 @@ const LocationDetailPage: React.FC = () => {
               </div>
             </div>
 
-            {/* アクセス情報 */}
             {(location.accessInfo ||
               location.parkingInfo ||
               location.description) && (
@@ -329,7 +321,6 @@ const LocationDetailPage: React.FC = () => {
               </div>
             )}
 
-            {/* 今後のイベント */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
                 <Icon name="calendar" size={18} className="inline mr-2" />{" "}
@@ -419,7 +410,6 @@ const LocationDetailPage: React.FC = () => {
             </div>
           </div>
 
-          {/* 右カラム: 地図 */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">

@@ -86,3 +86,48 @@ test("adding and removing a location favorite works and survives reload", async 
   await page.getByRole("button", { name: "削除", exact: true }).click();
   await expect(page.getByText("お気に入り地点はありません")).toBeVisible();
 });
+
+test("importing valid favorites JSON replaces saved locations", async ({ page }) => {
+  page.on("dialog", (dialog) => dialog.accept());
+  await page.goto("/favorites");
+
+  await page.getByRole("button", { name: "インポート", exact: true }).click();
+  await page
+    .getByPlaceholder("JSON 形式のデータを貼り付けてください")
+    .fill(JSON.stringify({ locations: [favoriteLocation], events: [] }));
+  await page.getByRole("button", { name: "インポート", exact: true }).last().click();
+
+  await expect(page.getByRole("heading", { name: "お気に入り管理" })).toBeVisible();
+  await page.getByRole("button", { name: /保存地点 \(/ }).click();
+  await expect(page.getByRole("heading", { name: testLocation.name })).toBeVisible();
+});
+
+test("invalid favorites JSON reports an import failure", async ({ page }) => {
+  const dialogMessage = page.waitForEvent("dialog").then((dialog) => {
+    const message = dialog.message();
+    return dialog.accept().then(() => message);
+  });
+  await page.goto("/favorites");
+
+  await page.getByRole("button", { name: "インポート", exact: true }).click();
+  await page
+    .getByPlaceholder("JSON 形式のデータを貼り付けてください")
+    .fill("{ invalid json");
+  await page.getByRole("button", { name: "インポート", exact: true }).last().click();
+
+  await expect(dialogMessage).resolves.toContain("インポートに失敗しました");
+  await expect(page.getByRole("heading", { name: "データインポート" })).toBeVisible();
+});
+
+test("exporting favorites starts a JSON download", async ({ page }) => {
+  await seedFavorites(page);
+  await page.goto("/favorites");
+
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "エクスポート" }).click();
+  const download = await downloadPromise;
+
+  expect(download.suggestedFilename()).toMatch(
+    /^fuji-calendar-favorites-\d{4}-\d{2}-\d{2}\.json$/,
+  );
+});

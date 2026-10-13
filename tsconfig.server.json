@@ -9,20 +9,19 @@
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
-    "module": "commonjs",
-    "moduleResolution": "node",
+    "module": "Node16",
+    "moduleResolution": "Node16",
     "resolveJsonModule": true,
     "isolatedModules": false,
     "noEmit": false,
     "outDir": "dist",
     "rootDir": "src",
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@/shared/*": ["src/shared/*"],
-      "@/server/*": ["src/server/*"],
-      "@/api": ["src/shared/api"],
-      "@/lib": ["src/server/lib"]
+      "@/*": ["./src/*"],
+      "@/shared/*": ["./src/shared/*"],
+      "@/server/*": ["./src/server/*"],
+      "@/api": ["./src/shared/api"],
+      "@/lib": ["./src/server/lib"]
     },
     "declaration": false,
     "sourceMap": false

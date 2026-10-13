@@ -143,7 +143,6 @@ class ArchitectureValidator {
   isTypeDependency(dep) {
     return dep.startsWith('@types/') || 
            dep === 'typescript' || 
-           dep.includes('eslint') ||
            dep === 'nodemon' ||
            dep === 'ts-node' ||
            dep === 'tsconfig-paths';

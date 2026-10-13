@@ -203,19 +203,6 @@ class BundleAnalyzer {
       }
     }
     
-    // ESLint 設定の統一
-    const eslintPackages = this.duplicatedDeps.get('eslint') || [];
-    if (eslintPackages.length > 1) {
-      this.suggestions.push({
-        type: 'tooling-optimization',
-        title: 'ESLint 設定の統一',
-        description: 'ルートレベルで ESLint を設定し、各パッケージから削除',
-        impact: 'medium',
-        packages: eslintPackages,
-        action: 'ルートの .eslintrc.js で全体設定を管理し、個別設定を削除'
-      });
-    }
-    
     // 不要な型定義の削除提案
     const typePackages = Array.from(this.duplicatedDeps.keys()).filter(dep => dep.startsWith('@types/'));
     if (typePackages.length > 0) {

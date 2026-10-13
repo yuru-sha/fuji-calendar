@@ -31,8 +31,8 @@ help:
 	@echo ""
 	@echo "🧪 品質チェック:"
 	@echo "  test         - テスト実行"
-	@echo "  lint         - ESLintチェック"
-	@echo "  lint-fix     - ESLint自動修正"
+	@echo "  lint         - Oxlint チェック"
+	@echo "  lint-fix     - Oxlint 自動修正"
 	@echo "  typecheck    - TypeScript型チェック"
 	@echo "  check-all    - 全品質チェック（lint + typecheck + test）"
 	@echo ""
@@ -87,11 +87,11 @@ test:
 	npm test
 
 lint:
-	@echo "🔍 ESLintチェック中..."
+	@echo "🔍 Oxlintチェック中..."
 	npm run lint
 
 lint-fix:
-	@echo "🔧 ESLint自動修正中..."
+	@echo "🔧 Oxlint自動修正中..."
 	npm run lint:fix
 
 typecheck:

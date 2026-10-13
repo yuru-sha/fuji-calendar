@@ -173,9 +173,7 @@ const admin = await this.authRepository.findByUsername(username);
   "devDependencies": {
     "@types/node": "^20.9.0",
     "typescript": "^5.2.2",
-    "@typescript-eslint/eslint-plugin": "^6.10.0",
-    "@typescript-eslint/parser": "^6.10.0",
-    "eslint": "^8.53.0"
+    "oxlint": "^1.87.0"
   }
 }
 ```

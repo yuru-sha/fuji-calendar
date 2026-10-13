@@ -124,7 +124,7 @@ docker system prune -f
 ### コードチェック
 ```bash
 npm run typecheck  # TypeScript型チェック
-npm run lint       # ESLint実行
+npm run lint       # Oxlintでapps/client/srcとapps/server/srcをチェック
 ```
 
 ### データベース管理

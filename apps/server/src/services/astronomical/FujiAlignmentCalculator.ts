@@ -142,7 +142,7 @@ export class FujiAlignmentCalculator {
       10,
     );
     for (
-      let time = new Date(startTime);
+      const time = new Date(startTime);
       time <= endTime;
       time.setSeconds(time.getSeconds() + searchInterval)
     ) {

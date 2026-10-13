@@ -38,7 +38,7 @@ A web application for calculating and displaying optimal shooting times and loca
 ### Enhanced Developer Experience
 - **Code Organization**: Script files organized into scripts/ directory structure
 - **Type-safe Development**: Consistent type definitions via shared packages
-- **Unified Quality Control**: Lint and typecheck across entire monorepo
+- **Unified Quality Control**: Oxlint for client and server source, with typechecking across workspaces
 - **Development Efficiency**: Comprehensive debugging script suite
 
 ## 🏗️ Tech Stack
@@ -201,8 +201,8 @@ npm run build:packages  # Shared packages build
 
 # Quality checks
 npm run typecheck       # TypeScript type checking (all packages)
-npm run lint           # ESLint (all packages)
-npm run lint:fix       # ESLint auto-fix
+npm run lint           # Oxlint on apps/client/src and apps/server/src
+npm run lint:fix       # Apply Oxlint fixes to those source directories
 
 # Package management
 npm run clean          # Clean build artifacts and node_modules
@@ -276,7 +276,7 @@ npm run start
 - `npm run dev` - Start development servers (frontend + backend + worker)
 - `npm run build` - Build all packages
 - `npm run typecheck` - Type checking across all packages
-- `npm run lint` - Lint all packages
+- `npm run lint` - Lint `apps/client/src` and `apps/server/src` with Oxlint
 - `npm run clean` - Clean build artifacts
 
 ### Application Specific

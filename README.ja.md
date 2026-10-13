@@ -39,7 +39,7 @@
 ### 開発体験向上
 - **コード整理**: ルートディレクトリのスクリプトファイルを scripts/ に整理
 - **型安全な開発**: 共有パッケージによる一貫した型定義
-- **統一された品質管理**: モノレポ全体での lint ・ typecheck
+- **品質管理**: client と server のソースを Oxlint で lint し、全ワークスペースを typecheck
 - **開発効率化**: 包括的なデバッグスクリプト群
 
 ## 技術スタック
@@ -214,8 +214,8 @@ npm run build:packages  # 共有パッケージビルド
 
 # 品質チェック
 npm run typecheck       # TypeScript 型チェック（全パッケージ）
-npm run lint           # ESLint（全パッケージ）
-npm run lint:fix       # ESLint 自動修正
+npm run lint           # apps/client/src と apps/server/src を Oxlint で lint
+npm run lint:fix       # 対象ソースを Oxlint で自動修正
 
 # パッケージ管理
 npm run clean          # ビルド成果物と node_modules 削除

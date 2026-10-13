@@ -1,6 +1,5 @@
 import React, { memo, useState, useEffect } from "react";
 import { FujiEvent, Location } from "@fuji-calendar/types";
-import { timeUtils } from "@fuji-calendar/utils";
 import { useFavorites } from "../hooks/useFavorites";
 import { Icon } from "@fuji-calendar/ui";
 
@@ -42,10 +41,6 @@ const EventDetail: React.FC<EventDetailProps> = memo(
         setExpandedLocationIds(new Set());
       }
     }, [selectedLocationId, events]);
-
-    const formatTime = (time: Date): string => {
-      return timeUtils.formatJstTime(time);
-    };
 
     const getCompassDirection = (azimuth: number): string => {
       const directions = [

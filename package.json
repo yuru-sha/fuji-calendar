@@ -20,8 +20,8 @@
     "start:worker": "npm run start:worker --workspace=apps/server",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "lint": "npm run lint --workspaces --if-present",
-    "lint:fix": "npm run lint:fix --workspaces --if-present",
+    "lint": "oxlint apps/client/src apps/server/src",
+    "lint:fix": "oxlint --fix apps/client/src apps/server/src",
     "clean": "npm run clean --workspaces --if-present && rm -rf node_modules",
     "worker": "npm run worker --workspace=apps/server",
     "create-admin": "npm run prisma:generate --workspace=apps/server && node scripts/admin/create-admin.js",
@@ -48,13 +48,11 @@
   "author": "yuru-sha",
   "license": "MIT",
   "devDependencies": {
-    "@types/node": "^26.6.4",
-    "@typescript-eslint/eslint-plugin": "^6.10.0",
-    "@typescript-eslint/parser": "^6.10.0",
-    "concurrently": "^10.0.5",
-    "eslint": "^8.53.0",
-    "js-yaml": "^5.4.3",
     "@playwright/test": "1.64.0",
+    "@types/node": "^26.6.4",
+    "concurrently": "^10.0.5",
+    "js-yaml": "^5.4.3",
+    "oxlint": "^1.87.0",
     "typescript": "^7.0.2"
   },
   "engines": {

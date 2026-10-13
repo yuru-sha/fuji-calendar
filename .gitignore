@@ -38,9 +38,6 @@ coverage/
 # nyc test coverage
 .nyc_output
 
-# ESLint cache
-.eslintcache
-
 # TypeScript cache
 *.tsbuildinfo
 

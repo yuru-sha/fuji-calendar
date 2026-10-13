@@ -13,6 +13,16 @@ test("location detail renders its location and supports adding and removing its 
   await expect(page.getByRole("button", { name: "お気に入り追加" })).toBeVisible();
 });
 
+test("location detail breadcrumb returns to favorites", async ({ page }) => {
+  await page.goto("/location/101");
+  await expect(page.getByRole("heading", { name: testLocation.name })).toBeVisible();
+
+  await page.getByRole("link", { name: "お気に入り", exact: true }).last().click();
+
+  await expect(page).toHaveURL(/\/favorites$/);
+  await expect(page.getByRole("heading", { name: "お気に入り管理" })).toBeVisible();
+});
+
 test("location detail deduplicates upcoming events and opens its Maps destination", async ({ page }) => {
   await page.route("**/api/calendar/**", async (route) => {
     const url = new URL(route.request().url());

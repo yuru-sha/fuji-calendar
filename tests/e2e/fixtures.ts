@@ -22,7 +22,7 @@ export const testLocation: Location = {
   description: "湖畔の撮影地点",
   accessInfo: null,
   parkingInfo: null,
-  createdAt: new Date("2024-01-01T00:00:00.000Z"),
+  fujiDistance: 30_000,
   updatedAt: new Date("2024-01-01T00:00:00.000Z"),
 };
 
@@ -32,6 +32,7 @@ export const secondTestLocation: Location = {
   name: "河口湖大石公園",
   latitude: 35.522,
   longitude: 138.75,
+  fujiDistance: 150_000,
 };
 const currentMonthDay = () => {
   const tokyoNow = new Date(Date.now() + 9 * 60 * 60 * 1000);

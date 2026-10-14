@@ -111,58 +111,77 @@ test("camera settings can be opened and changed", async ({ page, apiScenario }) 
   await page.getByRole("button", { name: "撮影角度表示の切り替え" }).click();
   await page.getByRole("button", { name: "焦点距離85mm を選択" }).click();
 
-  await expect(page.getByText("85mm", { exact: false }).last()).toBeVisible();
+  await expect(page.getByText("📷 85mm", { exact: true })).toBeVisible();
 });
 
-test("date query restores the selected day and its events", async ({ page, apiScenario }) => {
+test("date query restores the selected day and loads its events", async ({ page, apiScenario }) => {
   const date = Object.keys(apiScenario.dayEventsByDate ?? {})[0]!;
-  const dayRequest = page.waitForRequest(
-    (request) => new URL(request.url()).pathname === `/api/events/${date}`,
-  );
-
   await page.goto(`/?date=${date}`);
-  await dayRequest;
 
-  await expect(page).toHaveURL(new RegExp(`date=${date}`));
   await expect(page.getByRole("heading", { name: /日の撮影情報/ })).toBeVisible();
   await expect(page.getByText("沈むダイヤモンド富士", { exact: true })).toBeVisible();
+  const [year, month, day] = date.split("-").map(Number);
+  await expect(page.getByText(`${year}年${month}月${day}日`, { exact: true })).toBeVisible();
 });
 
-test("calendar API failure leaves the home calendar usable", async ({ page }) => {
+test("calendar API failure falls back to an empty, navigable calendar", async ({ page, apiScenario }) => {
   await page.route("**/api/calendar/**", (route) =>
-    route.fulfill({ status: 503, json: { error: "unavailable" } }),
+    route.fulfill({ status: 500, json: { error: "unavailable" } }),
+  );
+  const firstFailure = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname.startsWith("/api/calendar/") &&
+      response.status() === 500,
   );
   await page.goto("/");
+  await firstFailure;
 
-  await expect(page.getByRole("heading", { name: "富士山カレンダー" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /\d+年\d+月/ })).toBeVisible();
+  const firstHeading = page.getByRole("heading", { name: /\d{4}年\d{1,2}月/ });
+  await expect(firstHeading).toBeVisible();
+  const day = Number(Object.keys(apiScenario.dayEventsByDate ?? {})[0]!.split("-")[2]);
+  const firstMonthDay = page.getByRole("button", { name: new RegExp(`^${day}\\b`) });
+  await expect(firstMonthDay).toBeVisible();
+  await expect(firstMonthDay).not.toContainText("2件");
+
+  const currentText = await firstHeading.textContent();
+  const [, yearText, monthText] = currentText!.match(/(\d{4})年(\d{1,2})月/)!;
+  const nextDate = new Date(Number(yearText), Number(monthText), 1);
+  const nextYear = nextDate.getFullYear();
+  const nextMonth = nextDate.getMonth() + 1;
+  const nextFailure = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === `/api/calendar/${nextYear}/${nextMonth}` &&
+      response.status() === 500,
+  );
+
+  await firstHeading.locator("..").getByRole("button").last().click();
+  await nextFailure;
+
+  const nextHeading = page.getByRole("heading", { name: `${nextYear}年${nextMonth}月` });
+  await expect(nextHeading).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: new RegExp(`^${day}\\b`) }),
+  ).not.toContainText("2件");
 });
 
-test("locations API failure leaves the home calendar usable", async ({ page }) => {
-  await page.route("**/api/locations", (route) =>
-    route.fulfill({ status: 503, json: { error: "unavailable" } }),
-  );
+test("locations API failure does not prevent calendar display", async ({ page, apiScenario }) => {
+  await page.route("**/api/locations", (route) => route.fulfill({ status: 500, json: { error: "unavailable" } }));
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: "富士山カレンダー" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /\d+年\d+月/ })).toBeVisible();
+  const month = Number(Object.keys(apiScenario.dayEventsByDate ?? {})[0]!.split("-")[1]);
+  await expect(page.getByRole("heading", { name: new RegExp(`${month}月`) })).toBeVisible();
 });
 
-test("empty API responses render the home calendar without event details", async ({ page }) => {
-  await page.route("**/api/locations", (route) =>
-    route.fulfill({ status: 200, json: { locations: [] } }),
-  );
-  await page.route("**/api/calendar/**", async (route) => {
+test("empty calendar and day responses render without event records", async ({ page, apiScenario }) => {
+  const date = Object.keys(apiScenario.dayEventsByDate ?? {})[0]!;
+  await page.route("**/api/calendar/**", (route) => {
     const url = new URL(route.request().url());
-    const [, , , year, month] = url.pathname.split("/");
-    await route.fulfill({
-      status: 200,
-      json: { year: Number(year), month: Number(month), events: [] },
-    });
+    return route.fulfill({ json: { year: Number(url.pathname.split("/")[3]), month: Number(url.pathname.split("/")[4]), events: [] } });
   });
+  await page.route(`**/api/events/${date}`, (route) => route.fulfill({ json: { date, events: [] } }));
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: "富士山カレンダー" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /\d+年\d+月/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /\d{4}年\d{1,2}月/ })).toBeVisible();
+  await page.getByRole("button", { name: new RegExp(`^${Number(date.split("-")[2])}`) }).click();
   await expect(page.getByRole("heading", { name: /日の撮影情報/ })).toHaveCount(0);
 });

@@ -138,5 +138,8 @@ test("export downloads the favorites JSON", async ({ page }) => {
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "エクスポート" }).click();
   const download = await downloadPromise;
-  expect(download.suggestedFilename()).toMatch(/^fuji-calendar-favorites-.*\.json$/);
+
+  expect(download.suggestedFilename()).toMatch(
+    /^fuji-calendar-favorites-\d{4}-\d{2}-\d{2}\.json$/,
+  );
 });

@@ -19,17 +19,14 @@ const SimpleCalendar: React.FC<SimpleCalendarProps> = ({
   onDateClick,
   onMonthChange,
 }) => {
-  // カレンダーのデータを生成（前月・来月の日付も含む）
   const calendarData = useMemo(() => {
     const firstDay = new Date(year, month - 1, 1);
     const lastDay = new Date(year, month, 0);
     const startDate = new Date(firstDay);
     const endDate = new Date(lastDay);
 
-    // 月の最初の週の日曜日から開始
     startDate.setDate(startDate.getDate() - startDate.getDay());
 
-    // 月の最後の週の土曜日まで
     endDate.setDate(endDate.getDate() + (6 - endDate.getDay()));
 
     const days: Array<{
@@ -52,9 +49,6 @@ const SimpleCalendar: React.FC<SimpleCalendarProps> = ({
     return days;
   }, [year, month]);
 
-  // 週の分割は使用していない（SimpleCalendar は単純な月表示）
-
-  // 日付にイベントがあるかチェック
   const hasEvent = (date: Date) => {
     const dateStr = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, "0")}-${date.getDate().toString().padStart(2, "0")}`;
     const dayCalendarEvents = events.filter((event) =>
@@ -66,36 +60,28 @@ const SimpleCalendar: React.FC<SimpleCalendarProps> = ({
     );
   };
 
-  // 日付から直接月齢を計算
   const calculateMoonAgeFromDate = (date: Date): number => {
-    // 2000 年 1 月 6 日 18:14 UTC が新月の基準点
     const knownNewMoon = new Date("2000-01-06T18:14:00Z");
-    const synodicMonth = 29.530588853; // 朔望月の長さ（日）
+    const synodicMonth = 29.530588853;
 
-    // 指定日との差を計算（日数）
     const daysDiff =
       (date.getTime() - knownNewMoon.getTime()) / (1000 * 60 * 60 * 24);
 
-    // 朔望月で割った余りが月齢
     const moonAge = daysDiff % synodicMonth;
 
-    // 負の値の場合は正の値に変換
     return moonAge < 0 ? moonAge + synodicMonth : moonAge;
   };
 
-  // 日付の月齢を取得（日付から直接計算）
   const getMoonAge = (date: Date): number => {
     return calculateMoonAgeFromDate(date);
   };
 
-  // 日付のイベント詳細を取得
   const getEventDetails = (date: Date) => {
     const dateStr = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, "0")}-${date.getDate().toString().padStart(2, "0")}`;
     const dayCalendarEvents = events.filter((event) =>
       event.date.toISOString().startsWith(dateStr),
     );
 
-    // CalendarEvent 内の FujiEvent をすべて取得
     const allFujiEvents = dayCalendarEvents.flatMap(
       (calendarEvent) => calendarEvent.events,
     );
@@ -115,13 +101,11 @@ const SimpleCalendar: React.FC<SimpleCalendarProps> = ({
     };
   };
 
-  // 選択された日付かチェック
   const isSelected = (date: Date) => {
     if (!selectedDate) return false;
     return date.toDateString() === selectedDate.toDateString();
   };
 
-  // 今日かチェック
   const isToday = (date: Date) => {
     const today = new Date();
     return date.toDateString() === today.toDateString();
@@ -148,10 +132,10 @@ const SimpleCalendar: React.FC<SimpleCalendarProps> = ({
       className="bg-white rounded-lg border border-gray-200 p-6"
       style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}
     >
-      {/* カレンダーヘッダー */}
       <div className="flex items-center justify-between mb-6">
         <button
           onClick={handlePrevMonth}
+          aria-label="前月"
           className="p-2 hover:bg-gray-100 rounded-md transition-colors"
         >
           <Icon name="chevronLeft" size={20} />
@@ -163,13 +147,13 @@ const SimpleCalendar: React.FC<SimpleCalendarProps> = ({
 
         <button
           onClick={handleNextMonth}
+          aria-label="次月"
           className="p-2 hover:bg-gray-100 rounded-md transition-colors"
         >
           <Icon name="chevronRight" size={20} />
         </button>
       </div>
 
-      {/* 曜日ヘッダー */}
       <div className="grid grid-cols-7 gap-1 mb-2">
         {["日", "月", "火", "水", "木", "金", "土"].map((day, index) => (
           <div
@@ -187,7 +171,6 @@ const SimpleCalendar: React.FC<SimpleCalendarProps> = ({
         ))}
       </div>
 
-      {/* カレンダーグリッド */}
       <div className="grid grid-cols-7 gap-1">
         {calendarData.map((dayData, index) => (
           <div key={`${dayData.date.getTime()}-${index}`} className="h-24">
@@ -212,7 +195,6 @@ const SimpleCalendar: React.FC<SimpleCalendarProps> = ({
 
                 return (
                   <div className="flex flex-col items-center gap-0.5 mt-0.5">
-                    {/* イベント表示 */}
                     {eventDetails.total > 0 && (
                       <div
                         className={`flex flex-col items-center gap-1 mt-1 ${!dayData.isCurrentMonth ? "opacity-100" : ""}`}
@@ -238,7 +220,6 @@ const SimpleCalendar: React.FC<SimpleCalendarProps> = ({
                         </span>
                       </div>
                     )}
-                    {/* 月齢表示 */}
                     {moonAge !== undefined && (
                       <div
                         className={`text-xs text-gray-500 ${!dayData.isCurrentMonth ? "opacity-80" : ""}`}
@@ -255,7 +236,6 @@ const SimpleCalendar: React.FC<SimpleCalendarProps> = ({
         ))}
       </div>
 
-      {/* 凡例 */}
       <div className="mt-4 flex items-center justify-center space-x-4 text-xs text-gray-600">
         <div className="flex items-center space-x-1">
           <Icon name="sun" size={16} className="text-orange-500" />

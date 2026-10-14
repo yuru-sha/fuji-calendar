@@ -63,47 +63,50 @@ test(
   },
 );
 
-test("next-month navigation requests the displayed month", async ({ page }) => {
+test("month navigation requests the next calendar month", async ({ page, apiScenario }) => {
+  const [year, month] = Object.keys(apiScenario.calendarEventsByMonth ?? {})[0]!
+    .split("/")
+    .map(Number);
+  const nextMonth = new Date(year, month, 1);
   await page.goto("/");
-  const currentHeading = page.getByRole("heading", { name: /\d{4}年\d{1,2}月/ });
-  const currentText = await currentHeading.textContent();
-  const [, yearText, monthText] = currentText!.match(/(\d{4})年(\d{1,2})月/)!;
-  const nextDate = new Date(Number(yearText), Number(monthText), 1);
-  const nextYear = nextDate.getFullYear();
-  const nextMonth = nextDate.getMonth() + 1;
-  const nextMonthRequest = page.waitForRequest((request) => {
-    const url = new URL(request.url());
-    return url.pathname === `/api/calendar/${nextYear}/${nextMonth}`;
-  });
 
-  await currentHeading.locator("..").getByRole("button").last().click();
+  const monthRequest = page.waitForRequest(
+    (request) =>
+      new URL(request.url()).pathname ===
+      `/api/calendar/${nextMonth.getFullYear()}/${nextMonth.getMonth() + 1}`,
+  );
+  await page.getByRole("button", { name: "次月" }).click();
+  await monthRequest;
 
-  await nextMonthRequest;
   await expect(
-    page.getByRole("heading", { name: `${nextYear}年${nextMonth}月` }),
+    page.getByRole("heading", {
+      name: `${nextMonth.getFullYear()}年${nextMonth.getMonth() + 1}月`,
+    }),
   ).toBeVisible();
 });
 
-test("event type and distance filters update the selected day's results", async ({ page, apiScenario }) => {
+test("event and distance filters update visible results", async ({ page, apiScenario }) => {
   const date = Object.keys(apiScenario.dayEventsByDate ?? {})[0]!;
   const day = Number(date.split("-")[2]);
   await page.goto("/");
   await page.getByRole("button", { name: new RegExp(`^${day}`) }).click();
+  await expect(page.getByText("2件のイベント")).toBeVisible();
+
   await page.getByRole("button", { name: "撮影地点フィルター" }).click();
-
-  await expect(page.getByText("2イベント", { exact: true })).toBeVisible();
   await page.getByLabel("沈むダイヤモンド富士").check();
-  await expect(page.getByText("1イベント", { exact: true })).toBeVisible();
+  await expect(page.getByText("1件のイベント").last()).toBeVisible();
 
-  await page.locator("select").selectOption("very_far");
-  await expect(page.getByText("0イベント", { exact: true })).toBeVisible();
+  await page.getByLabel("沈むダイヤモンド富士").uncheck();
+  await page.getByRole("combobox").selectOption("very_near");
+  await expect(page.getByText("1件のイベント").last()).toBeVisible();
 });
 
-test("camera settings open and update focal length", async ({ page, apiScenario }) => {
+test("camera settings can be opened and changed", async ({ page, apiScenario }) => {
   const date = Object.keys(apiScenario.dayEventsByDate ?? {})[0]!;
   const day = Number(date.split("-")[2]);
   await page.goto("/");
   await page.getByRole("button", { name: new RegExp(`^${day}`) }).click();
+  await expect(page.getByRole("heading", { name: /日の撮影情報/ })).toBeVisible();
 
   await page.getByRole("button", { name: "撮影角度表示の切り替え" }).click();
   await page.getByRole("button", { name: "焦点距離85mm を選択" }).click();

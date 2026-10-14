@@ -86,3 +86,57 @@ test("adding and removing a location favorite works and survives reload", async 
   await page.getByRole("button", { name: "削除", exact: true }).click();
   await expect(page.getByText("お気に入り地点はありません")).toBeVisible();
 });
+
+test("removing an event favorite removes it from the upcoming list", async ({ page }) => {
+  await seedFavorites(page);
+  await page.goto("/favorites");
+
+  await page.getByRole("button", { name: /削除/ }).last().click();
+  await expect(page.getByText(/2099年6月15日/)).toHaveCount(0);
+  await expect(page.getByText("今後のお気に入りイベントはありません")).toBeVisible();
+});
+
+test("pasted favorites JSON imports and invalid JSON reports failure", async ({ page }) => {
+  await page.goto("/favorites");
+  await page.getByRole("button", { name: "インポート" }).click();
+
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator("textarea").fill(
+    JSON.stringify({ locations: [favoriteLocation], events: [] }),
+  );
+  await page.getByRole("button", { name: "インポート", exact: true }).last().click();
+  await page.getByRole("button", { name: /保存地点/ }).click();
+  await expect(page.getByText(testLocation.name)).toBeVisible();
+
+  await page.getByRole("button", { name: "インポート" }).click();
+  let failureMessage = "";
+  page.once("dialog", (dialog) => {
+    failureMessage = dialog.message();
+    void dialog.accept();
+  });
+  await page.locator("textarea").fill("{invalid");
+  await page.getByRole("button", { name: "インポート", exact: true }).last().click();
+  expect(failureMessage).toContain("失敗");
+});
+
+test("location detail breadcrumb returns to Favorites", async ({ page }) => {
+  await seedFavorites(page);
+  await page.goto("/favorites");
+  await page.getByRole("button", { name: /保存地点 \(/ }).click();
+  await page.getByRole("button", { name: "詳細" }).click();
+
+  await expect(page).toHaveURL(/\/location\/101$/);
+  await page.getByRole("main").getByRole("link", { name: "お気に入り", exact: true }).click();
+  await expect(page).toHaveURL(/\/favorites$/);
+  await expect(page.getByRole("heading", { name: "お気に入り管理" })).toBeVisible();
+});
+
+test("export downloads the favorites JSON", async ({ page }) => {
+  await seedFavorites(page);
+  await page.goto("/favorites");
+
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "エクスポート" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(/^fuji-calendar-favorites-.*\.json$/);
+});

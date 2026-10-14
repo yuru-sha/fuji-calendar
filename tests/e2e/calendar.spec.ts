@@ -121,16 +121,44 @@ test("date query restores the selected day and loads its events", async ({ page,
   await expect(page.getByText(`${year}年${month}月${day}日`, { exact: true })).toBeVisible();
 });
 
-test("calendar API failure leaves the public page usable", async ({ page }) => {
-  const runtimeErrors: string[] = [];
-  page.on("pageerror", (error) => runtimeErrors.push(error.message));
+test("calendar API failure falls back to an empty, navigable calendar", async ({ page, apiScenario }) => {
   await page.route("**/api/calendar/**", (route) =>
     route.fulfill({ status: 500, json: { error: "unavailable" } }),
   );
+  const firstFailure = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname.startsWith("/api/calendar/") &&
+      response.status() === 500,
+  );
   await page.goto("/");
+  await firstFailure;
 
-  await expect(page.getByRole("link", { name: "お気に入り" })).toBeVisible();
-  expect(runtimeErrors).toEqual([]);
+  const firstHeading = page.getByRole("heading", { name: /\d{4}年\d{1,2}月/ });
+  await expect(firstHeading).toBeVisible();
+  const day = Number(Object.keys(apiScenario.dayEventsByDate ?? {})[0]!.split("-")[2]);
+  const firstMonthDay = page.getByRole("button", { name: new RegExp(`^${day}\\b`) });
+  await expect(firstMonthDay).toBeVisible();
+  await expect(firstMonthDay).not.toContainText("2件");
+
+  const currentText = await firstHeading.textContent();
+  const [, yearText, monthText] = currentText!.match(/(\d{4})年(\d{1,2})月/)!;
+  const nextDate = new Date(Number(yearText), Number(monthText), 1);
+  const nextYear = nextDate.getFullYear();
+  const nextMonth = nextDate.getMonth() + 1;
+  const nextFailure = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === `/api/calendar/${nextYear}/${nextMonth}` &&
+      response.status() === 500,
+  );
+
+  await firstHeading.locator("..").getByRole("button").last().click();
+  await nextFailure;
+
+  const nextHeading = page.getByRole("heading", { name: `${nextYear}年${nextMonth}月` });
+  await expect(nextHeading).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: new RegExp(`^${day}\\b`) }),
+  ).not.toContainText("2件");
 });
 
 test("locations API failure does not prevent calendar display", async ({ page, apiScenario }) => {

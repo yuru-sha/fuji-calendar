@@ -44,8 +44,6 @@ The commit message format is:
 [optional footer(s)]
 ```
 
-When the subject alone does not make the reason clear, use the commit message body to explain **why** the change was needed rather than repeat the diff.
-
 Use these types as the default vocabulary:
 
 - `feat`: add a new feature

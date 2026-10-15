@@ -47,7 +47,12 @@ npm run check-circular
 - ユーザー向けの日付・時刻は `packages/utils/src/timeUtils.ts` の JST 処理を使います。天体計算の変更時は `docs/diamond-pearl-fuji-conditions.md` と既存計算ロジックを参照します。
 - 管理APIの変更では既存の認証・認可・入力検証境界を維持します。
 
-コードには実装方法（How）を示し、テストコードには期待する振る舞い（What）を示します。コードコメントは、一見単純な別案を採らない理由、制約、コードだけでは分からない意図（Why not）を説明します。コードの動作を言い換えるだけのコメントは避けます。
+### Code, Tests, Commits, and Comments
+
+- Code should make how the behavior is implemented clear.
+- Tests should make what behavior is expected clear.
+- Commit messages should explain why the change is needed.
+- Comments should explain why not an apparently reasonable alternative was chosen, including relevant constraints or non-obvious intent. Do not use comments to paraphrase the code's behavior.
 
 ## Important Files
 

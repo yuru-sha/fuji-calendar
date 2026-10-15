@@ -45,7 +45,9 @@ npm run check-circular
 - Client はページ/コンポーネントから既存の `services/apiClient.ts`、`authService.ts`、`favoritesService.ts` と hooks を利用します。API呼び出しを各画面に重複実装しません。
 - Server は route/controller/service/repository の責務を保ち、DB操作を repository/Prisma に集約します。既存の DI 登録と構造化 Pino logger（`@fuji-calendar/utils`）を使い、アプリケーションコードに `console.*` を追加しません。
 - ユーザー向けの日付・時刻は `packages/utils/src/timeUtils.ts` の JST 処理を使います。天体計算の変更時は `docs/diamond-pearl-fuji-conditions.md` と既存計算ロジックを参照します。
-- 管理APIの変更では既存の認証・認可・入力検証境界を維持します。コメントはコードの言い換えでなく、非自明な制約や理由がある場合に限ります。
+- 管理APIの変更では既存の認証・認可・入力検証境界を維持します。
+
+コードには実装方法（How）を示し、テストコードには期待する振る舞い（What）を示します。コードコメントは、一見単純な別案を採らない理由、制約、コードだけでは分からない意図（Why not）を説明します。コードの動作を言い換えるだけのコメントは避けます。
 
 ## Important Files
 

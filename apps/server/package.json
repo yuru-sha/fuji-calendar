@@ -38,7 +38,7 @@
     "astronomy-engine": "^2.1.19",
     "bcrypt": "^5.1.1",
     "bullmq": "^6.5.1",
-    "cors": "^2.8.5",
+    "cors": "^2.8.6",
     "express": "^5.2.1",
     "express-rate-limit": "^8.7.1",
     "helmet": "^8.3.0",
